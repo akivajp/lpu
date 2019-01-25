@@ -3,23 +3,16 @@
 
 import sys
 
+from setuptools import findall
 from setuptools import find_packages
 from setuptools import setup
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
 extensions = [
-    'lpu/common/colors.pyx',
-    'lpu/common/config.pyx',
-    'lpu/common/compat.pyx',
-    'lpu/common/environ.pyx',
-    'lpu/common/logging.pyx',
-    'lpu/common/numbers.pyx',
-    'lpu/common/progress.pyx',
-    'lpu/common/validation.pyx',
-    'lpu/common/vocab.pyx',
-    'lpu/data_structs/trie.pyx',
-    'lpu/smt/align/ibm_model1.pyx',
+    'lpu/common/*.pyx',
+    'lpu/data_structs/*.pyx',
+    'lpu/smt/align/*.pyx',
 ]
 
 compiler_directives = dict(
@@ -29,14 +22,18 @@ compiler_directives = dict(
 ext_modules = cythonize(
     extensions,
     compiler_directives = compiler_directives,
+    exclude='*.py',
 )
 
 setup(
     name = 'lpu',
-    version = '0.0.1',
+    version = '0.0.2',
     cmdclass = {'build_ext': build_ext},
+    #cmdclass = cmdclass,
     ext_modules = ext_modules,
+    #packages = find_packages(),
     packages = find_packages(),
+    package_data = {'': '*.pyx'},
     description = 'A Language Process Utility',
     url = 'https://github.com/akivajp/lpu',
     author = 'Akiva Miura',
@@ -57,3 +54,5 @@ setup(
     },
 )
 
+def clean():
+    print("CLEAN")

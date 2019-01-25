@@ -29,6 +29,7 @@ else:
     bin_stdout = sys.stdout
     bin_stderr = sys.stderr
     FileType = file
+    FileNotFoundError = IOError
 
 def autoCat(filenames, target):
     '''concatenate and copy files into target file (expanding for compressed ones)'''
@@ -113,8 +114,9 @@ def load(filename, progress = True, bs = 10 * 1024 * 1024):
     data = io.BytesIO()
     f_in = _open(filename, 'rb')
     if progress:
+        from lpu.common.progress import SpeedCounter
         print("loading file: '%(filename)s'" % locals())
-        c = exp.common.progress.Counter( limit = os.path.getsize(filename) )
+        c = SpeedCounter( max_count = os.path.getsize(filename) )
     while True:
       buf = f_in.read(bs)
       if not buf:
@@ -122,15 +124,11 @@ def load(filename, progress = True, bs = 10 * 1024 * 1024):
       else:
           data.write(buf)
           if progress:
-              c.count = data.tell()
-              if c.should_print():
-                  c.update()
-                  exp.common.progress.log('loaded (%3.2f%%) : %d bytes' % (c.ratio * 100, c.count))
+              c.set_count(data.tell(), True)
     f_in.close()
     data.seek(0)
     if progress:
-        exp.common.progress.log('loaded (100%%): %d bytes' % (c.count))
-        print('')
+        c.reset()
     if get_ext(filename) == '.gz':
         f_in = gzip.GzipFile(fileobj = data)
         f_in.myfileobj = data

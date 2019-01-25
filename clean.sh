@@ -2,7 +2,5 @@
 
 rm -rf build
 rm -rf dist
-rm -rf .git
-rm -rf *.egg-info
-find . -name '*.c' -or -name '*.cpp' | xargs -n 1 rm
+find . -name '*.c' -or -name '*.cpp' -or -name '*.so' -or -name '*.egg-info' | xargs -r rm -r
 
