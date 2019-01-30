@@ -4,28 +4,36 @@
 '''Customizable logging functions'''
 
 # Standard libraries
+import ast
+import inspect
+#import linecache
+import re
 import sys
 import traceback
 
 from lpu.__system__ import logging
 
+#import lpu
 from lpu.common import environ
 from lpu.common import validation
 from lpu.common.colors import put_color
 
 logger = logging.getLogger(__name__)
 
-#cdef _update_module_logger():
-#    try:
-#        from lpu.common.logging import configureLogger
-#        configureLogger(lpu.logger)
-#    except Exception as e:
-#        pass
-
 class LoggingStatus(environ.StackHolder):
     def __init__(self, logger=None):
-        super(LoggingStatus,self).__init__(self)
+        super(LoggingStatus,self).__init__()
         self.logger = None
+
+    def _reconfigureLogger(self):
+        if self.logger:
+            configureLogger(self.logger)
+        else:
+            try:
+                import lpu
+                configureLogger(lpu.logger)
+            except Exception as e:
+                pass
 
     def set_logger(self, logger):
         self.logger = logger
@@ -35,8 +43,7 @@ class LoggingStatus(environ.StackHolder):
             self.set('DEBUG', '1')
         else:
             self.set('DEBUG', '0')
-        configureLogger(logger)
-        configureLogger(self.logger)
+        self._reconfigureLogger()
     def unset_debug(self):
         return self.clear('DEBUG')
 
@@ -45,23 +52,19 @@ class LoggingStatus(environ.StackHolder):
             self.set('QUIET', '1')
         else:
             self.set('QUIET', '0')
-        configureLogger(logger)
-        configureLogger(self.logger)
+        self._reconfigureLogger()
     def unset_debug(self):
         return self.clear('QUIET')
 
     def __enter__(self):
         logger.debug("entering logging environment")
         super(LoggingStatus,self).__enter__()
-        #configureLogger(logger)
-        #configureLogger(self.logger)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         super(LoggingStatus,self).__exit__(exc_type, exc_val, exc_tb)
         logger.debug("exiting from logging environment")
-        configureLogger(logger)
-        configureLogger(self.logger)
+        self._reconfigureLogger()
 
 def get_debug_status():
     mode = environ.get_env('DEBUG')
@@ -133,6 +136,23 @@ class ColorizingFormatter(logging.Formatter):
         #self._format_rules.append([rule, fmt])
         self._format_rules.insert(0, [rule, fmt])
 
+    def _setColorizedFormat(self, fmt, record):
+        self._fmt = fmt
+        if sys.version_info.major == 3:
+            self._style._fmt = fmt
+        return fmt
+
+    def _colorizeText(self, record, text):
+        level = record.levelname.lower()
+        color_level = self._colors.get(level, None)
+        if color_level:
+            text = put_color(text, color_level)
+        else:
+            color_default = self._colors.get('default', None)
+            if color_default:
+                text = put_color(text, color_default)
+        return text
+
     def format(self, record):
         #print("formatting... {}".format(record))
         fmt_apply = None
@@ -151,8 +171,8 @@ class ColorizingFormatter(logging.Formatter):
             self._setColorizedFormat(fmt_apply, record)
         else:
             self._setColorizedFormat(self._default_fmt, record)
-        #print("format to apply: {}".format(fmt_apply))
-        return super(ColorizingFormatter,self).format(record)
+        text = super(ColorizingFormatter,self).format(record)
+        return self._colorizeText(record, text)
 
     def formatStack(self, stack_info):
         #logger.debug(stack_info)
@@ -184,8 +204,6 @@ class ColorizingFormatter(logging.Formatter):
         return formatted
 
     def setColor(self, keyword, color_name):
-        #print("keyword: {}".format(keyword))
-        #print("color name: {}".format(color_name))
         if isinstance(keyword, str):
             keyword = keyword.lower()
             keyword = keyword.replace('color_', '')
@@ -215,22 +233,6 @@ class ColorizingFormatter(logging.Formatter):
         #self._colors[level_name] = color_name
         self.setColor(level_name, color_name)
 
-    def _setColorizedFormat(self, fmt, record):
-        level = record.levelname.lower()
-        color_level = self._colors.get(level, None)
-        #print("level: {}".format(level))
-        #print("level color: {}".format(color_level))
-        if color_level:
-            fmt = put_color(fmt, color_level)
-        else:
-            color_default = self._colors.get('default', None)
-            #print("default color: {}".format(color_default))
-            if color_default:
-                fmt = put_color(fmt, color_default)
-        self._fmt = fmt
-        if sys.version_info.major == 3:
-            self._style._fmt = fmt
-
 DEFAULT_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
 DEFAULT_FORMAT = "[%(asctime)s %(name)s %(filename)s:%(funcName)s:%(lineno)s] %(message)s"
 DEFAULT_INFO_FORMAT = "[%(asctime)s] %(message)s"
@@ -241,28 +243,16 @@ DEFAULT_WARNING_COLOR  = 'yellow'
 DEFAULT_ERROR_COLOR    = 'yellow'
 DEFAULT_CRITICAL_COLOR = 'red'
 
-cdef _checkColorized(logger):
-    while logger:
-        for handler in logger.handlers:
-            if isinstance(handler.formatter, ColorizingFormatter):
-                return True
-        # checking ancestors
-        logger = logger.parent
-    return False
-
-def colorizeLogger(logger, mode='auto'):
+def colorizeHandler(handler, mode='auto'):
     # deciding whether to enable colorizing mode (based on arguments, environment)
     if mode == 'auto':
-        if _checkColorized(logger):
+        if isinstance(handler.formatter, ColorizingFormatter):
             # already colorized (itself or any ancestor)
-            return logger
+            return handler
         enable = get_color_status()
     else:
         enable = str(mode).lower() in ('1', 'on', 'true', 'always', 'force')
     # setting colorizing formatter
-    handlers = logger.handlers
-    if len(handlers) == 0:
-        logger.addHandler(logging.StreamHandler())
     formatter = ColorizingFormatter(DEFAULT_FORMAT, DEFAULT_DATE_FORMAT)
     formatter.setLevelFormat(logging.INFO, DEFAULT_INFO_FORMAT)
     if enable:
@@ -271,10 +261,51 @@ def colorizeLogger(logger, mode='auto'):
         formatter.setLevelColor(logging.WARNING,  DEFAULT_WARNING_COLOR)
         formatter.setLevelColor(logging.ERROR,    DEFAULT_ERROR_COLOR)
         formatter.setLevelColor(logging.CRITICAL, DEFAULT_CRITICAL_COLOR)
+        handler.setFormatter(formatter)
+    return formatter
+
+cdef _checkLoggerColorized(logger):
+    while logger:
+        for handler in logger.handlers:
+            if isinstance(handler.formatter, ColorizingFormatter):
+                return True
+        # checking ancestors
+        logger = logger.parent
+    return False
+
+#def colorizeLogger(logger, mode='auto'):
+def colorizeLogger(logger):
+    # deciding whether to enable colorizing mode (based on arguments, environment)
+    #if mode == 'auto':
+    #    if _checkLoggerColorized(logger):
+    #        # already colorized (itself or any ancestor)
+    #        return logger
+    #    enable = get_color_status()
+    #else:
+    #    enable = str(mode).lower() in ('1', 'on', 'true', 'always', 'force')
+    # colorizing handlers
+    handlers = logger.handlers
+    #if len(handlers) == 0:
+    #    logger.addHandler(logging.StreamHandler())
+    #formatter = ColorizingFormatter(DEFAULT_FORMAT, DEFAULT_DATE_FORMAT)
+    #formatter.setLevelFormat(logging.INFO, DEFAULT_INFO_FORMAT)
+    #if enable:
+    #    formatter.setLevelColor(logging.DEBUG,    DEFAULT_DEBUG_COLOR)
+    #    formatter.setLevelColor(logging.INFO,     DEFAULT_INFO_COLOR)
+    #    formatter.setLevelColor(logging.WARNING,  DEFAULT_WARNING_COLOR)
+    #    formatter.setLevelColor(logging.ERROR,    DEFAULT_ERROR_COLOR)
+    #    formatter.setLevelColor(logging.CRITICAL, DEFAULT_CRITICAL_COLOR)
     for handler in handlers:
-        if not isinstance(handler.formatter, ColorizingFormatter):
-            handler.setFormatter(formatter)
+        #if not isinstance(handler.formatter, ColorizingFormatter):
+        #    handler.setFormatter(formatter)
+        colorizeHandler(handler)
     return logger
+
+def colorize(obj):
+    if isinstance(obj, logging.Logger):
+        return colorizeLogger(obj)
+    elif isinstance(obj, logging.Handler):
+        return colorizeHandler(obj)
 
 def configureLogger(logger, mode='auto'):
     if not logger:
@@ -289,17 +320,74 @@ def configureLogger(logger, mode='auto'):
             logger.setLevel(logging.INFO)
     return logger
 
-def getColorLogger(name, level_mode='auto', color_mode='auto'):
+def getColorLogger(name, level_mode='auto', add_handler='auto'):
     logger = logging.getLogger(name)
     logger = configureLogger(logger, mode=level_mode)
-    return colorizeLogger(logger, mode=color_mode)
+    if add_handler == 'auto':
+        if _checkLoggerColorized(logger):
+            add_handler = None
+        else:
+            add_handler = logging.StreamHandler()
+    if add_handler:
+        # duplication check
+        for handler in logger.handlers:
+            if handler is add_handler:
+                add_handler = None
+        if add_handler:
+            logger.addHandler(add_handler)
+    return colorizeLogger(logger)
+
+_cache = {}
+cdef _get_cached_line(path, lineno, fallback):
+    try:
+        if path not in _cache:
+            _cache[path] = open(path).readlines()
+        if lineno in range(1, len(_cache[path])+1):
+            return _cache[path][lineno-1]
+    except:
+        pass
+    return fallback
+
+def debug_print(val=None, limit=0):
+    stack = traceback.extract_stack(limit=limit)
+    format = ""
+    if limit > 0:
+        format = ""
+        for path, lineno, func, line in stack:
+            line = _get_cached_line(path, lineno, line).strip()
+            s = '\n  file:{}, line:{}, func:{}, code:{}'.format(path, lineno, func, line)
+            format += s
+    stack = traceback.extract_stack(limit=1)
+    path, lineno, func, line = stack[0]
+    line = _get_cached_line(path, lineno, line).strip()
+    if val is not None:
+        expr = re.findall(r'\(.*\)$', line)
+        if expr:
+            expr = expr[0][1:-1].strip()
+            if expr.find(',') > 0:
+                expr = str.join(',', expr.split(',')[:-1]).strip()
+            if isinstance(val, int):
+                format = "{} => {:,d}".format(expr, val) + format
+            else:
+                format = "{} => {}".format(expr, repr(val)) + format
+        else:
+            format = str(val) + format
+    #module_name = inspect.getmodulename(path)
+    #if not module_name:
+    #    module_name = '__main__'
+    module_name = '__main__'
+    #logger = getColorLogger(module_name)
+    logger = getLogger(module_name)
+    logger = colorizeLogger(logger)
+    logger.debug(format)
 
 # global environ
 def push_environ(logger):
     layer = environ.push(LoggingStatus)
     layer.set_logger(logger)
     return layer
-env_layer = push_environ(logger)
+#env = push_environ(logger)
+env = push_environ(None)
 
 # importing from system logging module
 INFO     = logging.INFO
@@ -310,12 +398,13 @@ CRITICAL = logging.CRITICAL
 
 Filter = logging.Filter
 StreamHandler = logging.StreamHandler
+FileHandler = logging.FileHandler
 
-debug     = logging.debug
-info      = logging.info
-warning   = logging.warning
-error     = logging.error
-critical  = logging.critical
-exception = logging.exception
+#debug     = logging.debug
+#info      = logging.info
+#warning   = logging.warning
+#error     = logging.error
+#critical  = logging.critical
+#exception = logging.exception
 getLogger = logging.getLogger
 

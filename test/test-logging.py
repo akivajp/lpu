@@ -2,36 +2,44 @@
 # -*- coding: utf-8 -*-
 
 from lpu.common import logging
-
-import time
-
-import traceback
+from lpu.common.logging import debug_print as dprint
 
 if __name__ == '__main__':
     logger = logging.getColorLogger(__name__)
+    print(logger.handlers)
     formatter = logger.handlers[0].formatter
-    logger.debug(logger.level, stack_info=True)
+    logger.info("-----")
+    logger.info("testing colorized logger instance")
+    logger.debug(logger.level)
     logger.setLevel(logging.DEBUG)
-    logger.debug(logger.level, stack_info=True)
+    logger.debug(logger.level)
     logger.debug("debug")
-    logger.debug("debug", stack_info=True)
+    try:
+        logger.debug("debug", stack_info=True)
+    except Exception as e:
+        logger.exception(repr(e))
     logger.info("info")
     logger.warning("warning")
     logger.error("error")
+    logger.critical("critical")
     try:
         raise RuntimeError("runtime error")
     except Exception as e:
-        logger.exception(e)
+        logger.exception(repr(e))
         formatter.setColor('exception', 'yellow')
         try:
             raise RuntimeError("runtime error 2")
         except Exception as e2:
-            logger.exception(e2)
-            logger.exception(e)
-        #fmt = traceback.format_exc(e)
-        #fmt = traceback.format_exc()
+            logger.exception(repr(e2))
+            logger.exception(repr(e))
         logger.exception(e)
-        #fmt = traceback.format_exception(Exception,e)
-        #logger.debug(fmt)
         logger.debug(e)
+
+    logger.info("-----")
+    logger.info("testing debug_print function")
+    def f():
+        dprint("debug print", 1)
+        dprint("debug print", 2)
+        dprint("debug print", 3)
+    f()
 

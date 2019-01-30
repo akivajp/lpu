@@ -118,10 +118,8 @@ cdef class TwoWayIDMap(IDMap):
         self.keyList.push_back(b'')
 
     cpdef long append(self, str key):
-        cdef long n = IDMap.append(self, key)
-        #if n >= len(self.keyList):
+        cdef size_t n = IDMap.append(self, key)
         if n >= self.keyList.size():
-            #self.keyList.append(key)
             self.keyList.push_back(compat.to_bytes(key))
         else:
             #self.keyList[n] = key
@@ -143,7 +141,8 @@ cdef class TwoWayIDMap(IDMap):
             raise IndexError(compat.to_str(key))
 
     def ids(self):
-        cdef long i
+        #cdef long i
+        cdef size_t i
         cdef string k
         #cdef object k
         #for i, k in enumerate(self.keyList):
@@ -157,7 +156,8 @@ cdef class TwoWayIDMap(IDMap):
                 yield k
 
     def items(self):
-        cdef long i
+        #cdef long i
+        cdef size_t i
         cdef object k
         #for i, k in enumerate(self.keyList):
         #    if k is not None:
@@ -169,7 +169,8 @@ cdef class TwoWayIDMap(IDMap):
                 yield (i, compat.to_str(k))
 
     def keys(self):
-        cdef long i
+        #cdef long i
+        cdef size_t i
         cdef object k
         #for k in self.keyList:
         #    if k is not None:

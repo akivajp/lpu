@@ -11,7 +11,11 @@ __all__ = [
 
 # initializing
 
+import os.path
 from . common import logging
+
+version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+__version__ = open(version_file).read().strip()
 
 logger = logging.getColorLogger(__name__)
 

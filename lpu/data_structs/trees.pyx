@@ -74,20 +74,20 @@ cdef class TreeNode:
 
 Tree = TreeNode
 
-cdef __findMin(str target, sub, start = 0, end = None):
-    cdef str key
-    cdef int found
-    cdef int minFound = -1
-    if isinstance(sub, str):
-        return target.find(sub, start, end)
-    elif isinstance(sub, Iterable):
-        for key in sub:
-            found = target.find(key, start, end)
-            if minFound < 0:
-                minFound = found
-            else:
-                minFound = min(minFound, found)
-        return minFound
+#cdef __findMin(str target, sub, start = 0, end = None):
+#    cdef str key
+#    cdef int found
+#    cdef int minFound = -1
+#    if isinstance(sub, str):
+#        return target.find(sub, start, end)
+#    elif isinstance(sub, Iterable):
+#        for key in sub:
+#            found = target.find(key, start, end)
+#            if minFound < 0:
+#                minFound = found
+#            else:
+#                minFound = min(minFound, found)
+#        return minFound
 
 cpdef object parseSExpression(str expr, int i = 0):
     cdef object cont = ''

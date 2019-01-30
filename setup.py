@@ -1,44 +1,118 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os.path
 import sys
 
 from setuptools import findall
 from setuptools import find_packages
 from setuptools import setup
-from Cython.Distutils import build_ext
-from Cython.Build import cythonize
+from setuptools import Extension
 
-extensions = [
-    'lpu/common/*.pyx',
-    'lpu/data_structs/*.pyx',
-    'lpu/smt/align/*.pyx',
+import numpy
+
+MAIN_PACKAGE = 'lpu'
+
+if sys.platform == 'linux2':
+    from distutils import sysconfig
+    # Omitting 'strict-prototypes' warning For Python 2.x
+    opt = sysconfig.get_config_vars().get('OPT', '')
+    opt = opt.replace('-Wstrict-prototypes', '')
+    sysconfig.get_config_vars()['OPT'] = opt
+    # Omitting 'strict-prototypes' warning For Python 3.x
+    cflags = sysconfig.get_config_vars().get('CFLAGS', '')
+    cflags = cflags.replace('-Wstrict-prototypes', '')
+    sysconfig.get_config_vars()['CFLAGS'] = cflags
+
+def get_package(path):
+    if os.path.exists( os.path.join(path, '__init__.py') ):
+        dirpath = os.path.dirname( os.path.abspath(str(path)) )
+        parent = get_package(dirpath)
+        if parent:
+            return parent + '.' + os.path.basename(path)
+        return os.path.basename(path)
+    return ''
+
+def get_modules(dirpath, suffixes=['.pyx'], additional_sources=None, **options):
+    modules = []
+    for path in findall(dirpath):
+        if isinstance(suffixes, str):
+            suffixes = [suffixes]
+        if not any([path.endswith(suffix) for suffix in suffixes]):
+            continue
+        dirpath = os.path.dirname(path)
+        module = os.path.splitext( os.path.basename(path) )[0]
+        package = get_package(dirpath)
+        if package:
+            module = package + '.' + module
+        sources = [path]
+        if additional_sources:
+            sources = sources + list(additional_sources)
+        modules.append( Extension(module, sources, **options) )
+    return modules
+
+include_dirs = [
+    numpy.get_include(),
 ]
 
-compiler_directives = dict(
-    language_level = sys.version_info[0],
-)
+try:
+    from Cython.Build import build_ext
+    from Cython.Build import cythonize
+    compiler_directives = dict(
+        language_level = sys.version_info[0],
+    )
+    ext_modules = get_modules(
+        MAIN_PACKAGE, ['.pyx'],
+        include_dirs = include_dirs,
+    )
+    ext_modules = cythonize(
+        ext_modules,
+        compiler_directives = compiler_directives,
+    )
+    cmdclass = {'build_ext': build_ext}
+except ImportError:
+    ext_modules = get_modules(
+        MAIN_PACKAGE, ['.c', '.cpp'],
+        include_dirs = include_dirs,
+    )
+    cmdclass = {}
 
-ext_modules = cythonize(
-    extensions,
-    compiler_directives = compiler_directives,
-    exclude='*.py',
-)
+version_file = os.path.join(os.path.dirname(__file__), MAIN_PACKAGE, 'VERSION')
+version = open(version_file).read().strip()
+
+install_requires = [
+    #'Cython',
+    'numpy',
+]
 
 setup(
     name = 'lpu',
-    version = '0.0.2',
-    cmdclass = {'build_ext': build_ext},
-    #cmdclass = cmdclass,
+    version = version,
+    #cmdclass = {'build_ext': build_ext},
+    cmdclass = cmdclass,
     ext_modules = ext_modules,
-    #packages = find_packages(),
-    packages = find_packages(),
-    package_data = {'': '*.pyx'},
-    description = 'A Language Process Utility',
+    install_requires = install_requires,
+    description = 'A Language Processing Utility',
     url = 'https://github.com/akivajp/lpu',
     author = 'Akiva Miura',
     author_email = 'akiva.miura@gmail.com',
     license = 'MIT',
+    keywords = [
+        'CL',
+        'NLP',
+        'computational linguistics',
+        'natural language processing',
+    ],
+    packages = find_packages(),
+    package_data = {
+        '': [
+            '*.pxd',
+            '*.pyx',
+        ],
+        'lpu': [
+            'VERSION'
+        ],
+    },
     entry_points = {
         'console_scripts': [
             'lpu-abspath = lpu.commands.abspath:main',
@@ -54,5 +128,3 @@ setup(
     },
 )
 
-def clean():
-    print("CLEAN")

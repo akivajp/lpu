@@ -10,7 +10,7 @@ from libcpp.string cimport string
 # Standard libraries
 from collections import Iterable
 from datetime import datetime
-import io
+#import io
 import sys
 import time
 
