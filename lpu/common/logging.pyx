@@ -382,12 +382,17 @@ def debug_print(val=None, limit=0):
     logger.debug(format)
 
 # global environ
-def push_environ(logger):
-    layer = environ.push(LoggingStatus)
-    layer.set_logger(logger)
-    return layer
+#def push_environ(logger):
+cpdef using_config(logger, debug=None, quiet=None):
+    env_layer = environ.push(LoggingStatus)
+    env_layer.set_logger(logger)
+    if debug is not None:
+        env_layer.set_debug(debug)
+    if quiet is not None:
+        env_layer.set_quiet(debug)
+    return env_layer
 #env = push_environ(logger)
-env = push_environ(None)
+env = using_config(None)
 
 # importing from system logging module
 INFO     = logging.INFO

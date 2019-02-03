@@ -15,6 +15,7 @@ from lpu.common import files
 from lpu.common import progress
 from lpu.common import logging
 
+#from lpu.common.config import Config
 from lpu.common.config cimport Config
 from lpu.common.vocab cimport StringEnumerator
 
@@ -68,10 +69,10 @@ cdef tuple grid_indices(list x_indices, list y_indices):
 cdef np.ndarray sub_matrix(np.ndarray matrix, list x_indices, list y_indices):
     return matrix[grid_indices(x_indices, y_indices)]
 
-cdef void add_sub_matrix(np.ndarray target_matrix, list x_indices, list y_indices, np.ndarray source_matrix):
-    cdef np.ndarray indices1, indices2
-    indices1, indices2 = grid_indices(x_indices, y_indices)
-    np.add.at(target_matrix, (indices1,indices2), source_matrix[indices1,indices2])
+#cdef void add_sub_matrix(np.ndarray target_matrix, list x_indices, list y_indices, np.ndarray source_matrix):
+#    cdef np.ndarray indices1, indices2
+#    indices1, indices2 = grid_indices(x_indices, y_indices)
+#    np.add.at(target_matrix, (indices1,indices2), source_matrix[indices1,indices2])
 
 cdef class Model:
     # imported from "ibm_model1.pxd"

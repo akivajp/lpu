@@ -11,7 +11,8 @@ if __name__ == '__main__':
     logger.info("-----")
     logger.info("testing colorized logger instance")
     logger.debug(logger.level)
-    logger.setLevel(logging.DEBUG)
+    #logger.setLevel(logging.DEBUG)
+    config = logging.using_config(logger, debug=True)
     logger.debug(logger.level)
     logger.debug("debug")
     try:

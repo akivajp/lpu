@@ -52,7 +52,7 @@ cdef class StackHolder:
         cdef bool prev_exist = False
         cdef str prev_value = ''
         if self.affect_system:
-            _safe_debug_print("appending %s='%s' to env" % (key, value) )
+            _safe_debug_print("setting %s='%s' in env" % (key, value) )
             if key in os.environ:
                 prev_exist = True
                 prev_value = os.environ[key]

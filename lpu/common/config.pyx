@@ -10,6 +10,7 @@ from collections import Iterable
 
 # Local libraries
 from lpu.common import logging
+from lpu.common import validation
 
 cdef class ConfigData:
     '''Configuration data holder'''
@@ -41,13 +42,24 @@ cdef class ConfigData:
         raise AttributeError("'%s' object has no attribute '%s'" % (className, key))
 
     def __getitem__(self, key):
+        cdef str msg
         d = self.__dict__
-        if key in d:
-            return d[key]
-        base = self.__base
-        if base and key in base:
-            return base[key]
-        raise KeyError(key)
+        if isinstance(key, str):
+            if key in d:
+                return d[key]
+            base = self.__base
+            if base and key in base:
+                return base[key]
+            raise KeyError(key)
+        elif isinstance(key, list):
+            return [self[subkey] for subkey in key]
+        elif isinstance(key, tuple):
+            return tuple(self[subkey] for subkey in key)
+        elif isinstance(key, Iterable):
+            return (self[subkey] for subkey in key)
+        else:
+            msg = 'Invalid type of key object is given: {} (expected str or Iterable, but expected: {})'
+            raise TypeError(msg.format(repr(key), type(key).__name__))
 
     def __iter__(self):
         s = set(self.__dict__)
