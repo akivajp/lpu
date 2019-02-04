@@ -167,7 +167,8 @@ cdef class FileReader(object):
     cdef SpeedCounter counter
     cdef object source
 
-    def __cinit__(self, source, str header="", double refresh=REFRESH, bool force=False):
+    #def __cinit__(self, source, str header="", double refresh=REFRESH, bool force=False):
+    def __cinit__(self, source, header="", double refresh=REFRESH, bool force=False):
         if isinstance(source, str):
             #self.source = files.open(source, 'r')
             #self.source = files.open(source, 'rb')

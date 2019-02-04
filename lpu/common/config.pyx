@@ -92,8 +92,8 @@ cdef class ConfigData:
             self.__dict__.__setitem__(key, val)
 
     def __setitem__(self, key, val):
-        if type(key) != str:
-            raise TypeError('Key value should be type of string, given: %s' % type(key))
+        if not isinstance(key, str):
+            raise TypeError('Key value should be type of str, but given: %s' % type(key).__name__)
         elif key.startswith('_'):
             raise KeyError('Key should not start with "_": %s' % key)
         else:

@@ -40,13 +40,13 @@ def cmdWaitFiles(args):
     parser.add_argument('--interval', '-i', default=1, type=float, help='interval for next trial (default: %(default)s seconds)')
     parser.add_argument('--timeout', '-t', default=0, type=float, help='time limit in waiting file')
     parsed = parser.parse_args(args)
-    with logging.push_environ(logger) as e:
+    with logging.using_config(logger) as c:
         if parsed.debug:
-            e.set_debug(True)
-            e.set_quiet(False)
+            c.set_debug(True)
+            c.set_quiet(False)
         if parsed.quiet:
-            e.set_quiet(True)
-            e.set_debug(False)
+            c.set_quiet(True)
+            c.set_debug(False)
         logger.debug(parsed)
         #waitFiles(**vars(parsed))
         waitFiles(parsed.filepaths, parsed.interval, parsed.timeout)

@@ -160,13 +160,13 @@ def main():
     args = parser.parse_args()
     conf = Config()
     conf.update(vars(args))
-    with logging.push_environ(logger) as e:
+    with logging.using_config(logger) as c:
         if conf.data.debug:
-            e.set_debug(True)
-            e.set_quiet(False)
+            c.set_debug(True)
+            c.set_quiet(False)
         if conf.data.quiet:
-            e.set_quiet(True)
-            e.set_debug(False)
+            c.set_quiet(True)
+            c.set_debug(False)
         logger.debug(conf)
         random_split(conf)
 
