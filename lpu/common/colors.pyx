@@ -3,6 +3,9 @@
 
 '''Utility functions handling colors'''
 
+# C++ setting
+from libcpp cimport bool
+
 from lpu.__system__ import logging
 
 logger = logging.getLogger(__name__)
@@ -19,7 +22,14 @@ COLOR_MAP = {
     'white' : '\033[37m'
 }
 
-def put_color(content, color=None, eachline=True):
+ctypedef fused strtype:
+    str
+    bytes
+
+#def put_color(content, color=None, eachline=True):
+#cpdef str put_color(content, str color=None, bool eachline=True):
+cpdef str put_color(str content, str color=None, bool eachline=True):
+#cpdef str put_color(strtype content, strtype color=None, bool eachline=True):
     #print("color name: {}".format(color))
     code = COLOR_MAP.get(color, None)
     #code = colors[color]

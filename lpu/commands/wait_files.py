@@ -40,6 +40,7 @@ def cmdWaitFiles(args):
     parser.add_argument('--interval', '-i', default=1, type=float, help='interval for next trial (default: %(default)s seconds)')
     parser.add_argument('--timeout', '-t', default=0, type=float, help='time limit in waiting file')
     parsed = parser.parse_args(args)
+
     with logging.using_config(logger) as c:
         if parsed.debug:
             c.set_debug(True)

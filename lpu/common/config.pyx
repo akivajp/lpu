@@ -4,52 +4,87 @@
 
 '''Configuration utility class for function settings'''
 
+# C++ setting
+from libcpp cimport bool
+
 # Standard libraries
 import json
+from collections import OrderedDict
 from collections import Iterable
 
 # Local libraries
 from lpu.common import logging
 from lpu.common import validation
+from lpu.common.logging import debug_print as dprint
 
 cdef class ConfigData:
     '''Configuration data holder'''
     def __cinit__(self, _base=None, **args):
-        if type(_base) == Config:
+        if isinstance(_base, Config):
             self.__base = _base.data
-        elif type(_base) == ConfigData:
+        elif isinstance(_base, ConfigData):
             self.__base = _base
-        elif type(_base) == dict:
-            self.__base = _base
+        elif isinstance(_base, dict):
+            #self.__base = _base
+            self.__base = dict2data(_base)
         else:
             self.__base = None
+        self.__main = OrderedDict()
         if args:
-            self.__dict__.update(args)
+            self.__main.update(args)
 
     def __contains__(self, key):
-        if key in self.__dict__:
+        cdef str first_key, remain_keys
+        cdef object main = self.__main
+        cdef object base = self.__base
+        if isinstance(key, str) and key.find('.') >= 0:
+            # chained key access
+            try:
+                first_key, remain_keys = key.split('.', 1)
+                return self.__getitem__(first_key).__contains__(remain_keys)
+            except:
+                return False
+        elif main.__contains__(key):
             return True
-        base = self.__base
-        if base and key in base:
+        elif base and base.__contains__(key):
             return True
         return False
 
-    def __getattr__(self, key):
-        base = self.__base
-        if base and key in base:
-                return base[key]
-        className = self.__class__.__name__
-        raise AttributeError("'%s' object has no attribute '%s'" % (className, key))
+    #def __getattr__(self, key):
+    def __getattr__(self, str key):
+        cdef str name
+        try:
+            return self.__getitem__(key)
+        except:
+            name = self.__class__.__name__
+            raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
     def __getitem__(self, key):
         cdef str msg
-        d = self.__dict__
+        cdef object main
+        cdef object base
+        cdef object value
+        cdef str first_key, remain_keys
+        main = self.__main
         if isinstance(key, str):
-            if key in d:
-                return d[key]
+            if key.find('.') >= 0:
+                # chained access key
+                first_key, remain_keys = key.split('.', 1)
+                return self.__getitem__(first_key).__getitem__(remain_keys)
+            # first, check key existence in main dict object
+            if key in main:
+                return main[key]
+            # othwerwise, check key existence in base (parent) dict object
             base = self.__base
             if base and key in base:
-                return base[key]
+                # copy on reading
+                value = base[key]
+                if isinstance(value, ConfigData):
+                    # derive, instead of copying
+                    value = ConfigData(value)
+                main[key] = value
+                return value
+                #return base[key]
             raise KeyError(key)
         elif isinstance(key, list):
             return [self[subkey] for subkey in key]
@@ -62,11 +97,20 @@ cdef class ConfigData:
             raise TypeError(msg.format(repr(key), type(key).__name__))
 
     def __iter__(self):
-        s = set(self.__dict__)
-        base = self.__base
+        cdef set s
+        cdef list l
+        cdef str key
+        cdef object base = self.__base
+        cdef object main = self.__main
+        l = list(self.__main)
+        s = set(l)
         if base:
-            s.update(base)
-        for key in s:
+            #s.update(base)
+            for key in base:
+                if key not in s:
+                    s.add(key)
+                    l.append(key)
+        for key in l:
             if not key.startswith('_'):
                 yield(key)
 
@@ -74,30 +118,80 @@ cdef class ConfigData:
         return len(set(self))
 
     def __repr__(self):
-        c = self.__class__
-        name = c.__name__
-        strParams = get_key_val_str(vars(self), False)
-        if strParams:
-            return "%s(%r, %s)" % (name,self.__base,strParams)
+        #cdef str str_base
+        cdef str str_params
+        cdef str name = self.__class__.__name__
+        cdef object main = self.__main
+        cdef object base = self.__base
+        #if base:
+        #    str_base = repr(base)
+        #else:
+        #    str_base = ""
+        str_params = get_key_val_str(main, False)
+        if base:
+            if str_params:
+                return "{}({},{})".format(name, repr(base), str_params)
+            else:
+                return "{}({})".format(name, repr(base))
         else:
-            return "%s(%s)" % (name,self.__base)
+            if str_params:
+                return "{}({})".format(name, str_params)
+            else:
+                return "{}()".format(name)
+        #if str_params:
+        #    return "%s(%r, %s)" % (name,self.__base,str_params)
+        #else:
+        #    return "%s(%s)" % (name,self.__base)
 
     def __setattr__(self, key, val):
-        if len(self.__dict__) == 0:
-            # first assignment (should be '__base')
-            self.__dict__.__setitem__(key, val)
-        elif key.startswith('_'):
-            raise KeyError('Key should not start with "_": %s' % key)
-        else:
-            self.__dict__.__setitem__(key, val)
+        self.__setitem__(key, val)
+        #if key.startswith('_'):
+        #    raise KeyError('Key should not start with "_": %s' % key)
+        #else:
+        #    #self.__dict__.__setitem__(key, val)
+        #    self.__main.__setitem__(key, val)
 
     def __setitem__(self, key, val):
+        cdef str msg
+        cdef object retrieved
+        cdef ConfigData conf
+        cdef object main = self.__main
+        cdef object base = self.__base
+        # check the key validity
         if not isinstance(key, str):
-            raise TypeError('Key value should be type of str, but given: %s' % type(key).__name__)
+            raise TypeError('key value should be type of str, but given: %s' % type(key).__name__)
         elif key.startswith('_'):
-            raise KeyError('Key should not start with "_": %s' % key)
+            raise KeyError('key should not start with "_": %s' % key)
+        # process for chained accessing
+        if key.find('.') >= 0:
+            # chained access key
+            first_key, remain_keys = key.split('.', 1)
+            if main.__contains__(first_key):
+                retrieved = main.__getitem__(first_key)
+                if isinstance(retrieved, ConfigData):
+                    retrieved.__setitem__(remain_keys, val)
+                else:
+                    msg = "retrieved object with key '{}': {}, does not allow chained access with key '{}'"
+                    raise KeyError(msg.format(first_key, repr(retrieved), remain_keys))
+            elif base and base.__contains__(first_key):
+                retrieved = self.__base.__getitem__(first_key)
+                if isinstance(retrieved, ConfigData):
+                    # deriving as base data
+                    conf = ConfigData(retrieved)
+                    main.__setitem__(first_key, conf)
+                    conf.__setitem__(remain_keys, val)
+                else:
+                    msg = "retrieved object with key '{}': {}, does not allow chained access with key '{}'"
+                    raise KeyError(msg.format(first_key, repr(retrieved), remain_keys))
+            else:
+                # setting new config data, and continue to chained access
+                conf = ConfigData()
+                main.__setitem__(first_key, conf)
+                conf.__setitem__(remain_keys, val)
         else:
-            self.__dict__.__setitem__(key, val)
+            if isinstance(val, dict):
+                val = ConfigData(val)
+            main.__setitem__(key, val)
 
 cdef class Config:
     '''Configuration maintenance class'''
@@ -145,6 +239,7 @@ cdef class Config:
         uniDict = json.loads(strJSON)
         #self.update(compat.to_str(uniDict))
         self.update(uniDict, override)
+        return self
 
     def require(self, name, desc = None, typeOf = None):
         val = self.require_any(name, desc)
@@ -177,8 +272,21 @@ cdef class Config:
         else:
             return self[key]
 
-    def to_json(self, **options):
-        return json.dumps(dict(self.items()), **options)
+    def to_dict(self, ordered=False, upstream=False, recursive=True, flat=False):
+        cdef type dtype
+        if ordered:
+            dtype = OrderedDict
+        else:
+            dtype = dict
+        if flat:
+            return flat_dict(data2dict(self.data, dtype, upstream, recursive), dtype)
+        else:
+            return data2dict(self.data, dtype, upstream, recursive)
+
+    def to_json(self, upstream=False, **options):
+        cdef object d
+        d = self.to_dict(True, upstream)
+        return json.dumps(d, **options)
 
     def update(self, _conf = None, _override=True, **args):
         if _conf:
@@ -193,6 +301,9 @@ cdef class Config:
         if args:
             self.update(args, _override)
 
+    def __contains__(self, key):
+        return self.data.__contains__(key)
+
     def __getitem__(self, key):
         return self.data.__getitem__(key)
 
@@ -203,18 +314,69 @@ cdef class Config:
         return self.data.__len__()
 
     def __repr__(self):
-        c = self.__class__
-        name = c.__name__
-        strParams = get_key_val_str(vars(self.data), False)
-        return "%s(%r)" % (name,self.data)
+        cdef type cls
+        cdef str name
+        cls = self.__class__
+        name = cls.__name__
+        #strParams = get_key_val_str(vars(self.data), False)
+        return "%s(%r)" % (name, self.data)
 
     def __setitem__(self, key, val):
         self.data.__setitem__(key, val)
 
-cdef get_key_val_str(d, verbose):
+cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
+    #dprint("--")
+    #dprint(data)
+    #dprint(dtype)
+    #dprint(upstream)
+    #dprint(recursive)
+    cdef ConfigData cdata
+    if not isinstance(data, ConfigData):
+        # as-is
+        return data
+    cdata = data
+    if not recursive:
+        if upstream:
+            return dtype((key,data[key]) for key in data)
+        else:
+            return dtype((key,data[key]) for key in cdata.__main)
+    else:
+        if upstream:
+            return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in data)
+        else:
+            #dprint(cdata.__main)
+            return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in cdata.__main)
+
+cdef object dict2data(object obj):
+    cdef object key, value
+    cdef ConfigData conf
+    if not isinstance(obj, dict):
+        # as-is
+        return obj
+    conf = ConfigData()
+    for key, value in obj.items():
+        conf[key] = dict2data(value)
+    return conf
+
+cdef get_key_val_str(object d, bool verbose):
     if verbose:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items()]
     else:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items() if not t[0].startswith('_')]
     return str.join(', ', items)
+
+cdef list flat_items(object items):
+    cdef object flatten = []
+    for key, val in items:
+        if isinstance(val, dict):
+            flatten += flat_items(val.items())
+        else:
+            flatten.append( (key,val) )
+    return flatten
+cdef object flat_dict(object d, type dtype):
+    cdef object flatten = dtype()
+    for key, val in flat_items(d.items()):
+        if key not in flatten:
+            flatten[key] = val
+    return flatten
 

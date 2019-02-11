@@ -18,10 +18,20 @@ import time
 from lpu.common import files
 from lpu.common import logging
 from lpu.common.colors import put_color
+from lpu.common.logging import debug_print as dprint
 
 logger = logging.getLogger(__name__)
 
-cdef long BUFFER_SIZE = 4096
+from lpu.common cimport compat
+
+if sys.version_info.major >= 3:
+    bytes_to_str = compat.py3_bytes_to_str
+else:
+    bytes_to_str = compat.py2_bytes_to_str
+
+cdef long DEFAULT_BUFFER_SIZE = 10 * (1024 ** 2) # 10MB
+
+#cdef long BUFFER_SIZE = 4096
 cdef str BACK_WHITE = '  \b\b'
 
 #cdef double REFRESH = 1
@@ -142,8 +152,11 @@ cdef class SpeedCounter(object):
                 #logger.debug(str_print)
                 fobj.write(str_print)
             except Exception as e:
-                print(e)
-                pass
+                #dprint(str_print)
+                #dprint(type(str_print))
+                #dprint(self.color)
+                #dprint(type(self.color))
+                logger.exception(e)
         #if fobj and flush:
         #    fobj.write("\n")
         self.last_time  = now
@@ -167,14 +180,15 @@ cdef class FileReader(object):
     cdef SpeedCounter counter
     cdef object source
 
-    #def __cinit__(self, source, str header="", double refresh=REFRESH, bool force=False):
-    def __cinit__(self, source, header="", double refresh=REFRESH, bool force=False):
+    def __cinit__(self, source, str header="", double refresh=REFRESH, bool force=False):
+    #def __cinit__(self, source, header="", double refresh=REFRESH, bool force=False):
         if isinstance(source, str):
             #self.source = files.open(source, 'r')
             #self.source = files.open(source, 'rb')
             if not header:
                 header = "reading file '%s'" % source
-            self.source = files.open(source, 'rt')
+            #self.source = files.open(source, 'rt')
+            self.source = files.open(source, 'rb')
         #elif isinstance(source, io.IOBase):
         elif isinstance(source, files.FileType):
             self.source = source
@@ -199,39 +213,66 @@ cdef class FileReader(object):
             self.source.close()
             self.source = None
 
-    #cpdef str readline(self):
-    cpdef readline(self):
-        #cdef str line
-        #cdef string line
+    cpdef bytes read(self, size):
         if self.source:
-            line = self.source.readline()
-            self.counter.add(1)
+            buf = self.source.read(size)
+            self.counter.add(len(buf))
             try:
                 self.counter.set_position(files.rawtell(self.source))
             except Exception as e:
                 #logger.debug(e)
                 pass
             self.counter.view()
+            return buf
+
+    def read_byte_chunks(self, bs = DEFAULT_BUFFER_SIZE):
+        cdef bytes buf
+        while True:
+            buf = self.read(bs)
+            if not buf:
+                break
+            yield buf
+        self.close()
+
+    cdef bytes _read_byte_line(self, bool countup=False):
+        cdef bytes line
+        if self.source:
+            line = self.source.readline()
+            if countup:
+                self.counter.add(len(line))
+            try:
+                self.counter.set_position(files.rawtell(self.source))
+            except Exception as e:
+                pass
+            self.counter.view()
             return line
-            #return compat.to_str( line )
+    cpdef bytes read_byte_line(self):
+        return self._read_byte_line(True)
+
+    def read_byte_lines(self):
+        cdef bytes line
+        while True:
+            line = self.read_byte_line()
+            if not line:
+                break
+            yield line
+        self.close()
+
+    cpdef str readline(self):
+        cdef bytes line
+        line = self._read_byte_line(False)
+        if line:
+            self.counter.add(1)
+            return bytes_to_str(line)
+        return None
 
     def __iter__(self):
-        #cdef str line
-        #cdef string line
-        if self.source:
-            for line in self.source:
-                #yield self.readline()
-                #self.counter.set(files.rawtell(self.source),view=True)
-                #yield(line)
-                #yield compat.to_str(line)
-                self.counter.add(1)
-                try:
-                    self.counter.set_position(files.rawtell(self.source))
-                except Exception as e:
-                    #logger.debug(e)
-                    pass
-                self.counter.view()
-                yield line
+        cdef str line
+        while True:
+            line = self.readline()
+            if not line:
+                break
+            yield line
         self.close()
 
     def __enter__(self):
@@ -317,10 +358,10 @@ def about(num, bool show_bytes = False):
         else:
             return "%.3f" % num
 
-cpdef open(path, header=""):
+cpdef open(path, str header=""):
     return FileReader(path, header)
 
-cpdef pipe_view(filepaths, mode='bytes', header=None, refresh=REFRESH, outfunc=None):
+cpdef pipe_view(filepaths, mode='bytes', str header=None, refresh=REFRESH, outfunc=None):
     #cdef str strBuf
     cdef bytes buf
     cdef long max_count = -1
@@ -341,7 +382,7 @@ cpdef pipe_view(filepaths, mode='bytes', header=None, refresh=REFRESH, outfunc=N
     counter = SpeedCounter(header=header, refresh=refresh, max_count=max_count)
     for infile in infiles:
         while True:
-            buf = infile.read(BUFFER_SIZE)
+            buf = infile.read(DEFAULT_BUFFER_SIZE)
             if mode == 'bytes':
                 delta = len(buf)
             elif mode == 'lines':
@@ -357,16 +398,17 @@ cpdef pipe_view(filepaths, mode='bytes', header=None, refresh=REFRESH, outfunc=N
     #counter.flush()
     counter.reset()
 
-cpdef view(source, header = None, long max_count = -1, env = True):
+cpdef view(source, str header = None, long max_count = -1, env = True):
     if logging.get_quiet_status():
         # as-is (without progress view)
         return source
     elif isinstance(source, (FileReader,Iterator)):
         return source
     #elif isinstance(source, (str,io.IOBase)):
-    elif isinstance(source, (str,files.FileType)):
+    elif isinstance(source, (str,bytes,files.FileType)):
         if not header:
-            header = "reading file"
+            #header = "reading file"
+            header = "reading file '{}'".format(source)
         return FileReader(source, header)
     elif isinstance(source, Iterable):
         if not header:

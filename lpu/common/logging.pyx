@@ -17,17 +17,19 @@ from lpu.__system__ import logging
 from lpu.common import environ
 from lpu.common import validation
 from lpu.common.colors import put_color
+from lpu.common.compat import MethodType
 
 logger = logging.getLogger(__name__)
 
 class LoggingStatus(environ.StackHolder):
     def __init__(self, logger=None):
         super(LoggingStatus,self).__init__()
-        self.logger = None
+        self.loggers = None
 
     def _reconfigureLogger(self):
-        if self.logger:
-            configureLogger(self.logger)
+        if self.loggers:
+            for logger in self.loggers:
+                configureLogger(logger)
         else:
             try:
                 import lpu
@@ -35,8 +37,16 @@ class LoggingStatus(environ.StackHolder):
             except Exception as e:
                 pass
 
-    def set_logger(self, logger):
-        self.logger = logger
+    def set_loggers(self, loggers):
+        if loggers:
+            set_loggers = set()
+            if not isinstance(loggers, (list,tuple)):
+                loggers = [loggers]
+            for logger in loggers:
+                if isinstance(logger, str):
+                    logger = logging.getLogger(logger)
+                set_loggers.add(logger)
+            self.loggers = set_loggers
 
     def set_debug(self, enable=True):
         if enable:
@@ -142,7 +152,10 @@ class ColorizingFormatter(logging.Formatter):
             self._style._fmt = fmt
         return fmt
 
-    def _colorizeText(self, record, text):
+    #def _colorizeText(self, record, text):
+    #cpdef str _colorizeText(self, record, str text):
+    def _colorizeText(self, record, str text):
+        cdef str color_default
         level = record.levelname.lower()
         color_level = self._colors.get(level, None)
         if color_level:
@@ -204,11 +217,13 @@ class ColorizingFormatter(logging.Formatter):
         return formatted
 
     def setColor(self, keyword, color_name):
-        if isinstance(keyword, str):
+        #if isinstance(keyword, str):
+        if isinstance(keyword, (str,bytes)):
             keyword = keyword.lower()
             keyword = keyword.replace('color_', '')
         else:
-            validation.check_argument_type(keyword, 'keyword', str)
+            #validation.check_argument_type(keyword, 'keyword', str)
+            validation.check_argument_type(keyword, 'keyword', (str,bytes))
         if color_name is None:
             # unsetting
             if keyword in self._colors:
@@ -320,23 +335,6 @@ def configureLogger(logger, mode='auto'):
             logger.setLevel(logging.INFO)
     return logger
 
-def getColorLogger(name, level_mode='auto', add_handler='auto'):
-    logger = logging.getLogger(name)
-    logger = configureLogger(logger, mode=level_mode)
-    if add_handler == 'auto':
-        if _checkLoggerColorized(logger):
-            add_handler = None
-        else:
-            add_handler = logging.StreamHandler()
-    if add_handler:
-        # duplication check
-        for handler in logger.handlers:
-            if handler is add_handler:
-                add_handler = None
-        if add_handler:
-            logger.addHandler(add_handler)
-    return colorizeLogger(logger)
-
 _cache = {}
 cdef _get_cached_line(path, lineno, fallback):
     try:
@@ -348,7 +346,7 @@ cdef _get_cached_line(path, lineno, fallback):
         pass
     return fallback
 
-def debug_print(val=None, limit=0):
+cpdef _debug_print(self, val=None, limit=0):
     stack = traceback.extract_stack(limit=limit)
     format = ""
     if limit > 0:
@@ -366,26 +364,58 @@ def debug_print(val=None, limit=0):
             expr = expr[0][1:-1].strip()
             if expr.find(',') > 0:
                 expr = str.join(',', expr.split(',')[:-1]).strip()
-            if isinstance(val, int):
-                format = "{} => {:,d}".format(expr, val) + format
+            if isinstance(val, (int,float)):
+                str_val = '{}({})'.format(type(val).__name__,val)
+            elif isinstance(val, str):
+                str_val = val
             else:
-                format = "{} => {}".format(expr, repr(val)) + format
+                str_val = repr(val)
+            if str_val.find('\n') >= 0:
+                # multiple lines
+                format = "{} => (see following lines)\n{}".format(expr, str_val) + format
+            else:
+                # single line
+                format = "{} => {}".format(expr, str_val) + format
         else:
             format = str(val) + format
     #module_name = inspect.getmodulename(path)
     #if not module_name:
     #    module_name = '__main__'
-    module_name = '__main__'
+    #module_name = '__main__'
     #logger = getColorLogger(module_name)
-    logger = getLogger(module_name)
-    logger = colorizeLogger(logger)
-    logger.debug(format)
+    #logger = getLogger(module_name)
+    #logger = colorizeLogger(logger)
+    #logger.debug(format)
+    self.debug(format)
+
+def debug_print(val=None, limit=0):
+    logger = getColorLogger('__main__')
+    return logger.debug_print(val, limit)
+
+def getColorLogger(name, level_mode='auto', add_handler='auto'):
+    logger = logging.getLogger(name)
+    logger = configureLogger(logger, mode=level_mode)
+    logger.debug_print = MethodType(_debug_print, logger, logging.Logger)
+    if add_handler == 'auto':
+        if _checkLoggerColorized(logger):
+            add_handler = None
+        else:
+            add_handler = logging.StreamHandler()
+    if add_handler:
+        # duplication check
+        for handler in logger.handlers:
+            if handler is add_handler:
+                add_handler = None
+        if add_handler:
+            logger.addHandler(add_handler)
+    return colorizeLogger(logger)
 
 # global environ
 #def push_environ(logger):
-cpdef using_config(logger, debug=None, quiet=None):
+#cpdef using_config(logger, debug=None, quiet=None):
+cpdef using_config(loggers, debug=None, quiet=None):
     env_layer = environ.push(LoggingStatus)
-    env_layer.set_logger(logger)
+    env_layer.set_loggers(loggers)
     if debug is not None:
         env_layer.set_debug(debug)
     if quiet is not None:

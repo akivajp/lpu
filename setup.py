@@ -88,11 +88,12 @@ install_requires = [
 setup(
     name = 'lpu',
     version = version,
-    #cmdclass = {'build_ext': build_ext},
     cmdclass = cmdclass,
     ext_modules = ext_modules,
     install_requires = install_requires,
     description = 'A Language Processing Utility',
+    long_description = open('README.md').read(),
+    long_description_content_type = 'text/markdown',
     url = 'https://github.com/akivajp/lpu',
     author = 'Akiva Miura',
     author_email = 'akiva.miura@gmail.com',
@@ -102,6 +103,13 @@ setup(
         'NLP',
         'computational linguistics',
         'natural language processing',
+    ],
+    classifiers = [
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Topic :: Utilities",
     ],
     packages = find_packages(),
     package_data = {

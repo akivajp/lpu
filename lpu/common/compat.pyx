@@ -8,6 +8,12 @@ import sys
 import itertools
 import types
 
+cdef bytes py2_bytes_to_str(bytes b):
+    # as-is
+    return b
+cdef str py3_bytes_to_str(bytes b):
+    return str(b, 'utf-8', errors='backslashreplace')
+
 cdef bytes __py2__to_bytes(s):
     '''
     convert to byte string

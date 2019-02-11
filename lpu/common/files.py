@@ -8,6 +8,7 @@ import gzip
 import io
 import os.path
 import sys
+import tempfile
 
 # Local libraries
 from lpu.common import logging
@@ -16,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 #env = os.environ
 #env['LC_ALL'] = 'C'
+
+DEFAULT_BUFFER_SIZE = 10 * (1024 ** 2) # 10MB
 
 _open = open
 
@@ -31,16 +34,28 @@ else:
     FileType = file
     FileNotFoundError = IOError
 
-def autoCat(filenames, target):
-    '''concatenate and copy files into target file (expanding for compressed ones)'''
+#def autoCat(filenames, target):
+def concat_into(filenames, target, progress=True):
+    '''
+        concatenate and copy files into target file (expanding for compressed ones)
+    '''
     if type(filenames) != list:
         filenames = [filenames]
-    f_out = open(target, 'w')
-    for filename in filenames:
-        f_in = open(filename, 'r')
-        for line in f_in:
-            f_out.write(line)
-        f_in.close()
+    f_out = open(target, 'wb')
+    if progress:
+        from lpu.common.progress import view as pview
+        logger.info("writing into: {}".format(target))
+        for filename in filenames:
+            f_in = pview(filename, header="  transfering from: {}".format(filename))
+            for line in f_in.read_byte_chunks(DEFAULT_BUFFER_SIZE):
+                f_out.write(line)
+            f_in.close()
+    else:
+        for filename in filenames:
+            f_in = open(filename, 'rb')
+            for line in f_in:
+                f_out.write(line)
+            f_in.close()
     f_out.close()
 
 def castFile(anyFile):
@@ -109,32 +124,70 @@ def is_mode(fobj, mode):
         else:
             return sys.version_info.major >= 3
 
-def load(filename, progress = True, bs = 10 * 1024 * 1024):
+def load(filepath_or_buffer, out_buffer, progress = True, bs = DEFAULT_BUFFER_SIZE):
     '''load all the content of given file (expand if compressed)'''
-    data = io.BytesIO()
-    f_in = _open(filename, 'rb')
-    if progress:
-        from lpu.common.progress import SpeedCounter
-        print("loading file: '%(filename)s'" % locals())
-        c = SpeedCounter( max_count = os.path.getsize(filename) )
+    if isinstance(filepath_or_buffer, str):
+        # file path
+        filepath = filepath_or_buffer
+        buf = _open(filepath, 'rb')
+        if progress:
+            from lpu.common.progress import SpeedCounter
+            header = "loading file '{}'".format(filepath)
+            max_count = os.path.getsize(filepath)
+            c = SpeedCounter(max_count=max_count, header=header)
+    else:
+        filepath = None
+        buf = filepath_or_buffer
+        if progress:
+            from lpu.common.progress import SpeedCounter
+            header = "loading buffer"
+            c = SpeedCounter(header=header)
+    #data = io.BytesIO()
+    #f_in = _open(filename, 'rb')
+    #if progress:
+    #    from lpu.common.progress import SpeedCounter
+    #    header = "loading file '%(filename)s'" % locals()
+    #    max_count = os.path.getsize(filename)
+    #    c = SpeedCounter(max_count=max_count, header=header)
     while True:
-      buf = f_in.read(bs)
-      if not buf:
-          break
-      else:
-          data.write(buf)
-          if progress:
-              c.set_count(data.tell(), True)
-    f_in.close()
-    data.seek(0)
+        #buf = f_in.read(bs)
+        data = buf.read(bs)
+        if not data:
+            break
+        else:
+            #data.write(buf)
+            out_buffer.write(data)
+            if progress:
+                #c.set_count(data.tell(), True)
+                c.set_count(out_buffer.tell(), True)
+    #f_in.close()
+    buf.close()
+    #data.seek(0)
+    out_buffer.seek(0)
     if progress:
         c.reset()
-    if get_ext(filename) == '.gz':
-        f_in = gzip.GzipFile(fileobj = data)
-        f_in.myfileobj = data
-        return f_in
+    if isinstance(filepath, str) and get_ext(filepath) == '.gz':
+        #f_in = gzip.GzipFile(fileobj = data)
+        #f_in.myfileobj = data
+        fobj = gzip.GzipFile(fileobj = out_buffer)
+        fobj.myfileobj = out_buffer
+        return fobj
     else:
-        return data
+        return out_buffer
+
+def load_to_buffer(filepath_or_buffer, progress=True, bs=DEFAULT_BUFFER_SIZE):
+    #data = io.BytesIO()
+    return load(filepath_or_buffer, io.BytesIO(), progress, bs)
+
+def load_to_temp(filepath_or_buffer, progress=True, bs=DEFAULT_BUFFER_SIZE, named = True):
+    if named:
+        temp = tempfile.NamedTemporaryFile()
+        load(filepath_or_buffer, temp.file, progress, bs)
+        return temp
+    else:
+        temp = tempfile.TemporaryFile()
+        load(filepath_or_buffer, temp, progress, bs)
+        return temp
 
 def safeMakeDirs(dirpath, **options):
     '''make directories recursively for given path, don't throw exception if directory exists but if file exists'''
@@ -153,7 +206,11 @@ def open(filename, mode = 'r'):
         file_obj = gzip.open(filename, mode)
     else:
         #logger.debug("normal open mode")
-        file_obj = _open(filename, mode)
+        if mode.find('t') >= 0 and sys.version_info[0] >= 3:
+            #file_obj = _open(filename, mode, encoding='utf-8', errors='replace')
+            file_obj = _open(filename, mode, encoding='utf-8', errors='backslashreplace')
+        else:
+            file_obj = _open(filename, mode)
     return file_obj
 
 def rawfile(f):
