@@ -218,7 +218,8 @@ cdef class FileReader(object):
             buf = self.source.read(size)
             self.counter.add(len(buf))
             try:
-                self.counter.set_position(files.rawtell(self.source))
+                #self.counter.set_position(files.rawtell(self.source))
+                self.counter.set_position(self.tell())
             except Exception as e:
                 #logger.debug(e)
                 pass
@@ -241,7 +242,8 @@ cdef class FileReader(object):
             if countup:
                 self.counter.add(len(line))
             try:
-                self.counter.set_position(files.rawtell(self.source))
+                #self.counter.set_position(files.rawtell(self.source))
+                self.counter.set_position(self.tell())
             except Exception as e:
                 pass
             self.counter.view()
@@ -265,6 +267,9 @@ cdef class FileReader(object):
             self.counter.add(1)
             return bytes_to_str(line)
         return None
+
+    cpdef long tell(self) except *:
+        return files.rawtell(self.source)
 
     def __iter__(self):
         cdef str line
@@ -399,7 +404,7 @@ cpdef pipe_view(filepaths, mode='bytes', str header=None, refresh=REFRESH, outfu
     counter.reset()
 
 cpdef view(source, str header = None, long max_count = -1, env = True):
-    if logging.get_quiet_status():
+    if env and logging.get_quiet_status():
         # as-is (without progress view)
         return source
     elif isinstance(source, (FileReader,Iterator)):
@@ -409,14 +414,16 @@ cpdef view(source, str header = None, long max_count = -1, env = True):
         if not header:
             #header = "reading file"
             header = "reading file '{}'".format(source)
-        return FileReader(source, header)
+        #return FileReader(source, header)
+        return FileReader(source, header, force=True)
     elif isinstance(source, Iterable):
         if not header:
             header = "iterating"
         if max_count < 0:
             if hasattr(source, '__len__'):
                 max_count = len(source)
-        return Iterator(source, header, max_count=max_count)
+        #return Iterator(source, header, max_count=max_count)
+        return Iterator(source, header, max_count=max_count, force=True)
     else:
         raise TypeError("view() expected file or iterable type, but %s found" % type(source).__name__)
 

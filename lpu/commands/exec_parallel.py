@@ -15,7 +15,7 @@ from lpu.common import files
 from lpu.common import progress
 from lpu.common import logging
 from lpu.common.config import Config
-from lpu.commands.wait_files import waitFile
+from lpu.commands.wait_files import wait_file
 
 logger = logging.getColorLogger(__name__)
 
@@ -104,7 +104,7 @@ def waitPhaseDone(conf, phase):
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #return waitFile('%(tmpdir)s/__DONE__.%(stage)s.%(basename)s'%locals())
-    return waitFile('%(tmpdir)s/report.%(phase)s.done'%locals())
+    return wait_file('%(tmpdir)s/report.%(phase)s.done' % locals())
 
 def getInBuffer(conf):
     #bufname = '%s/__BUFFER__%s' % (tmpdir,hostproc)
@@ -275,7 +275,7 @@ def concatFiles(conf):
     for fileNumber in range(1, numChunks+1):
         strFileNumber = int2str(fileNumber, digits, '0')
         inPath = "%s.%s.out" % (prefix, strFileNumber)
-        waitFile(inPath)
+        wait_file(inPath)
         conf.data.processed += 1
     logger.info('Concatenating: "%s.*" -> "%s"' % (prefix,outPath))
     with open(outPath, 'w') as outFile:

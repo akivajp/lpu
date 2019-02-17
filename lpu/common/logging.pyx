@@ -250,7 +250,8 @@ class ColorizingFormatter(logging.Formatter):
 
 DEFAULT_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
 DEFAULT_FORMAT = "[%(asctime)s %(name)s %(filename)s:%(funcName)s:%(lineno)s] %(message)s"
-DEFAULT_INFO_FORMAT = "[%(asctime)s] %(message)s"
+#DEFAULT_INFO_FORMAT = "[%(asctime)s] %(message)s"
+DEFAULT_INFO_FORMAT = "[%(asctime)s %(name)s] %(message)s"
 DEFAULT_DEBUG_COLOR = 'yellow'
 DEFAULT_INFO_COLOR  = 'cyan'
 #DEFAULT_WARNING_COLOR  = 'purple'
@@ -276,7 +277,7 @@ def colorizeHandler(handler, mode='auto'):
         formatter.setLevelColor(logging.WARNING,  DEFAULT_WARNING_COLOR)
         formatter.setLevelColor(logging.ERROR,    DEFAULT_ERROR_COLOR)
         formatter.setLevelColor(logging.CRITICAL, DEFAULT_CRITICAL_COLOR)
-        handler.setFormatter(formatter)
+    handler.setFormatter(formatter)
     return formatter
 
 cdef _checkLoggerColorized(logger):
@@ -288,32 +289,10 @@ cdef _checkLoggerColorized(logger):
         logger = logger.parent
     return False
 
-#def colorizeLogger(logger, mode='auto'):
-def colorizeLogger(logger):
-    # deciding whether to enable colorizing mode (based on arguments, environment)
-    #if mode == 'auto':
-    #    if _checkLoggerColorized(logger):
-    #        # already colorized (itself or any ancestor)
-    #        return logger
-    #    enable = get_color_status()
-    #else:
-    #    enable = str(mode).lower() in ('1', 'on', 'true', 'always', 'force')
-    # colorizing handlers
+def colorizeLogger(logger, mode='auto'):
     handlers = logger.handlers
-    #if len(handlers) == 0:
-    #    logger.addHandler(logging.StreamHandler())
-    #formatter = ColorizingFormatter(DEFAULT_FORMAT, DEFAULT_DATE_FORMAT)
-    #formatter.setLevelFormat(logging.INFO, DEFAULT_INFO_FORMAT)
-    #if enable:
-    #    formatter.setLevelColor(logging.DEBUG,    DEFAULT_DEBUG_COLOR)
-    #    formatter.setLevelColor(logging.INFO,     DEFAULT_INFO_COLOR)
-    #    formatter.setLevelColor(logging.WARNING,  DEFAULT_WARNING_COLOR)
-    #    formatter.setLevelColor(logging.ERROR,    DEFAULT_ERROR_COLOR)
-    #    formatter.setLevelColor(logging.CRITICAL, DEFAULT_CRITICAL_COLOR)
     for handler in handlers:
-        #if not isinstance(handler.formatter, ColorizingFormatter):
-        #    handler.setFormatter(formatter)
-        colorizeHandler(handler)
+        colorizeHandler(handler, mode)
     return logger
 
 def colorize(obj):
@@ -435,11 +414,5 @@ Filter = logging.Filter
 StreamHandler = logging.StreamHandler
 FileHandler = logging.FileHandler
 
-#debug     = logging.debug
-#info      = logging.info
-#warning   = logging.warning
-#error     = logging.error
-#critical  = logging.critical
-#exception = logging.exception
 getLogger = logging.getLogger
 

@@ -234,11 +234,13 @@ cdef class Config:
         for key in self:
             yield key, self[key]
 
-    def load_json(self, strJSON, override=True):
+    def load_json(self, str str_json, bool override=True):
         #self.update(json.loads(compat.to_str(strJSON)))
-        uniDict = json.loads(strJSON)
+        #uniDict = json.loads(strJSON)
+        d = json.loads(str_json, object_pairs_hook=OrderedDict)
+        d = flat_dict(d, OrderedDict, True)
         #self.update(compat.to_str(uniDict))
-        self.update(uniDict, override)
+        self.update(d, override)
         return self
 
     def require(self, name, desc = None, typeOf = None):
@@ -279,7 +281,8 @@ cdef class Config:
         else:
             dtype = dict
         if flat:
-            return flat_dict(data2dict(self.data, dtype, upstream, recursive), dtype)
+            #return flat_dict(data2dict(self.data, dtype, upstream, recursive), dtype)
+            return flat_dict(data2dict(self.data, dtype, upstream, recursive), dtype, False)
         else:
             return data2dict(self.data, dtype, upstream, recursive)
 
@@ -293,6 +296,8 @@ cdef class Config:
             if _override:
                 for key, val in _conf.items():
                     if val != None:
+                        #dprint(key)
+                        #dprint(val)
                         self[key] = val
             else:
                 for key in _conf:
@@ -365,17 +370,27 @@ cdef get_key_val_str(object d, bool verbose):
         items = ["%s=%r" % (t[0],t[1]) for t in d.items() if not t[0].startswith('_')]
     return str.join(', ', items)
 
-cdef list flat_items(object items):
+cdef list flat_items(object items, str prefix, bool chain_key):
     cdef object flatten = []
-    for key, val in items:
-        if isinstance(val, dict):
-            flatten += flat_items(val.items())
+    cdef str str_prefix
+    cdef str full_key
+    if chain_key:
+        if prefix:
+            str_prefix = prefix + '.'
         else:
-            flatten.append( (key,val) )
+            str_prefix = ''
+    else:
+        str_prefix = ''
+    for key, val in items:
+        full_key = str_prefix + key
+        if isinstance(val, dict):
+            flatten += flat_items(val.items(), full_key, chain_key)
+        else:
+            flatten.append( (full_key,val) )
     return flatten
-cdef object flat_dict(object d, type dtype):
+cdef object flat_dict(object d, type dtype, bool chain_key):
     cdef object flatten = dtype()
-    for key, val in flat_items(d.items()):
+    for key, val in flat_items(d.items(), None, chain_key):
         if key not in flatten:
             flatten[key] = val
     return flatten

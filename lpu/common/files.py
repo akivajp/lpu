@@ -9,6 +9,7 @@ import io
 import os.path
 import sys
 import tempfile
+import time
 
 # Local libraries
 from lpu.common import logging
@@ -258,4 +259,30 @@ def testFile(path):
         return True
     #logger.debug("file does not exist: '%s'" % path)
     raise FileNotFoundError("file does not exist: '%s'" % path)
+
+def wait_file(filepath, interval=1, timeout=0, delay=0, quiet=False):
+    if interval < 0:
+        interval = 1
+    if delay > 0:
+        time.sleep(delay)
+    if not os.path.exists(filepath):
+        if not quiet:
+            logger.info("waiting for file: %s" % filepath)
+        start = time.time()
+    while not os.path.exists(filepath):
+        time.sleep(interval)
+        elapsed = time.time() - start
+        if timeout > 0 and elapsed > timeout:
+            if not quiet:
+                logger.error("waiting file (%s) was timed out (%s seconds)" % (filepath, timeout))
+            return False
+    if not quiet:
+        logger.info("file exists: %s" % filepath)
+    return True
+
+def wait_files(filepaths, interval=1, timeout=0, delay=0, quiet=False):
+    if isinstance(filepaths, str):
+        filepaths = [filepaths]
+    for path in filepaths:
+        wait_file(path, interval, timeout, delay, quiet)
 
