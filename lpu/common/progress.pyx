@@ -71,6 +71,8 @@ cdef class SpeedCounter(object):
             if not self.force:
                 if sys.stderr.isatty():
                     fobj = sys.stderr
+                elif sys.stdout.isatty():
+                    fobj = sys.stdout
             else:
                 fobj = sys.stderr
             if fobj:
@@ -115,6 +117,8 @@ cdef class SpeedCounter(object):
         if not self.force:
             if sys.stderr.isatty():
                 fobj = sys.stderr
+            elif sys.stdout.isatty():
+                fobj = sys.stdout
         else:
             fobj = sys.stderr
         if fobj:
@@ -414,16 +418,16 @@ cpdef view(source, str header = None, long max_count = -1, env = True):
         if not header:
             #header = "reading file"
             header = "reading file '{}'".format(source)
-        #return FileReader(source, header)
-        return FileReader(source, header, force=True)
+        return FileReader(source, header)
+        #return FileReader(source, header, force=True)
     elif isinstance(source, Iterable):
         if not header:
             header = "iterating"
         if max_count < 0:
             if hasattr(source, '__len__'):
                 max_count = len(source)
-        #return Iterator(source, header, max_count=max_count)
-        return Iterator(source, header, max_count=max_count, force=True)
+        return Iterator(source, header, max_count=max_count)
+        #return Iterator(source, header, max_count=max_count, force=True)
     else:
         raise TypeError("view() expected file or iterable type, but %s found" % type(source).__name__)
 

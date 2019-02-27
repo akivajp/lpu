@@ -202,14 +202,15 @@ cdef class Config:
         if args:
             self.update(args)
 
-    def cast(self, name, typeOf):
+    def cast(self, name, typeof):
         val = self.require_any(name)
-        if type(val) == typeOf:
+        if type(val) == typeof:
             return val
         else:
-            newVal = typeOf(val)
-            self.data.__dict__[name] = newVal
-            return newVal
+            casted = typeof(val)
+            #self.data.__dict__[name] = newVal
+            self.data[name] = casted
+            return casted
 
     def has(self, key):
         if type(key) is str:
@@ -264,31 +265,35 @@ cdef class Config:
             logging.alert(msg % (name, typeOf, type(val)))
         return val
 
+    def set(self, key, val):
+        self[key] = val
+        return self[key]
+
     def setdefault(self, key, val):
         if key not in self:
-            self[key] = val
-            return val
+            return self.set(key, val)
         elif self[key] == None:
-            self[key] = val
-            return val
+            return self.set(key, val)
         else:
             return self[key]
 
-    def to_dict(self, ordered=False, upstream=False, recursive=True, flat=False):
+    def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, flat=False):
         cdef type dtype
+        cdef ConfigData data = self.data
         if ordered:
             dtype = OrderedDict
         else:
             dtype = dict
+        if key:
+            data = data[key]
         if flat:
-            #return flat_dict(data2dict(self.data, dtype, upstream, recursive), dtype)
-            return flat_dict(data2dict(self.data, dtype, upstream, recursive), dtype, False)
+            return flat_dict(data2dict(data, dtype, upstream, recursive), dtype, False)
         else:
-            return data2dict(self.data, dtype, upstream, recursive)
+            return data2dict(data, dtype, upstream, recursive)
 
-    def to_json(self, upstream=False, **options):
+    def to_json(self, key=None, upstream=False, **options):
         cdef object d
-        d = self.to_dict(True, upstream)
+        d = self.to_dict(key, True, upstream)
         return json.dumps(d, **options)
 
     def update(self, _conf = None, _override=True, **args):
@@ -329,7 +334,9 @@ cdef class Config:
     def __setitem__(self, key, val):
         self.data.__setitem__(key, val)
 
-cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
+# type object is problematic in python 3.6?
+#cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
+cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
     #dprint("--")
     #dprint(data)
     #dprint(dtype)

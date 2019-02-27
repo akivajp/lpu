@@ -249,9 +249,12 @@ class ColorizingFormatter(logging.Formatter):
         self.setColor(level_name, color_name)
 
 DEFAULT_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
-DEFAULT_FORMAT = "[%(asctime)s %(name)s %(filename)s:%(funcName)s:%(lineno)s] %(message)s"
-#DEFAULT_INFO_FORMAT = "[%(asctime)s] %(message)s"
-DEFAULT_INFO_FORMAT = "[%(asctime)s %(name)s] %(message)s"
+DEFAULT_FORMAT = "[%(asctime)s %(name)s] %(message)s"
+DEFAULT_DEBUG_FORMAT = "[%(asctime)s %(name)s %(filename)s:%(funcName)s:%(lineno)s] %(message)s"
+DEFAULT_INFO_FORMAT     = DEFAULT_FORMAT
+DEFAULT_WARNING_FORMAT  = DEFAULT_FORMAT
+DEFAULT_ERROR_FORMAT    = DEFAULT_FORMAT
+DEFAULT_CRITICAL_FORMAT = DEFAULT_FORMAT
 DEFAULT_DEBUG_COLOR = 'yellow'
 DEFAULT_INFO_COLOR  = 'cyan'
 #DEFAULT_WARNING_COLOR  = 'purple'
@@ -270,7 +273,11 @@ def colorizeHandler(handler, mode='auto'):
         enable = str(mode).lower() in ('1', 'on', 'true', 'always', 'force')
     # setting colorizing formatter
     formatter = ColorizingFormatter(DEFAULT_FORMAT, DEFAULT_DATE_FORMAT)
-    formatter.setLevelFormat(logging.INFO, DEFAULT_INFO_FORMAT)
+    formatter.setLevelFormat(logging.DEBUG,    DEFAULT_DEBUG_FORMAT)
+    formatter.setLevelFormat(logging.INFO,     DEFAULT_INFO_FORMAT)
+    formatter.setLevelFormat(logging.WARNING,  DEFAULT_WARNING_FORMAT)
+    formatter.setLevelFormat(logging.ERROR,    DEFAULT_ERROR_FORMAT)
+    formatter.setLevelFormat(logging.CRITICAL, DEFAULT_CRITICAL_FORMAT)
     if enable:
         formatter.setLevelColor(logging.DEBUG,    DEFAULT_DEBUG_COLOR)
         formatter.setLevelColor(logging.INFO,     DEFAULT_INFO_COLOR)
@@ -290,6 +297,8 @@ cdef _checkLoggerColorized(logger):
     return False
 
 def colorizeLogger(logger, mode='auto'):
+    if isinstance(logger, str):
+        logger = getLogger(logger)
     handlers = logger.handlers
     for handler in handlers:
         colorizeHandler(handler, mode)
@@ -312,6 +321,8 @@ def configureLogger(logger, mode='auto'):
         else:
             # verbose mode
             logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(mode)
     return logger
 
 _cache = {}
@@ -373,7 +384,8 @@ def debug_print(val=None, limit=0):
 
 def getColorLogger(name, level_mode='auto', add_handler='auto'):
     logger = logging.getLogger(name)
-    logger = configureLogger(logger, mode=level_mode)
+    if level_mode is not 'auto':
+        logger = configureLogger(logger, mode=level_mode)
     logger.debug_print = MethodType(_debug_print, logger, logging.Logger)
     if add_handler == 'auto':
         if _checkLoggerColorized(logger):
@@ -387,6 +399,8 @@ def getColorLogger(name, level_mode='auto', add_handler='auto'):
                 add_handler = None
         if add_handler:
             logger.addHandler(add_handler)
+            if level_mode is 'auto':
+                configureLogger(logger, mode=level_mode)
     return colorizeLogger(logger)
 
 # global environ
@@ -404,6 +418,7 @@ cpdef using_config(loggers, debug=None, quiet=None):
 env = using_config(None)
 
 # importing from system logging module
+NOTSET   = logging.NOTSET
 INFO     = logging.INFO
 DEBUG    = logging.DEBUG
 WARNING  = logging.WARNING

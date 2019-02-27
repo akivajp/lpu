@@ -18,8 +18,12 @@ from lpu.common import logging
 #from lpu.common.config import Config
 from lpu.common.config cimport Config
 from lpu.common.vocab cimport StringEnumerator
+from lpu.common import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getColorLogger(__name__)
+dprint = logger.debug_print
+
+#logger = logging.getLogger(__name__)
 
 ITERATION_LIMIT = 10
 
@@ -49,12 +53,19 @@ cdef class Vocab:
         cdef str word
         logger.info("loading files: %s %s" % (src_path,trg_path))
         self.src.append(NULL_SYMBOL)
-        src_file = progress.view(files.open(src_path), 'loading')
+        #src_file = progress.view(files.open(src_path), 'loading')
+        #src_file = progress.view(files.open(src_path), 'loading').read_byte_lines()
+        #src_file = progress.view(src_path, 'loading').read_byte_lines()
+        src_file = progress.FileReader(src_path, 'loading')
+        #src_file = progress.FileReader(src_path, 'loading').read_byte_lines()
         trg_file = files.open(trg_path)
+        #trg_file = files.open(trg_path, 'rb')
         sent_pairs = []
         for src_line, trg_line in zip(src_file, trg_file):
             src_words = src_line.rstrip("\n").split(' ')
             trg_words = trg_line.rstrip("\n").split(' ')
+            #src_words = src_line.rstrip(b"\n").split(b' ')
+            #trg_words = trg_line.rstrip(b"\n").split(b' ')
             src_words.append(NULL_SYMBOL)
             src_ids = [self.src.str2id(word) for word in src_words]
             trg_ids = [self.trg.str2id(word) for word in trg_words]
@@ -246,7 +257,46 @@ def train_ibm_model1(conf, **others):
         if conf.data.save_scores:
             trainer.model.calc_and_save_scores(conf.data.save_scores, trainer.sent_pairs)
 
-def main():
+def score_ibm_model1(conf, **others):
+    with environ.push() as e:
+        conf = Config(conf)
+        conf.update(others)
+        check_config(conf)
+        trainer = Trainer(conf, **others)
+        #model = Model()
+        try:
+            sent_pairs = trainer.model.vocab.load_sent_pairs(conf.data.src_path, conf.data.trg_path)
+            with open(conf.data.align_path) as fobj:
+                for line in fobj:
+                    fields = line.strip().split('\t')
+                    #if len(fields) == 3:
+                    src, trg, prob = fields
+                    trainer.model.vocab.src.str2id(src)
+                    trainer.model.vocab.trg.str2id(src)
+            trainer.model.trans_dist = trainer.calc_uniform_dist()
+            logger.info("loading word alignment file")
+            with open(conf.data.align_path) as fobj:
+                for line in fobj:
+                    fields = line.strip().split('\t')
+                    #if len(fields) == 3:
+                    src, trg, prob = fields
+                    src = trainer.model.vocab.src.str2id(src)
+                    trg = trainer.model.vocab.src.str2id(trg)
+                    prob = float(prob)
+                    #dprint(src)
+                    #dprint(trg)
+                    #dprint(trainer.model.trans_dist[src,trg],)
+                    trainer.model.trans_dist[src,trg] = prob
+                    #dprint(trainer.model.trans_dist[src,trg],)
+            trainer.model.trans_dist /= len(trainer.model.vocab.trg)
+            #logger.info("calculating and saving the alignment scores")
+            trainer.model.calc_and_save_scores(conf.data.score_path, sent_pairs)
+            #with np.errstate(all='raise'):
+            #    trainer.train(conf.data.iteration_limit)
+        except KeyboardInterrupt as k:
+            logger.exception(k)
+
+def main_train():
     parser = argparse.ArgumentParser()
     parser.add_argument('src_path', metavar='src_path (in)', help='file containing source-side lines of parallel text', type=str)
     parser.add_argument('trg_path', help='file containing target-side lines of parallel text', type=str)
@@ -259,16 +309,36 @@ def main():
     parser.add_argument('--quiet', '-q', help='not showing staging log', action='store_true')
     args = parser.parse_args()
     conf = Config(vars(args))
-    with logging.push_environ(logger) as e:
+    with logging.using_config(logger) as c:
         if conf.data.debug:
-            e.set_debug(True)
-            e.set_quiet(False)
+            c.set_debug(True)
+            c.set_quiet(False)
         if conf.data.quiet:
-            e.set_quiet(True)
-            e.set_debug(False)
+            c.set_quiet(True)
+            c.set_debug(False)
         logger.debug(conf)
         train_ibm_model1(conf)
 
+def main_score():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('src_path', metavar='src_path (in)', help='file containing source-side lines of parallel text', type=str)
+    parser.add_argument('trg_path', help='file containing target-side lines of parallel text', type=str)
+    parser.add_argument('align_path', help='path to trained alignment', type=str)
+    parser.add_argument('score_path', help='output file to save entropy of each each alignment', type=str)
+    parser.add_argument('--debug', '-D', help='debug mode', action='store_true')
+    parser.add_argument('--quiet', '-q', help='not showing staging log', action='store_true')
+    args = parser.parse_args()
+    conf = Config(vars(args))
+    with logging.using_config(logger) as c:
+        if conf.data.debug:
+            c.set_debug(True)
+            c.set_quiet(False)
+        if conf.data.quiet:
+            c.set_quiet(True)
+            c.set_debug(False)
+        logger.debug(conf)
+        score_ibm_model1(conf)
+
 if __name__ == '__main__':
-    main()
+    main_train()
 

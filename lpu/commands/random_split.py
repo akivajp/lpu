@@ -46,6 +46,10 @@ def random_split(conf, **others):
     tags = conf.data.tags
     split_sizes = conf.data.split_sizes
 
+    for i, suffix in enumerate(suffixes):
+        if suffix[0:1] == '.':
+            suffixes[i] = suffix[1:]
+
     for path in inpaths:
         files.testFile(path)
     logger.info('building sequence')
@@ -88,13 +92,17 @@ def random_split(conf, **others):
         logger.info("writing lines into splitted files: %s" % outpaths)
         logger.info("split sizes: %s" % split_sizes)
         outfiles = [files.open(outpath,'wb') for outpath in outpaths]
-        for line_index, line in enumerate(progress.view(infile, 'processing')):
+        reader = progress.FileReader(infile, 'processing').read_byte_lines()
+        #for line_index, line in enumerate(progress.view(infile, 'processing')):
+        for line_index, line in enumerate(reader):
             for file_index, outfile in enumerate(outfiles):
                 if line_index in split_indices[file_index]:
                     outfile.write(line)
     if conf.data.ids:
         for file_index, tag in enumerate(tags):
             outpath = "%s.%s" % (tag, conf.data.ids)
+            if prefix:
+                outpath = prefix + outpath
             genIDs = iter(sorted(split_indices[file_index]))
             if progress:
                 genIDs = progress.view(genIDs, "Writing IDs into '%s'" % outpath)

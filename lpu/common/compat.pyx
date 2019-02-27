@@ -5,7 +5,6 @@
 
 import sys
 #import collections
-import itertools
 import types
 
 cdef bytes py2_bytes_to_str(bytes b):
@@ -83,18 +82,22 @@ cpdef __py3__MethodType(function, instance, cls=None):
 
 if sys.version_info.major == 2:
     # Python2
+    import itertools
     to_bytes   = __py2__to_bytes
     to_str     = __py2__to_str
     to_unicode = __py2__to_unicode
     range = xrange
+    reduce = reduce
     zip   = itertools.izip
     MethodType = types.MethodType
 elif sys.version_info.major == 3:
     # Python3
+    import functools
     to_bytes   = __py3__to_bytes
     to_str     = __py3__to_str
     to_unicode = __py3__to_unicode
     range = range
+    reduce = functools.reduce
     zip   = zip
     MethodType = __py3__MethodType
 else:
