@@ -40,13 +40,15 @@ cdef double REFRESH = 0.5
 #cdef class ProgressCounter(object):
 cdef class SpeedCounter(object):
     cdef readonly bool force
-    cdef readonly str header
+    #cdef readonly str header
+    cdef readonly object header
     cdef readonly double refresh
     cdef readonly double start_time, last_time
     cdef readonly long count, pos, last_count, max_count
     cdef readonly str color
 
-    def __cinit__(self, str header="", long max_count=-1, double refresh=REFRESH, bool force=False, str color='green'):
+    #def __cinit__(self, str header="", long max_count=-1, double refresh=REFRESH, bool force=False, str color='green'):
+    def __cinit__(self, header="", long max_count=-1, double refresh=REFRESH, bool force=False, str color='green'):
         #logging.log("__CINIT__", color="cyan")
         self.refresh = refresh
         self.header = header 
@@ -295,7 +297,8 @@ cdef class Iterator(object):
     cdef SpeedCounter counter
     cdef object source
 
-    def __cinit__(self, source, str header="", double refresh=REFRESH, bool force=False, long max_count=-1):
+    #def __cinit__(self, source, str header="", double refresh=REFRESH, bool force=False, long max_count=-1):
+    def __cinit__(self, source, header="", double refresh=REFRESH, bool force=False, long max_count=-1):
         if isinstance(source, Iterable):
             self.source = source
         else:

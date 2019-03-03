@@ -15,10 +15,10 @@ from numpy cimport float64_t
 from lpu.common import progress
 from lpu.common import logging
 
-from ibm_models cimport sub_matrix
-from ibm_models cimport grid_indices
-from ibm_models cimport normalize
-from ibm_model1 cimport Model1Trainer
+from . ibm_models cimport sub_matrix
+from . ibm_models cimport grid_indices
+from . ibm_models cimport normalize
+from . ibm_model1 cimport Model1Trainer
 
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print

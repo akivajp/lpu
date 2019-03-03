@@ -1,5 +1,5 @@
-from ibm_models cimport Model
-from ibm_models cimport Trainer
+from . ibm_models cimport Model
+from . ibm_models cimport Trainer
 
 cdef class Model1(Model):
     pass

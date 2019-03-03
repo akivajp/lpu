@@ -28,8 +28,8 @@ from lpu.common import logging
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print
 
-from ibm_model1 cimport Model1, Model1Trainer
-from ibm_model2 cimport Model2, Model2Trainer
+from . ibm_model1 cimport Model1, Model1Trainer
+from . ibm_model2 cimport Model2, Model2Trainer
 
 ITERATION_LIMIT = 5
 THRESHOLD = 0.001
@@ -88,18 +88,17 @@ cdef class Vocab:
         src_file = progress.FileReader(src_path, 'loading')
         trg_file = files.open(trg_path)
         sent_pairs = []
+        dprint(src_file)
         for src_line, trg_line in zip(src_file, trg_file):
             if character_based:
-                src_words = list( compat.to_unicode(src_line.rstrip("\n")) )
-                trg_words = list( compat.to_unicode(trg_line.rstrip("\n")) )
+                src_words = list( compat.to_unicode(src_line.strip("\n")) )
+                trg_words = list( compat.to_unicode(trg_line.strip("\n")) )
                 src_words = list( map(compat.to_str, src_words) )
                 trg_words = list( map(compat.to_str, trg_words) )
             else:
-                src_words = src_line.rstrip("\n").split(' ')
-                trg_words = trg_line.rstrip("\n").split(' ')
+                src_words = src_line.strip("\n").split(' ')
+                trg_words = trg_line.strip("\n").split(' ')
             src_words = [NULL_SYMBOL] + src_words
-            #src_words.append(NULL_SYMBOL)
-            #src_words.append(NULL_SYMBOL)
             src_ids = [self.src.str2id(word) for word in src_words]
             trg_ids = [self.trg.str2id(word) for word in trg_words]
             sent_pairs.append( (src_ids, trg_ids) )
@@ -325,6 +324,7 @@ def score_ibm_model(conf, **others):
     character_based = conf.get('character', False)
     try:
         sent_pairs = trainer.model.vocab.load_sent_pairs(conf.data.src_path, conf.data.trg_path, character_based)
+        dprint(sent_pairs)
         with open(conf.data.trans_path) as fobj:
             for line in fobj:
                 fields = line.strip().split('\t')

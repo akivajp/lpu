@@ -15,8 +15,9 @@ from numpy cimport float64_t
 from lpu.common import progress
 from lpu.common import logging
 
-from ibm_models cimport sub_matrix
-from ibm_models cimport grid_indices
+from . ibm_models cimport sub_matrix
+from . ibm_models cimport grid_indices
+from . ibm_models cimport normalize
 
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print
@@ -54,22 +55,26 @@ cdef class Model1Trainer:
         cdef int len_trg = len(self.model.vocab.trg)
         cdef list src_sent, trg_sent
         cdef tuple cooc
-        cdef np.ndarray cooc_trans_dist, sum_trg
+        #cdef np.ndarray cooc_trans_dist, sum_trg
+        cdef np.ndarray cooc_trans_dist
         self.count_cooc_src2trg = np.zeros([len_src, len_trg], np.float64)
         logger.info('computing expected co-occurrence counts of source word and target word')
         for i, (src_sent, trg_sent) in enumerate(progress.view(self.sent_pairs, 'processing')):
             cooc = grid_indices(src_sent, trg_sent)
             cooc_trans_dist = sub_matrix(self.model.trans_dist, src_sent, trg_sent)
-            # normalizing factor
-            sum_trg = cooc_trans_dist.sum(axis=0)
-            np.add.at(self.count_cooc_src2trg, cooc, cooc_trans_dist / sum_trg)
+            ## normalizing factor
+            #sum_trg = cooc_trans_dist.sum(axis=0)
+            normalize(cooc_trans_dist, 0, cooc_trans_dist)
+            #np.add.at(self.count_cooc_src2trg, cooc, cooc_trans_dist / sum_trg)
+            np.add.at(self.count_cooc_src2trg, cooc, cooc_trans_dist)
         #return count_src2trg
 
     cdef void maximize_step(self) except *:
         cdef ndarray[float64_t, ndim=2] total_src
         logger.info("estimating word translation distribution")
-        total_src = self.count_cooc_src2trg.sum(axis=1).reshape(-1,1)
-        self.model.trans_dist = self.count_cooc_src2trg / total_src
+        #total_src = self.count_cooc_src2trg.sum(axis=1).reshape(-1,1)
+        #self.model.trans_dist = self.count_cooc_src2trg / total_src
+        normalize(self.count_cooc_src2trg, 1, self.model.trans_dist)
 
     cdef void setup(self) except *:
         #super(Model1Trainer,self).train_setup()

@@ -11,7 +11,7 @@ cdef bytes py2_bytes_to_str(bytes b):
     return b
 cdef str py3_bytes_to_str(bytes b):
     #return str(b, 'utf-8', errors='backslashreplace')
-    b.decode('utf-8', 'backslashreplace')
+    return b.decode('utf-8', 'backslashreplace')
 
 cdef unicode py2_bytes_to_unicode(bytes b):
     return b.decode('utf-8')
