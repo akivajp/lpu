@@ -65,7 +65,9 @@ get absolute paths of given files or directories
 #### lpu-clean-parallel
 
 ```shell
-  $ lpu-clean-parallel [-h] [--min min_length] [--max max_length] [--ratio ratio] [--target-directory directory_path] [--escape] [--normalize] filepath [filepath ...] output_tag
+  $ lpu-clean-parallel [-h] [--min min_length] [--max max_length] \
+      [--ratio ratio] [--target-directory directory_path] [--escape] \
+      [--normalize] filepath [filepath ...] output_tag
 ```
 
 #### lpu-dialog
@@ -79,7 +81,9 @@ Show message on condition, wait and receive user's response
 #### lpu-exec-parallel
 
 ```shell
-  $ lpu-exec-parallel [-h] [--input filepath] [--output filepath] [--splitsize num_lines] [--chunks num_files] [--threads num_threads] [--tmpdir directory_path] [--verbose] [--interval seconds] command
+  $ lpu-exec-parallel [-h] [--input filepath] [--output filepath] \
+      [--splitsize num_lines] [--chunks num_files] [--threads num_threads] \
+      [--tmpdir directory_path] [--verbose] [--interval seconds] command
 ```
 
 Execute command in multiple processes by splitting the targe file
@@ -95,7 +99,8 @@ Guess the language codes from given files
 #### lpu-progress
 
 ```shell
-  $ lpu-progress [-h] [--lines] [--refresh seconds] [--header string] [filepath filepath ...]]
+  $ lpu-progress [-h] [--lines] [--refresh seconds] [--header string] \
+      [filepath filepath ...]]
 ```
 
 Show the progress of pipe I/O
@@ -103,13 +108,17 @@ Show the progress of pipe I/O
 #### lpu-random-split
 
 ```shell
-  $ lpu-random-split [-h] --input filepath [filepath ...] [--prefixes prefix [prefix ...]] [--suffixes suffix [suffix ...]] --tags tag [tag ...] --split-sizes size [size ...] [--ignore-empty] [--quiet] [--debug] [--random-seed seed] [--ids [suffix]]
+  $ lpu-random-split [-h] --input filepath [filepath ...] \
+      [--prefixes prefix [prefix ...]] [--suffixes suffix [suffix ...]] \
+      --tags tag [tag ...] --split-sizes size [size ...] [--ignore-empty] \
+      [--quiet] [--debug] [--random-seed seed] [--ids [suffix]]
 ```
 
 #### lpu-wait-files
 
 ```shell
-  $ lpu-wait-files [-h] [--quiet] [--debug] [--delay seconds] [--interval seconds] [--timeout seconds] filepath [filepath ...]
+  $ lpu-wait-files [-h] [--quiet] [--debug] [--delay seconds] \
+      [--interval seconds] [--timeout seconds] filepath [filepath ...]
 ```
 
 Wait until file will be found
@@ -117,11 +126,16 @@ Wait until file will be found
 #### lpu-word-align-train
 
 ```shell
-  $ lpu-word-align-train [-h] [--save-sores filepath] [--decode-align filepath] [--iteration-limit num_iterations] [--threshold min_probability] [--nbest integer] [--character] [--debug] [--quiet] src_path trg_path save_trans_path [save_align_path]
+  $ lpu-word-align-train [-h] [--save-sores filepath] [--decode-align filepath] \
+      [--iteration-limit num_iterations] [--threshold min_probability] \
+      [--nbest integer] [--character] [--debug] [--quiet] \
+      src_path trg_path save_trans_path [save_align_path]
 ```
 
 #### lpu-word-align-score
 
 ```shell
-  $ lpu-word-align-score [-h] [--save-scores filepath] [--decode-align filepath] [--character] [--debug] [--quiet] src_path trg_path trans_path [align_path]
+  $ lpu-word-align-score [-h] [--save-scores filepath] \
+      [--decode-align filepath] [--character] [--debug] [--quiet] \
+      src_path trg_path trans_path [align_path]
 ```
