@@ -6,6 +6,8 @@
 # C++ setting
 from libcpp cimport bool
 
+from lpu.common.compat cimport strtype
+
 from lpu.__system__ import logging
 
 logger = logging.getLogger(__name__)
@@ -22,26 +24,26 @@ COLOR_MAP = {
     'white' : '\033[37m'
 }
 
-ctypedef fused strtype:
-    str
-    bytes
-
-#def put_color(content, color=None, eachline=True):
 #cpdef str put_color(content, str color=None, bool eachline=True):
-cpdef str put_color(str content, str color=None, bool eachline=True):
+#cpdef str put_color(str content, str color=None, bool eachline=True):
+#cpdef put_color(strtype content, color=None, bool eachline=True):
 #cpdef str put_color(strtype content, strtype color=None, bool eachline=True):
+cpdef put_color(content, color=None, bool eachline=True):
     #print("color name: {}".format(color))
     code = COLOR_MAP.get(color, None)
     #code = colors[color]
     #print("code: {}".format(repr(code)))
     if code:
         if eachline:
-            lines = str(content).split('\n')
-            lines = ['{}{}{}'.format(code, line.rstrip(), COLOR_MAP['clear']) for line in lines]
+            #lines = str(content).split('\n')
+            lines = ("%s" % (content,)).split('\n')
+            #lines = ['{}{}{}'.format(code, line.rstrip(), COLOR_MAP['clear']) for line in lines]
+            lines = ['%s%s%s' % (code, line.rstrip(), COLOR_MAP['clear']) for line in lines]
             return str.join('\n', lines)
         else:
             #return "%s%s%s" % (code, content, COLOR_MAP['clear'])
-            return '{}{}{}'.format(code, content, COLOR_MAP['clear'])
+            #return '{}{}{}'.format(code, content, COLOR_MAP['clear'])
+            return '%s%s%s' % (code, content, COLOR_MAP['clear'])
     else:
         return content
 

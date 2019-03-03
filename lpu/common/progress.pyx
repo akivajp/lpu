@@ -68,12 +68,11 @@ cdef class SpeedCounter(object):
         if self.last_time > self.start_time:
             self.flush()
             fobj = None
-            if not self.force:
-                if sys.stderr.isatty():
-                    fobj = sys.stderr
-                elif sys.stdout.isatty():
-                    fobj = sys.stdout
-            else:
+            if sys.stderr.isatty():
+                fobj = sys.stderr
+            elif sys.stdout.isatty():
+                fobj = sys.stdout
+            elif force:
                 fobj = sys.stderr
             if fobj:
                 fobj.write("\n")
@@ -407,7 +406,9 @@ cpdef pipe_view(filepaths, mode='bytes', str header=None, refresh=REFRESH, outfu
     #counter.flush()
     counter.reset()
 
-cpdef view(source, str header = None, long max_count = -1, env = True):
+#cpdef view(source, str header = None, long max_count = -1, env = True):
+#cpdef view(source, strtype header=None, long max_count=-1, bool env=True):
+cpdef view(source, header=None, long max_count=-1, bool env=True):
     if env and logging.get_quiet_status():
         # as-is (without progress view)
         return source

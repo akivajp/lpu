@@ -18,6 +18,9 @@ if sys.platform == 'linux2':
     # Omitting 'strict-prototypes' warning For Python 2.x
     opt = sysconfig.get_config_vars().get('OPT', '')
     opt = opt.replace('-Wstrict-prototypes', '')
+    #opt = opt + ' -Wno-strict-prototypes'
+    opt = opt + ' -Wno-cpp'
+    #opt = opt + ' -DNPY_NO_DEPRECATED_API'
     sysconfig.get_config_vars()['OPT'] = opt
     # Omitting 'strict-prototypes' warning For Python 3.x
     cflags = sysconfig.get_config_vars().get('CFLAGS', '')
@@ -130,9 +133,9 @@ setup(
             'lpu-guess-langcode= lpu.commands.guess_langcode:main',
             'lpu-progress= lpu.commands.progress:main',
             'lpu-random-split= lpu.commands.random_split:main',
-            'lpu-train-ibm-model1= lpu.smt.align.ibm_model1:main_train',
-            #'lpu-score-ibm-model1= lpu.smt.align.ibm_model1:main_score',
             'lpu-wait-files= lpu.commands.wait_files:main',
+            'lpu-word-align-train= lpu.smt.align.ibm_models:main_train',
+            'lpu-word-align-score= lpu.smt.align.ibm_models:main_score',
         ],
     },
 )

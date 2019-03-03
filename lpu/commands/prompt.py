@@ -42,8 +42,8 @@ def askExistContinue(filepath, default=None):
         askContinue(default)
 
 def cmdPrompt(args):
-    parser = argparse.ArgumentParser(description='Get absolute paths of given files or directories')
-    parser.add_argument('--exist', '-e', type=str, help='asking whether continuing when specified file already exists')
+    parser = argparse.ArgumentParser(description="Show message on condition, wait and receive user's response")
+    parser.add_argument('--exist', '-e', metavar='filepath', type=str, help='asking whether continuing when specified file already exists')
     parser.add_argument('--continue', '-c', action='store_true', help='asking whether continuing')
     parser.add_argument('--yes', '-y', action='store_true', help='assign the default answer as "Yes"')
     parser.add_argument('--no', '-n', action='store_true', help='assign the default answer as "No"')

@@ -7,6 +7,7 @@
 import ast
 import inspect
 #import linecache
+import codecs
 import re
 import sys
 import traceback
@@ -17,9 +18,21 @@ from lpu.__system__ import logging
 from lpu.common import environ
 from lpu.common import validation
 from lpu.common.colors import put_color
+from lpu.common import compat
 from lpu.common.compat import MethodType
 
 logger = logging.getLogger(__name__)
+
+#from lpu.common.compat cimport py2_bytes_to_str
+#from lpu.common.compat cimport py3_bytes_to_str
+#from lpu.common.compat cimport py2_unicode_to_str
+#from lpu.common.compat cimport py3_unicode_to_str
+#if sys.version_info.major <= 2:
+#    bytes_to_str   = py2_bytes_to_str
+#    unicode_to_str = py2_unicode_to_str
+#else:
+#    bytes_to_str   = py3_bytes_to_str
+#    unicode_to_str = py3_unicode_to_str
 
 class LoggingStatus(environ.StackHolder):
     def __init__(self, logger=None):
@@ -152,10 +165,10 @@ class ColorizingFormatter(logging.Formatter):
             self._style._fmt = fmt
         return fmt
 
-    #def _colorizeText(self, record, text):
     #cpdef str _colorizeText(self, record, str text):
-    def _colorizeText(self, record, str text):
-        cdef str color_default
+    #def _colorizeText(self, record, str text):
+    def _colorizeText(self, record, text):
+        cdef object color_default
         level = record.levelname.lower()
         color_level = self._colors.get(level, None)
         if color_level:
@@ -167,6 +180,7 @@ class ColorizingFormatter(logging.Formatter):
         return text
 
     def format(self, record):
+        #cdef str text
         #print("formatting... {}".format(record))
         fmt_apply = None
         for flt, fmt in self._format_rules:
@@ -185,6 +199,10 @@ class ColorizingFormatter(logging.Formatter):
         else:
             self._setColorizedFormat(self._default_fmt, record)
         text = super(ColorizingFormatter,self).format(record)
+        if sys.version_info.major == 2:
+            text = codecs.escape_decode(text)[0]
+        #logger.info(text)
+        #logger.info(type(text))
         return self._colorizeText(record, text)
 
     def formatStack(self, stack_info):
@@ -348,26 +366,36 @@ cpdef _debug_print(self, val=None, limit=0):
     stack = traceback.extract_stack(limit=1)
     path, lineno, func, line = stack[0]
     line = _get_cached_line(path, lineno, line).strip()
-    if val is not None:
-        expr = re.findall(r'\(.*\)$', line)
-        if expr:
-            expr = expr[0][1:-1].strip()
-            if expr.find(',') > 0:
-                expr = str.join(',', expr.split(',')[:-1]).strip()
-            if isinstance(val, (int,float)):
-                str_val = '{}({})'.format(type(val).__name__,val)
-            elif isinstance(val, str):
-                str_val = val
-            else:
-                str_val = repr(val)
-            if str_val.find('\n') >= 0:
-                # multiple lines
-                format = "{} => (see following lines)\n{}".format(expr, str_val) + format
-            else:
-                # single line
-                format = "{} => {}".format(expr, str_val) + format
+    line = compat.to_str(line)
+    #if val is not None:
+    expr = re.findall(r'\(.*\)$', line)
+    if expr:
+        expr = expr[0][1:-1].strip()
+    if expr:
+        if expr.find(',') > 0:
+            expr = str.join(',', expr.split(',')[:-1]).strip()
+        if sys.version_info.major == 2:
+            #expr = compat.to_unicode(expr)
+            if isinstance(val, unicode):
+                val = compat.to_str(val)
+        if isinstance(val, (int,float)):
+            str_val = '{}({})'.format(type(val).__name__,val)
+        elif isinstance(val, str):
+            str_val = val
+        elif isinstance(val, bytes):
+            repr(val)
         else:
-            format = str(val) + format
+            str_val = repr(val)
+        if str_val.find('\n') >= 0:
+            # multiple lines
+            #format = "{} => (see following lines)\n{}".format(expr, str_val) + format
+            format = "%s => (see following lines)\n%s"%(expr, str_val) + format
+        else:
+            # single line
+            #format = "{} => {}".format(expr, str_val) + format
+            format = "%s => %s"%(expr, str_val) + format
+    else:
+        format = str(val) + format
     #module_name = inspect.getmodulename(path)
     #if not module_name:
     #    module_name = '__main__'

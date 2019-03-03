@@ -158,7 +158,7 @@ cdef class ConfigData:
         cdef object main = self.__main
         cdef object base = self.__base
         # check the key validity
-        if not isinstance(key, str):
+        if not isinstance(key, (str,bytes)):
             raise TypeError('key value should be type of str, but given: %s' % type(key).__name__)
         elif key.startswith('_'):
             raise KeyError('key should not start with "_": %s' % key)
