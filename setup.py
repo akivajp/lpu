@@ -25,6 +25,7 @@ if sys.platform == 'linux2':
     # Omitting 'strict-prototypes' warning For Python 3.x
     cflags = sysconfig.get_config_vars().get('CFLAGS', '')
     cflags = cflags.replace('-Wstrict-prototypes', '')
+    cflags = cflags + ' -Wno-cpp'
     sysconfig.get_config_vars()['CFLAGS'] = cflags
 
 def get_package(path):

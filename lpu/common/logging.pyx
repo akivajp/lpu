@@ -63,21 +63,27 @@ class LoggingStatus(environ.StackHolder):
 
     def set_debug(self, enable=True):
         if enable:
-            self.set('DEBUG', '1')
+            #self.set('DEBUG', '1')
+            self.set('LPU_DEBUG', '1')
         else:
-            self.set('DEBUG', '0')
+            #self.set('DEBUG', '0')
+            self.set('LPU_DEBUG', '0')
         self._reconfigureLogger()
     def unset_debug(self):
-        return self.clear('DEBUG')
+        #return self.clear('DEBUG')
+        return self.clear('LPU_DEBUG')
 
     def set_quiet(self, enable=True):
         if enable:
-            self.set('QUIET', '1')
+            #self.set('QUIET', '1')
+            self.set('LPU_QUIET', '1')
         else:
-            self.set('QUIET', '0')
+            #self.set('QUIET', '0')
+            self.set('LPU_QUIET', '0')
         self._reconfigureLogger()
     def unset_debug(self):
-        return self.clear('QUIET')
+        #return self.clear('QUIET')
+        return self.clear('LPU_QUIET')
 
     def __enter__(self):
         logger.debug("entering logging environment")
@@ -90,7 +96,9 @@ class LoggingStatus(environ.StackHolder):
         self._reconfigureLogger()
 
 def get_debug_status():
-    mode = environ.get_env('DEBUG')
+    mode = environ.get_env('LPU_DEBUG')
+    if not mode:
+        mode = environ.get_env('DEBUG')
     if not mode:
         return False
     elif mode.lower() in ('', 'false', 'off', '0'):
@@ -99,7 +107,9 @@ def get_debug_status():
         return True
 
 def get_color_status():
-    mode = environ.get_env('COLOR')
+    mode = environ.get_env('LPU_COLOR')
+    if not mode:
+        mode = environ.get_env('COLOR')
     auto = False
     if not mode:
         auto = True

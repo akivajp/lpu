@@ -29,8 +29,8 @@ cdef class Model:
     cdef double calc_entropy(self, list sent_pairs) except *
     cdef void calc_and_save_scores(self, out_path, list sent_pairs, bool character_based)
     cdef void decode_and_save_align(self, out_path, list sent_pairs, bool character_based)
-    cdef void save_trans_dist(self, out_path, threshold, nbest)
     cdef void save_align_dist(self, out_path, threshold)
+    cdef void save_trans_dist(self, out_path, threshold, nbest)
 
 cdef class Trainer:
     cdef Model model
@@ -47,6 +47,8 @@ cdef class Trainer:
     cdef void init_align_dist(self) except *
     cdef void expect_step(self) except *
     cdef void maximize_step(self) except *
+    cdef void save_align_dist(self, out_path, threshold) except *
+    cdef void save_trans_dist(self, out_path, threshold, nbest) except *
     cdef void setup(self) except *
     cdef void train(self, int iteration_limit) except *
     cdef void train_step(self) except *

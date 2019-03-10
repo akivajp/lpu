@@ -55,7 +55,6 @@ cdef class Model1Trainer:
         cdef int len_trg = len(self.model.vocab.trg)
         cdef list src_sent, trg_sent
         cdef tuple cooc
-        #cdef np.ndarray cooc_trans_dist, sum_trg
         cdef np.ndarray cooc_trans_dist
         self.count_cooc_src2trg = np.zeros([len_src, len_trg], np.float64)
         logger.info('computing expected co-occurrence counts of source word and target word')
@@ -63,11 +62,8 @@ cdef class Model1Trainer:
             cooc = grid_indices(src_sent, trg_sent)
             cooc_trans_dist = sub_matrix(self.model.trans_dist, src_sent, trg_sent)
             ## normalizing factor
-            #sum_trg = cooc_trans_dist.sum(axis=0)
             normalize(cooc_trans_dist, 0, cooc_trans_dist)
-            #np.add.at(self.count_cooc_src2trg, cooc, cooc_trans_dist / sum_trg)
             np.add.at(self.count_cooc_src2trg, cooc, cooc_trans_dist)
-        #return count_src2trg
 
     cdef void maximize_step(self) except *:
         cdef ndarray[float64_t, ndim=2] total_src
@@ -92,7 +88,7 @@ cdef class Model1Trainer:
         logger.info("initial entropy: %s" % last_entropy)
         for step in range(iteration_limit):
             logger.info("--")
-            logger.info("step: %s" % (step + 1))
+            logger.info("step: {} / {}".format(step+1, iteration_limit))
             # train 1 step
             Model1Trainer.train_step(self)
             # calculate entropy

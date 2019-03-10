@@ -88,7 +88,6 @@ cdef class Vocab:
         src_file = progress.FileReader(src_path, 'loading')
         trg_file = files.open(trg_path)
         sent_pairs = []
-        dprint(src_file)
         for src_line, trg_line in zip(src_file, trg_file):
             if character_based:
                 src_words = list( compat.to_unicode(src_line.strip("\n")) )
@@ -175,25 +174,6 @@ cdef class Model:
                 record = "{}\n".format(str.join(' ', align))
                 fobj.write(record)
 
-    cdef void save_trans_dist(self, out_path, threshold, nbest):
-        #cdef tuple indices
-        cdef int src, trg
-        cdef float prob
-        cdef str record
-        cdef list src_indices = list(range(len(self.vocab.src)))
-        cdef list trg_indices = list(range(len(self.vocab.trg)))
-        with files.open(out_path, 'wt') as fobj:
-            logger.info("storing translation probabilities into file (threshold=%s): %s" % (threshold,out_path))
-            for src in progress.view(src_indices, 'storing'):
-                if nbest is not None:
-                    nbest = min(nbest, len(self.vocab.trg))
-                    trg_indices = list(np.argpartition(-self.trans_dist[src], nbest)[:nbest])
-                for trg in trg_indices:
-                    prob = self.trans_dist[src,trg]
-                    if prob > threshold:
-                        record = "%s\t%s\t%s\n" % (self.vocab.src.id2str(src), self.vocab.trg.id2str(trg), prob)
-                        fobj.write(record)
-
     cdef void save_align_dist(self, out_path, threshold):
         cdef tuple indices
         cdef int len_src, len_trg
@@ -211,6 +191,27 @@ cdef class Model:
                 if prob > threshold:
                     record = "%s\t%s\t%s\t%s\t%s\n" % (len_src+1, len_trg+1, trg+1, src, prob)
                     fobj.write(record)
+
+    cdef void save_trans_dist(self, out_path, threshold, nbest):
+        #cdef tuple indices
+        cdef int src, trg
+        cdef float prob
+        cdef str record
+        cdef list src_indices = list(range(len(self.vocab.src)))
+        cdef list trg_indices = list(range(len(self.vocab.trg)))
+        with files.open(out_path, 'wt') as fobj:
+            logger.info("storing translation probabilities into file (threshold=%s): %s" % (threshold,out_path))
+            for src in progress.view(src_indices, 'storing'):
+                sorted_trg_prob = sorted(enumerate(self.trans_dist[src]), key = lambda r: -r[1])
+                #if nbest is not None:
+                #    nbest = min(nbest, len(self.vocab.trg))
+                #    trg_indices = list(np.argpartition(-self.trans_dist[src], nbest)[:nbest])
+                #for trg in trg_indices:
+                #    prob = self.trans_dist[src,trg]
+                for trg, prob in sorted_trg_prob[:nbest]:
+                    if prob > threshold:
+                        record = "%s\t%s\t%s\n" % (self.vocab.src.id2str(src), self.vocab.trg.id2str(trg), prob)
+                        fobj.write(record)
 
 cdef class Trainer:
     # imported from "ibm_model1.pxd"
@@ -244,6 +245,48 @@ cdef class Trainer:
     cdef void maximize_step(self) except *:
         raise NotImplementedError()
 
+    cdef void save_align_dist(self, out_path, threshold) except *:
+        cdef tuple indices
+        cdef int len_src, len_trg
+        cdef int src, trg
+        cdef float prob
+        cdef str record
+        cdef Model model = self.model
+        cdef ndarray[float64_t, ndim=3] max_prob = model.align_dist.max(axis=3)
+        cdef ndarray[float64_t, ndim=3] min_prob = model.align_dist.min(axis=3)
+        cdef ndarray trained = (max_prob != min_prob)
+        with files.open(out_path, 'wt') as fobj:
+            logger.info("storing alignment probabilities into file: %s" % (out_path,))
+            indices = np.where(np.broadcast_to(trained[:,:,:,None], model.align_dist[:].shape))
+            for len_src, len_trg, trg, src in progress.view(zip(*indices), 'storing', max_count=len(indices[0])):
+                prob = model.align_dist[len_src, len_trg, trg, src]
+                count = self.count_align_trg2src[len_src, len_trg, trg, src]
+                if prob > threshold:
+                    record = "%s\t%s\t%s\t%s\t%.8f\t%.2f\n" % (len_src+1, len_trg+1, trg+1, src, prob, count)
+                    fobj.write(record)
+
+    cdef void save_trans_dist(self, out_path, threshold, nbest) except *:
+        cdef int src, trg
+        cdef float prob
+        cdef str record
+        cdef Model model = self.model
+        cdef list src_indices = list(range(len(model.vocab.src)))
+        cdef list trg_indices = list(range(len(model.vocab.trg)))
+        with files.open(out_path, 'wt') as fobj:
+            logger.info("storing translation probabilities into file (threshold=%s): %s" % (threshold,out_path))
+            for src in progress.view(src_indices, 'storing'):
+                sorted_trg_prob = sorted(enumerate(model.trans_dist[src]), key = lambda r: -r[1])
+                #if nbest is not None:
+                #    nbest = min(nbest, len(model.vocab.trg))
+                #    trg_indices = list(np.argpartition(- model.trans_dist[src], nbest)[:nbest])
+                #for trg in trg_indices:
+                #    prob = model.trans_dist[src,trg]
+                for trg, prob in sorted_trg_prob[:nbest]:
+                    if prob > threshold:
+                        count = self.count_cooc_src2trg[src,trg]
+                        record = "%s\t%s\t%.8f\t%.2f\n" % (model.vocab.src.id2str(src), model.vocab.trg.id2str(trg), prob, count)
+                        fobj.write(record)
+
     cdef void setup(self) except *:
         if self.sent_pairs is None:
             logger.info("----")
@@ -252,6 +295,8 @@ cdef class Trainer:
             self.sent_pairs = self.model.vocab.load_sent_pairs(self.src_path, self.trg_path, self.character_based)
             logger.info("source vocabulary size: {:,d}".format(len(self.model.vocab.src)))
             logger.info("target vocabulary size: {:,d}".format(len(self.model.vocab.trg)))
+            logger.info("max source length: {:,d}".format(self.model.vocab.max_len_src))
+            logger.info("max target length: {:,d}".format(self.model.vocab.max_len_trg))
 
     cdef void train(self, int iteration_limit) except *:
         raise NotImplementedError()
@@ -284,6 +329,9 @@ def check_test_config(conf):
         return False
     return True
 
+cdef HMMTrainer(Trainer):
+    pass
+
 def train_ibm_models(conf, **others):
     conf = Config(conf)
     conf.update(others)
@@ -304,9 +352,11 @@ def train_ibm_models(conf, **others):
     except Exception as e:
         logger.exception(e)
     logger.info("----")
-    trainer.model.save_trans_dist(conf.data.save_trans_path, conf.data.threshold, conf.data.nbest)
+    #trainer.model.save_trans_dist(conf.data.save_trans_path, conf.data.threshold, conf.data.nbest)
+    trainer.save_trans_dist(conf.data.save_trans_path, conf.data.threshold, conf.data.nbest)
     if conf.data.save_align_path:
-        trainer.model.save_align_dist(conf.data.save_align_path, conf.data.threshold)
+        #trainer.model.save_align_dist(conf.data.save_align_path, conf.data.threshold)
+        trainer.save_align_dist(conf.data.save_align_path, conf.data.threshold)
     if conf.data.save_scores:
         trainer.model.calc_and_save_scores(conf.data.save_scores, trainer.sent_pairs, character_based)
     if conf.data.decode_align:
@@ -324,12 +374,15 @@ def score_ibm_model(conf, **others):
     character_based = conf.get('character', False)
     try:
         sent_pairs = trainer.model.vocab.load_sent_pairs(conf.data.src_path, conf.data.trg_path, character_based)
-        dprint(sent_pairs)
         with open(conf.data.trans_path) as fobj:
             for line in fobj:
                 fields = line.strip().split('\t')
                 if len(fields) == 3:
                     src, trg, prob = fields
+                    trainer.model.vocab.src.str2id(src)
+                    trainer.model.vocab.trg.str2id(trg)
+                elif len(fields) == 4:
+                    src, trg, prob, count = fields
                     trainer.model.vocab.src.str2id(src)
                     trainer.model.vocab.trg.str2id(trg)
         #trainer.model.trans_dist = trainer.init_trans_dist()
@@ -340,6 +393,12 @@ def score_ibm_model(conf, **others):
                 fields = line.strip().split('\t')
                 if len(fields) == 3:
                     src, trg, prob = fields
+                    src = trainer.model.vocab.src.str2id(src)
+                    trg = trainer.model.vocab.trg.str2id(trg)
+                    prob = float(prob)
+                    trainer.model.trans_dist[src,trg] = prob
+                elif len(fields) == 4:
+                    src, trg, prob, count = fields
                     src = trainer.model.vocab.src.str2id(src)
                     trg = trainer.model.vocab.trg.str2id(trg)
                     prob = float(prob)
@@ -400,13 +459,15 @@ def train_model(parser, train_func):
     args = parser.parse_args()
     conf = Config(vars(args))
     #with logging.using_config(logger) as c:
-    with logging.using_config(['lpu', '__main__']) as c:
-        if conf.data.debug:
-            c.set_debug(True)
-            c.set_quiet(False)
-        if conf.data.quiet:
-            c.set_quiet(True)
-            c.set_debug(False)
+    #with logging.using_config(['lpu', '__main__']) as c:
+    loggers = [__name__, '__main__']
+    with logging.using_config(loggers, debug=args.debug, quiet=args.quiet):
+        #if conf.data.debug:
+        #    c.set_debug(True)
+        #    c.set_quiet(False)
+        #if conf.data.quiet:
+        #    c.set_quiet(True)
+        #    c.set_debug(False)
         dprint(args)
         dprint(conf)
         train_func(conf)

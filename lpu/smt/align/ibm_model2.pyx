@@ -48,7 +48,7 @@ cdef class Model2Trainer:
         cdef ndarray[float64_t, ndim=4] uniform_dist
         cdef int max_len_src = self.model.vocab.max_len_src
         cdef int max_len_trg = self.model.vocab.max_len_trg
-        logger.info("initializing word translation probabilities as uniform distribution")
+        logger.info("initializing index alignment probabilities as uniform distribution")
         #uniform_dist = np.zeros([max_len_src-1, max_len_trg, max_len_src, max_len_trg], np.float64)
         uniform_dist = np.zeros([max_len_src-1, max_len_trg, max_len_trg, max_len_src], np.float64)
         indices = list( np.ndindex(max_len_src-1, max_len_trg) )
@@ -113,7 +113,7 @@ cdef class Model2Trainer:
         logger.info("initial entropy: %s" % last_entropy)
         for step in range(iteration_limit):
             logger.info("--")
-            logger.info("step: %s" % (step + 1))
+            logger.info("step: {} / {}".format(step+1, iteration_limit))
             # train 1 step
             Model2Trainer.train_step(self)
             # calculate entropy
