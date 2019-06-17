@@ -50,6 +50,13 @@ cdef class ConfigData:
             return True
         return False
 
+    def __delattr__(self, key):
+        if key in self.__main:
+            del self.__main[key]
+        else:
+            name = self.__class__.__name__
+            raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
+
     #def __getattr__(self, key):
     def __getattr__(self, str key):
         cdef str name
@@ -277,7 +284,7 @@ cdef class Config:
         else:
             return self[key]
 
-    def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, flat=False):
+    def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, purge=False, flat=False):
         cdef type dtype
         cdef ConfigData data = self.data
         if ordered:
@@ -287,29 +294,33 @@ cdef class Config:
         if key:
             data = data[key]
         if flat:
-            return flat_dict(data2dict(data, dtype, upstream, recursive), dtype, False)
+            #return flat_dict(data2dict(data, dtype, upstream, recursive), dtype, False)
+            return flat_dict(data2dict(data, dtype, upstream, recursive, purge), dtype, False)
         else:
-            return data2dict(data, dtype, upstream, recursive)
+            #return data2dict(data, dtype, upstream, recursive)
+            return data2dict(data, dtype, upstream, recursive, purge)
 
-    def to_json(self, key=None, upstream=False, **options):
+    def to_json(self, key=None, upstream=False, purge=None, **options):
         cdef object d
-        d = self.to_dict(key, True, upstream)
+        d = self.to_dict(key, True, upstream, True, purge, None)
         return json.dumps(d, **options)
 
     def update(self, _conf = None, _override=True, **args):
-        if _conf:
-            if _override:
-                for key, val in _conf.items():
-                    if val != None:
-                        #dprint(key)
-                        #dprint(val)
-                        self[key] = val
-            else:
-                for key in _conf:
-                    if key not in self:
-                        self[key] = _conf[key]
-        if args:
-            self.update(args, _override)
+        #if _conf:
+        #    if _override:
+        #        for key, val in _conf.items():
+        #            if val != None:
+        #                #dprint(key)
+        #                #dprint(val)
+        #                self[key] = val
+        #    else:
+        #        for key in _conf:
+        #            if key not in self:
+        #                self[key] = _conf[key]
+        #if args:
+        #    self.update(args, _override)
+        update_data(self.data, _conf, _override, **args)
+        return self
 
     def __contains__(self, key):
         return self.data.__contains__(key)
@@ -334,9 +345,19 @@ cdef class Config:
     def __setitem__(self, key, val):
         self.data.__setitem__(key, val)
 
+def get_items(object data, bool purge):
+    for key in data:
+        val = data[key]
+        if purge:
+            if val is not None:
+                yield key, val
+        else:
+            yield key, val
+
 # type object is problematic in python 3.6?
 #cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
-cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
+#cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
+cdef object data2dict(object data, object dtype, bool upstream, bool recursive, bool purge):
     #dprint("--")
     #dprint(data)
     #dprint(dtype)
@@ -349,15 +370,21 @@ cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
     cdata = data
     if not recursive:
         if upstream:
-            return dtype((key,data[key]) for key in data)
+            #return dtype((key,data[key]) for key in data)
+            return dtype(get_items(data))
         else:
-            return dtype((key,data[key]) for key in cdata.__main)
+            #return dtype((key,data[key]) for key in cdata.__main)
+            return dtype(get_items(data))
     else:
         if upstream:
-            return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in data)
+            #return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in data)
+            #return dtype((key,data2dict(data[key], dtype, upstream, recursive, purge)) for key in data)
+            return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata, purge))
         else:
             #dprint(cdata.__main)
-            return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in cdata.__main)
+            #return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in cdata.__main)
+            #return dtype((key,data2dict(data[key], dtype, upstream, recursive, purge)) for key in cdata.__main)
+            return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata.__main, purge))
 
 cdef object dict2data(object obj):
     cdef object key, value
@@ -401,4 +428,33 @@ cdef object flat_dict(object d, type dtype, bool chain_key):
         if key not in flatten:
             flatten[key] = val
     return flatten
+
+def update_data(ConfigData cdata, _conf = None, _override=True, **args):
+    #if _conf:
+    if isinstance(_conf, (dict,ConfigData)):
+        if isinstance(_conf, ConfigData):
+            _conf = ConfigData.__main
+        if _override:
+            for key, val in _conf.items():
+                if val is not None:
+                    if isinstance(val, (dict,ConfigData)):
+                        if key not in cdata:
+                            cdata[key] = {}
+                        elif not isinstance(cdata[key], ConfigData):
+                            cdata[key] = {}
+                        else:
+                            # cdata[key] is instance of ConfigData
+                            pass
+                        update_data(cdata[key], val)
+                    else:
+                        cdata[key] = val
+        else:
+            for key in _conf:
+                if key not in cdata:
+                    cdata[key] = _conf[key]
+    else:
+        raise TypeError("unsupported configuration type: {}".type(_conf).__name__)
+    if args:
+        update_data(cdata, args, _override)
+    return cdata
 
