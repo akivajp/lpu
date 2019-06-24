@@ -6,4 +6,5 @@ cdef class ConfigData:
 
 cdef class Config:
     cdef readonly ConfigData data
+    cdef readonly ConfigData base
 

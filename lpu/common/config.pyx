@@ -206,6 +206,7 @@ cdef class Config:
     def __cinit__(self, _base = None, **args):
         #self.data = ConfigData(_base)
         self.data = ConfigData(_base=_base)
+        self.base = self.data.__base
         if args:
             self.update(args)
 
@@ -305,7 +306,7 @@ cdef class Config:
         d = self.to_dict(key, True, upstream, True, purge, None)
         return json.dumps(d, **options)
 
-    def update(self, _conf = None, _override=True, **args):
+    def update(self, _conf = None, _override=True, _override_none=False, **args):
         #if _conf:
         #    if _override:
         #        for key, val in _conf.items():
@@ -319,7 +320,8 @@ cdef class Config:
         #                self[key] = _conf[key]
         #if args:
         #    self.update(args, _override)
-        update_data(self.data, _conf, _override, **args)
+        #update_data(self.data, _conf, _override, **args)
+        update_data(self.data, _conf, _override, _override_none, **args)
         return self
 
     def __contains__(self, key):
@@ -429,14 +431,18 @@ cdef object flat_dict(object d, type dtype, bool chain_key):
             flatten[key] = val
     return flatten
 
-def update_data(ConfigData cdata, _conf = None, _override=True, **args):
+#def update_data(ConfigData cdata, _conf = None, _override=True, **args):
+def update_data(ConfigData cdata, _conf = None, _override=True, _override_none=False, **args):
     #if _conf:
     if isinstance(_conf, (dict,ConfigData)):
         if isinstance(_conf, ConfigData):
             _conf = ConfigData.__main
         if _override:
             for key, val in _conf.items():
-                if val is not None:
+                if val is None:
+                    if _override_none:
+                        cdata[key] = None
+                else:
                     if isinstance(val, (dict,ConfigData)):
                         if key not in cdata:
                             cdata[key] = {}
