@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # distutils: language=c++
+# -*- coding: utf-8 -*-
 
 '''Utility functions for Python 2/3 compatibility'''
 
@@ -6,42 +8,55 @@ import collections
 import sys
 import types
 
-cdef bytes py2_bytes_to_str(bytes b):
+from lpu.backends import safe_cython as cython
+
+#cdef bytes py2_bytes_to_str(bytes b):
+def py2_bytes_to_str(b):
     # as-is
     return b
-cdef str py3_bytes_to_str(bytes b):
+def py3_bytes_to_str(b):
     #return str(b, 'utf-8', errors='backslashreplace')
     return b.decode('utf-8', 'backslashreplace')
 
-cdef unicode py2_bytes_to_unicode(bytes b):
+#cdef unicode py2_bytes_to_unicode(bytes b):
+def py2_bytes_to_unicode(b):
     return b.decode('utf-8')
-cdef unicode py3_bytes_to_unicode(bytes b):
+#cdef unicode py3_bytes_to_unicode(bytes b):
+def py3_bytes_to_unicode(b):
     return b.decode('utf-8')
 
-cdef bytes py2_str_to_bytes(bytes b):
+#cdef bytes py2_str_to_bytes(bytes b):
+def py2_str_to_bytes(b):
     # as-is
     return b
-cdef bytes py3_str_to_bytes(str s):
+#cdef bytes py3_str_to_bytes(str s):
+def py3_str_to_bytes(s):
     return s.encode('utf-8', 'backslashreplace')
 
-cdef unicode py2_str_to_unicode(bytes b):
+#cdef unicode py2_str_to_unicode(bytes b):
+def py2_str_to_unicode(b):
     return b.decode('utf-8')
-cdef unicode py3_str_to_unicode(str s):
+#cdef unicode py3_str_to_unicode(str s):
+def py3_str_to_unicode(s):
     # as-is
     return unicode(s)
 
-cdef bytes py2_unicode_to_bytes(unicode u):
+#cdef bytes py2_unicode_to_bytes(unicode u):
+def py2_unicode_to_bytes(u):
     return u.encode('utf-8')
-cdef bytes py3_unicode_to_bytes(unicode u):
+#cdef bytes py3_unicode_to_bytes(unicode u):
+def py3_unicode_to_bytes(u):
     return u.encode('utf-8')
 
-cdef bytes py2_unicode_to_str(unicode u):
+#cdef bytes py2_unicode_to_str(unicode u):
+def py2_unicode_to_str(u):
     return u.encode('utf-8')
-cdef str py3_unicode_to_str(unicode u):
+def py3_unicode_to_str(u):
     # as-is
     return str(u)
 
-cdef convert_struct(data, converter_func, fallback_func):
+#cdef convert_struct(data, converter_func, fallback_func):
+def convert_struct(data, converter_func, fallback_func):
     if isinstance(data, collections.Mapping):
         return type(data)(map(converter_func, data.items()))
     elif isinstance(data, collections.Iterable):
@@ -49,7 +64,8 @@ cdef convert_struct(data, converter_func, fallback_func):
     else:
         return fallback_func(data)
 
-cdef bytes py2_to_bytes(s):
+#cdef bytes py2_to_bytes(s):
+def py2_to_bytes(s):
     '''
     convert to byte string
     '''
@@ -57,7 +73,8 @@ cdef bytes py2_to_bytes(s):
         return s.encode('utf-8')
     else:
         return bytes(s)
-cdef bytes py3_to_bytes(s):
+#cdef bytes py3_to_bytes(s):
+def py3_to_bytes(s):
     '''
     convert to byte string
     '''
@@ -68,11 +85,14 @@ cdef bytes py3_to_bytes(s):
     else:
         return bytes(str(s), 'utf-8')
 
-cdef bytes py2_to_str(object data):
+#cdef bytes py2_to_str(object data):
+@cython.locals(dtype = type)
+def py2_to_str(data):
     '''
     convert to object based on standard strings
     '''
-    cdef type dtype = type(data)
+    #cdef type dtype = type(data)
+    dtype = type(data)
     if dtype is str:
         # as-is
         #return str(data)
@@ -92,11 +112,14 @@ cdef bytes py2_to_str(object data):
     ##    return type(data)(map(to_str, data))
     #else:
     #    return str(data)
-cdef str py3_to_str(data):
+#cdef str py3_to_str(data):
+@cython.locals(dtype = type)
+def py3_to_str(data):
     '''
     convert to object based on standard strings
     '''
-    cdef type dtype = type(data)
+    #cdef type dtype = type(data)
+    dtype = type(data)
     if dtype is str:
         # as-is
         return data
@@ -115,12 +138,15 @@ cdef str py3_to_str(data):
     #else:
     #    return str(data)
 
-cdef unicode py2_to_unicode(data):
+#cdef unicode py2_to_unicode(data):
+@cython.locals(dtype = type)
+def py2_to_unicode(data):
     '''
     convert to unicode string
     '''
     #return unicode(s, 'utf-8')
-    cdef type dtype = type(data)
+    #cdef type dtype = type(data)
+    dtype = type(data)
     if dtype is unicode:
         # as-is
         return data
@@ -130,7 +156,8 @@ cdef unicode py2_to_unicode(data):
         return unicode(data)
     #else:
     #    return convert_struct(data, py2_to_unicode, unicode)
-cdef unicode py3_to_unicode(s):
+#cdef unicode py3_to_unicode(s):
+def py3_to_unicode(s):
     '''
     convert to unicode string
     '''
@@ -139,7 +166,10 @@ cdef unicode py3_to_unicode(s):
     else:
         return str(s)
 
-cpdef __py3__MethodType(function, instance, cls=None):
+
+#cpdef __py3__MethodType(function, instance, cls=None):
+def __py3__MethodType(function, instance, cls=None):
+#def __py3__MethodType(function, instance, cls):
     # cls (class type) is not used
     return types.MethodType(function, instance)
 

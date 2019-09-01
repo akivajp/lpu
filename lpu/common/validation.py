@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # distutils: language=c++
 # -*- coding: utf-8 -*-
 

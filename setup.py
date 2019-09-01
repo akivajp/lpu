@@ -37,11 +37,15 @@ def get_package(path):
         return os.path.basename(path)
     return ''
 
-def get_modules(dirpath, suffixes=['.pyx'], additional_sources=None, **options):
+#def get_modules(dirpath, suffixes=['.pyx'], additional_sources=None, **options):
+def get_modules(dirpath, suffixes=['.pyx', '.py'], additional_sources=None, **options):
     modules = []
     for path in findall(dirpath):
         if isinstance(suffixes, str):
             suffixes = [suffixes]
+        basename = os.path.basename(path)
+        if basename == "__init__.py":
+            continue
         if not any([path.endswith(suffix) for suffix in suffixes]):
             continue
         dirpath = os.path.dirname(path)
@@ -66,7 +70,9 @@ try:
         language_level = sys.version_info[0],
     )
     ext_modules = get_modules(
-        MAIN_PACKAGE, ['.pyx'],
+        #MAIN_PACKAGE, ['.pyx'],
+        MAIN_PACKAGE, ['.pyx', '.py'],
+        #MAIN_PACKAGE, ['*.py'],
         include_dirs = include_dirs,
     )
     ext_modules = cythonize(
@@ -120,6 +126,7 @@ setup(
         '': [
             '*.pxd',
             '*.pyx',
+            '*.py',
         ],
         'lpu': [
             'VERSION'
@@ -140,4 +147,3 @@ setup(
         ],
     },
 )
-

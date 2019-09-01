@@ -25,3 +25,7 @@ cdef str py3_to_str(object o)
 cdef unicode py2_to_unicode(object o)
 cdef unicode py3_to_unicode(object o)
 
+#cpdef __py3__MethodType(function, instance, cls)
+cpdef __py3__MethodType(function, instance, cls=*)
+
+cdef convert_struct(data, converter_func, fallback_func)

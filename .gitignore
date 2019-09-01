@@ -1,8 +1,14 @@
-/.idea
 /build
 /dist
+/lpu/*/*.c
+/lpu/*/*.cpp
+/lpu/*/*/*.c
+/lpu/*/*/*.cpp
+/.idea
+/*.code-workspace
 /*.egg-info
+/*.vscode
 .*.swp
 *.pyc
 *.rej
-
+*.so

@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""
+  test the module: lpu.common.logging
+"""
+
 from lpu.common import logging
 from lpu.common.logging import debug_print as dprint
 
 if __name__ == '__main__':
     logger = logging.getColorLogger(__name__)
+    logger.info(logging)
     print(logger.handlers)
     formatter = logger.handlers[0].formatter
     logger.info("-----")
@@ -43,4 +48,3 @@ if __name__ == '__main__':
         dprint("debug print", 2)
         dprint("debug print", 3)
     f()
-

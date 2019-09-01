@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 __all__ = [
+    'backends',
     'common',
     'commands',
     'data_structs',
     'smt',
-    '__system__',
+    #'__system__',
 ]
 
 # initializing
@@ -27,5 +28,14 @@ else:
     # verbose mode
     logger.setLevel(logging.INFO)
 
-logger.debug("Initialized LPU")
-
+if logging.get_debug_status():
+    logger.debug("Initialized LPU")
+    from . backends import safe_cython
+    if safe_cython.available:
+        logger.debug("Cython is available")
+        if safe_cython.compiled:
+            logger.debug("Running with compiled LPU")
+        else:
+            logger.debug("Running with not compiled LPU")
+    else:
+        logger.debug("Cython is not available")

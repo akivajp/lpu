@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''Auxiliary functions for file I/O'''
@@ -27,6 +28,7 @@ if sys.version_info.major >= 3:
     bin_stdin  = sys.stdin.buffer
     bin_stdout = sys.stdout.buffer
     bin_stderr = sys.stderr.buffer
+    file = io.IOBase
     FileType = io.IOBase
 else:
     bin_stdin  = sys.stdin

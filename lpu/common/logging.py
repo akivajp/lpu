@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # distutils: language=c++
 # -*- coding: utf-8 -*-
 
@@ -12,7 +13,8 @@ import re
 import sys
 import traceback
 
-from lpu.__system__ import logging
+#from lpu.__system__ import logging
+from lpu.backends import safe_logging as logging
 
 #import lpu
 from lpu.common import environ
@@ -34,9 +36,12 @@ logger = logging.getLogger(__name__)
 #    bytes_to_str   = py3_bytes_to_str
 #    unicode_to_str = py3_unicode_to_str
 
-class LoggingStatus(environ.StackHolder):
+#class LoggingStatus(environ.StackHolder):
+class LoggingStatus(environ.StackHolder, object):
     def __init__(self, logger=None):
-        super(LoggingStatus,self).__init__()
+        #print(LoggingStatus)
+        #print(type(LoggingStatus))
+        super(LoggingStatus, self).__init__()
         self.loggers = None
 
     def _reconfigureLogger(self):
@@ -86,13 +91,13 @@ class LoggingStatus(environ.StackHolder):
         return self.clear('LPU_QUIET')
 
     def __enter__(self):
-        logger.debug("entering logging environment")
+        #logger.debug("entering logging environment")
         super(LoggingStatus,self).__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         super(LoggingStatus,self).__exit__(exc_type, exc_val, exc_tb)
-        logger.debug("exiting from logging environment")
+        #logger.debug("exiting from logging environment")
         self._reconfigureLogger()
 
 def get_debug_status():
@@ -178,7 +183,7 @@ class ColorizingFormatter(logging.Formatter):
     #cpdef str _colorizeText(self, record, str text):
     #def _colorizeText(self, record, str text):
     def _colorizeText(self, record, text):
-        cdef object color_default
+        #cdef object color_default
         level = record.levelname.lower()
         color_level = self._colors.get(level, None)
         if color_level:
@@ -315,7 +320,8 @@ def colorizeHandler(handler, mode='auto'):
     handler.setFormatter(formatter)
     return formatter
 
-cdef _checkLoggerColorized(logger):
+#cdef _checkLoggerColorized(logger):
+def _checkLoggerColorized(logger):
     while logger:
         for handler in logger.handlers:
             if isinstance(handler.formatter, ColorizingFormatter):
@@ -354,7 +360,8 @@ def configureLogger(logger, mode='auto'):
     return logger
 
 _cache = {}
-cdef _get_cached_line(path, lineno, fallback):
+#cdef _get_cached_line(path, lineno, fallback):
+def _get_cached_line(path, lineno, fallback):
     try:
         if path not in _cache:
             _cache[path] = open(path).readlines()
@@ -364,7 +371,8 @@ cdef _get_cached_line(path, lineno, fallback):
         pass
     return fallback
 
-cpdef _debug_print(self, val=None, limit=0):
+#cpdef _debug_print(self, val=None, limit=0):
+def _debug_print(self, val=None, limit=0):
     stack = traceback.extract_stack(limit=limit)
     format = ""
     if limit > 0:
@@ -444,7 +452,8 @@ def getColorLogger(name, level_mode='auto', add_handler='auto'):
 # global environ
 #def push_environ(logger):
 #cpdef using_config(logger, debug=None, quiet=None):
-cpdef using_config(loggers, debug=None, quiet=None):
+#cpdef using_config(loggers, debug=None, quiet=None):
+def using_config(loggers, debug=None, quiet=None):
     env_layer = environ.push(LoggingStatus)
     env_layer.set_loggers(loggers)
     if debug is not None:
@@ -453,7 +462,7 @@ cpdef using_config(loggers, debug=None, quiet=None):
         env_layer.set_quiet(debug)
     return env_layer
 #env = push_environ(logger)
-env = using_config(None)
+#env = using_config(None)
 
 # importing from system logging module
 NOTSET   = logging.NOTSET
@@ -468,4 +477,3 @@ StreamHandler = logging.StreamHandler
 FileHandler = logging.FileHandler
 
 getLogger = logging.getLogger
-

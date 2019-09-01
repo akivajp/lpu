@@ -1,23 +1,27 @@
+#!/usr/bin/env python
 # distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''this module provides globally shared stack of environment'''
 
 # C++ setting
-from libcpp cimport bool
+#from libcpp cimport bool
 
 # Standard libraries
 import os
 
 # Local libraries
 import lpu
-from lpu.__system__ import logging
+#from lpu.__system__ import logging
+from lpu.backends import safe_logging as logging
+from lpu.backends import safe_cython as cython
 
 logger = logging.getLogger(__name__)
 
 env_stack = []
 
-cdef _safe_debug_print(msg):
+#cdef _safe_debug_print(msg):
+def _safe_debug_print(msg):
     try:
         #logger.debug(msg, stack_info=True)
         logger.debug(msg)
@@ -34,11 +38,12 @@ def get_env(key, default=None, system=True):
     else:
         return default
 
-cdef class StackHolder:
-    cdef readonly bool affect_system
-    cdef readonly int level
-    cdef dict env_layer
-    cdef list back_log
+#cdef class StackHolder:
+class StackHolder:
+    #cdef readonly bool affect_system
+    #cdef readonly int level
+    #cdef dict env_layer
+    #cdef list back_log
 
     def __cinit__(self, affect_system=True):
         _safe_debug_print('initializing environ stack')
@@ -48,9 +53,21 @@ cdef class StackHolder:
         self.affect_system = affect_system
         self.level = len(env_stack)
 
-    cpdef set(self, str key, str value):
-        cdef bool prev_exist = False
-        cdef str prev_value = ''
+    #cpdef set(self, str key, str value):
+    @cython.locals(prev_exist = bool)
+    @cython.locals(prev_value = str)
+    def set(self, key, value):
+        """
+        Set new configuration
+        
+        Arguments:
+            key {[str]} -- name of variable
+            value {[str]} -- value of variable (must be string)
+        """
+        #cdef bool prev_exist = False
+        #cdef str prev_value = ''
+        prev_exist = False
+        prev_value = ''
         if self.affect_system:
             _safe_debug_print("setting %s='%s' in env" % (key, value) )
             if key in os.environ:
@@ -60,10 +77,14 @@ cdef class StackHolder:
             os.environ[key] = value
         self.env_layer[key] = value
 
-    cpdef clear(self):
-        cdef str key
-        cdef bool prev_exist
-        cdef str prev_value
+    #cpdef clear(self):
+    @cython.locals(key = str)
+    @cython.locals(prev_exist = bool)
+    @cython.locals(prev_value = str)
+    def clear(self):
+        #cdef str key
+        #cdef bool prev_exist
+        #cdef str prev_value
         if self.back_log:
             for key, prev_exist, prev_value in self.back_log[::-1]:
                 if prev_exist:

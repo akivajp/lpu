@@ -1,14 +1,16 @@
+#!/usr/bin/env python
 # distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''Utility functions handling colors'''
 
 # C++ setting
-from libcpp cimport bool
+#from libcpp cimport bool
 
-from lpu.common.compat cimport strtype
+#from lpu.common.compat cimport strtype
 
-from lpu.__system__ import logging
+#from lpu.__system__ import logging
+from lpu.backends import safe_logging as logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,8 @@ COLOR_MAP = {
 #cpdef str put_color(str content, str color=None, bool eachline=True):
 #cpdef put_color(strtype content, color=None, bool eachline=True):
 #cpdef str put_color(strtype content, strtype color=None, bool eachline=True):
-cpdef put_color(content, color=None, bool eachline=True):
+#cpdef put_color(content, color=None, bool eachline=True):
+def put_color(content, color=None, eachline=True):
     #print("color name: {}".format(color))
     code = COLOR_MAP.get(color, None)
     #code = colors[color]
@@ -46,4 +49,3 @@ cpdef put_color(content, color=None, bool eachline=True):
             return '%s%s%s' % (code, content, COLOR_MAP['clear'])
     else:
         return content
-
