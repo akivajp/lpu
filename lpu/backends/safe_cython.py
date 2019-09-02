@@ -15,12 +15,14 @@ if available:
 else:
     # flags
     compiled = False
-    # dummy typedef
+    # dummy types
     double = None
     float = None
     int = None
     long = None
     longlong = None
+    uchar = None
+    ulong = None
     # dummy decorators
     def _dummy_decorator_with_arguments(*args, **kwargs):
         def _dummy_decorator(func):

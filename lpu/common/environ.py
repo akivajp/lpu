@@ -38,14 +38,13 @@ def get_env(key, default=None, system=True):
     else:
         return default
 
-#cdef class StackHolder:
 class StackHolder:
-    #cdef readonly bool affect_system
-    #cdef readonly int level
-    #cdef dict env_layer
-    #cdef list back_log
-
-    def __cinit__(self, affect_system=True):
+    """Management class of stack
+    
+    Returns:
+        [type] -- [description]
+    """
+    def __init__(self, affect_system=True):
         _safe_debug_print('initializing environ stack')
         self.env_layer = {}
         env_stack.append(self.env_layer)
@@ -64,8 +63,6 @@ class StackHolder:
             key {[str]} -- name of variable
             value {[str]} -- value of variable (must be string)
         """
-        #cdef bool prev_exist = False
-        #cdef str prev_value = ''
         prev_exist = False
         prev_value = ''
         if self.affect_system:
@@ -79,7 +76,8 @@ class StackHolder:
 
     #cpdef clear(self):
     @cython.locals(key = str)
-    @cython.locals(prev_exist = bool)
+    #@cython.locals(prev_exist = bool)
+    @cython.locals(prev_exist = cython.bint)
     @cython.locals(prev_value = str)
     def clear(self):
         #cdef str key
@@ -99,7 +97,34 @@ class StackHolder:
                     except Exception as e:
                         #logging.log(e)
                         #logger.debug(e)
-                        pass
+                        logger.exception(e)
+                        #pass
+        self.env_layer.clear()
+        # note: python2.7 does not have list.clear
+        del self.back_log[:]
+
+    @cython.locals(prev_exist = cython.bint)
+    @cython.locals(prev_value = str)
+    @cython.locals(found = tuple)
+    def unset(self, key):
+        if self.back_log:
+            #found = next((t[1:] for t in self.back_log if t[0] == key), None)
+            found = [t for t in self.back_log if t[0] == key]
+            #found = next(t for t in self.back_log if t[0] == key)
+            if found:
+                _, prev_exist, prev_value = found[0]
+                if prev_exist:
+                    _safe_debug_print("record back %s='%s' to env" % (key, prev_value))
+                    if os and os.environ:
+                        os.environ[key] = prev_value
+                else:
+                    _safe_debug_print("unset key from env: %s" % (key,))
+                    try:
+                        if os and os.environ:
+                            os.environ.pop(key)
+                    except Exception as e:
+                        logger.exception(e)
+                self.back_log = [t for t in self.back_log if t[0] != key]
         self.env_layer.clear()
         # note: python2.7 does not have list.clear
         del self.back_log[:]

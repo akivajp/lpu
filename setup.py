@@ -37,7 +37,6 @@ def get_package(path):
         return os.path.basename(path)
     return ''
 
-#def get_modules(dirpath, suffixes=['.pyx'], additional_sources=None, **options):
 def get_modules(dirpath, suffixes=['.pyx', '.py'], additional_sources=None, **options):
     modules = []
     for path in findall(dirpath):

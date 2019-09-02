@@ -25,19 +25,8 @@ from lpu.common.compat import MethodType
 
 logger = logging.getLogger(__name__)
 
-#from lpu.common.compat cimport py2_bytes_to_str
-#from lpu.common.compat cimport py3_bytes_to_str
-#from lpu.common.compat cimport py2_unicode_to_str
-#from lpu.common.compat cimport py3_unicode_to_str
-#if sys.version_info.major <= 2:
-#    bytes_to_str   = py2_bytes_to_str
-#    unicode_to_str = py2_unicode_to_str
-#else:
-#    bytes_to_str   = py3_bytes_to_str
-#    unicode_to_str = py3_unicode_to_str
-
-#class LoggingStatus(environ.StackHolder):
-class LoggingStatus(environ.StackHolder, object):
+#class LoggingStatus(environ.StackHolder, object):
+class LoggingStatus(environ.StackHolder):
     def __init__(self, logger=None):
         #print(LoggingStatus)
         #print(type(LoggingStatus))
@@ -68,27 +57,21 @@ class LoggingStatus(environ.StackHolder, object):
 
     def set_debug(self, enable=True):
         if enable:
-            #self.set('DEBUG', '1')
             self.set('LPU_DEBUG', '1')
         else:
-            #self.set('DEBUG', '0')
             self.set('LPU_DEBUG', '0')
         self._reconfigureLogger()
     def unset_debug(self):
-        #return self.clear('DEBUG')
-        return self.clear('LPU_DEBUG')
+        return self.unset('LPU_DEBUG')
 
     def set_quiet(self, enable=True):
         if enable:
-            #self.set('QUIET', '1')
             self.set('LPU_QUIET', '1')
         else:
-            #self.set('QUIET', '0')
             self.set('LPU_QUIET', '0')
         self._reconfigureLogger()
     def unset_debug(self):
-        #return self.clear('QUIET')
-        return self.clear('LPU_QUIET')
+        return self.unset('LPU_QUIET')
 
     def __enter__(self):
         #logger.debug("entering logging environment")

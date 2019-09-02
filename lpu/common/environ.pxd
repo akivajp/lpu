@@ -7,3 +7,4 @@ cdef class StackHolder:
 
     cpdef clear(self)
     cpdef set(self, str key, str value)
+    cpdef unset(self, str key)

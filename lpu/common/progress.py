@@ -20,9 +20,10 @@ from lpu.backends import safe_cython as cython
 from lpu.common import files
 from lpu.common import logging
 from lpu.common.colors import put_color
-from lpu.common.logging import debug_print as dprint
 
-logger = logging.getLogger(__name__)
+#logger = logging.getLogger(__name__)
+logger = logging.getColorLogger(__name__)
+dprint = logger.debug_print
 
 #from lpu.common cimport compat
 from lpu.common import compat
@@ -37,8 +38,10 @@ BACK_WHITE = '  \b\b'
 DEFAULT_BUFFER_SIZE = 10 * (1024 ** 2) # 10MB
 DEFAULT_REFRESH_INTERVAL = 0.5
 
-class SpeedCounter(object):
-    def __cinit__(self, header="", max_count=-1, refresh=DEFAULT_REFRESH_INTERVAL, force=False, color='green'):
+#class SpeedCounter(object):
+class SpeedCounter:
+    #def __cinit__(self, header="", max_count=-1, refresh=DEFAULT_REFRESH_INTERVAL, force=False, color='green'):
+    def __init__(self, header="", max_count=-1, refresh=DEFAULT_REFRESH_INTERVAL, force=False, color='green'):
         """constructor
         
         Keyword Arguments:
@@ -73,7 +76,8 @@ class SpeedCounter(object):
         """
         self.view(flush=True)
 
-    @cython.locals(now = cython.double)
+    #@cython.locals(now = cython.double)
+    @cython.locals(now = cython.float)
     def reset(self, refresh=None, header=None, force=None, color=None):
         """reset the counter
         
@@ -98,6 +102,11 @@ class SpeedCounter(object):
         now = time.time()
         self.start_time = now
         self.last_time  = now
+        #self.start_time = time.time()
+        #self.last_time  = time.time()
+        #self.last_time = 0
+        #dprint(now)
+        #dprint(self.last_time)
         self.count = 0
         self.last_count = 0
         self.pos = 0
@@ -139,9 +148,12 @@ class SpeedCounter(object):
             self.view()
 
     #def view(self, bool flush=False):
-    @cython.locals(delta_count = cython.double)
-    @cython.locals(delta_time = cython.double)
-    @cython.locals(now = cython.double)
+    #@cython.locals(delta_count = cython.double)
+    #@cython.locals(delta_time = cython.double)
+    @cython.locals(delta_count = cython.float)
+    @cython.locals(delta_time = cython.float)
+    @cython.locals(now = cython.float)
+    #@cython.locals(now = cython.double)
     @cython.locals(show_bytes = bint)
     @cython.locals(str_about = str)
     @cython.locals(str_elapsed = str)
@@ -159,13 +171,13 @@ class SpeedCounter(object):
         Returns:
             [bool] -- true if the console is updated
         """
-        #cdef double now, delta_time, delta_count
-        #cdef str str_elapsed, str_rate, str_ratio
-        #cdef str str_timestamp, str_header, str_about
-        #cdef str str_print
-        #cdef bool show_bytes
         now = time.time()
         delta_time  = now - self.last_time
+        #dprint(flush)
+        #dprint(now)
+        #dprint(self.last_time)
+        #dprint(delta_time)
+        #dprint(self.refresh)
         if not flush:
             if delta_time < self.refresh:
                 return False
@@ -219,8 +231,14 @@ class SpeedCounter(object):
                 logger.exception(e)
         #if fobj and flush:
         #    fobj.write("\n")
-        self.last_time  = now
+        self.last_time = now
+        #self.last_time = now - 100
         self.last_count = self.count
+        #self.last_time = 0
+        #self.last_time = time.time()
+        #dprint(now)
+        #dprint(self.last_time)
+        #dprint("!!!!!!")
         return True
 
     def __del__(self):
@@ -236,7 +254,8 @@ class SpeedCounter(object):
 
 #cdef class ProgressReader(object):
 #cdef class FileReader(object):
-class FileReader(object):
+#class FileReader(object):
+class FileReader:
     #cdef ProgressCounter counter
     #cdef SpeedCounter counter
     #cdef object source
@@ -362,7 +381,8 @@ class FileReader(object):
         self.close()
 
 #cdef class Iterator(object):
-class Iterator(object):
+#class Iterator(object):
+class Iterator:
     #cdef SpeedCounter counter
     #cdef object source
 

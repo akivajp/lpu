@@ -7,15 +7,16 @@ cdef long DEFAULT_BUFFER_SIZE
 cdef float DEFAULT_REFRESH_INTERVAL
 
 # classes
-cdef class SpeedCounter(object):
+#cdef class SpeedCounter(object):
+cdef class SpeedCounter:
     #cdef readonly bool force
     cdef readonly bint force
     #cdef readonly str header
     cdef readonly object header
     #cdef readonly double refresh
     cdef readonly float refresh
-    #cdef readonly double start_time, last_time
-    cdef readonly float start_time, last_time
+    cdef readonly double start_time, last_time
+    #cdef readonly float start_time, last_time
     cdef readonly long count, pos, last_count, max_count
     cdef readonly str color
 
@@ -34,7 +35,8 @@ cdef class SpeedCounter(object):
 
     cpdef view(self, bint flush=*)
 
-cdef class FileReader(object):
+#cdef class FileReader(object):
+cdef class FileReader:
     cdef SpeedCounter counter
     cdef object source
 
@@ -49,7 +51,8 @@ cdef class FileReader(object):
 
     cpdef long tell(self) except *
 
-cdef class Iterator(object):
+#cdef class Iterator(object):
+cdef class Iterator:
     cdef SpeedCounter counter
     cdef object source
 
