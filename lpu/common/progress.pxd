@@ -7,22 +7,17 @@ cdef long DEFAULT_BUFFER_SIZE
 cdef float DEFAULT_REFRESH_INTERVAL
 
 # classes
-#cdef class SpeedCounter(object):
-cdef class SpeedCounter:
+cdef class SpeedCounter(object):
     #cdef readonly bool force
     cdef readonly bint force
     #cdef readonly str header
     cdef readonly object header
     #cdef readonly double refresh
     cdef readonly float refresh
-    cdef readonly double start_time, last_time
-    #cdef readonly float start_time, last_time
+    cdef readonly double start_time, last_time # should be double, otherwise rounding errors cause problems
     cdef readonly long count, pos, last_count, max_count
     cdef readonly str color
 
-    #def __cinit__(self, object header=*, long max_count=*, double refresh=*, bool force=*, str color=*)
-
-    #cpdef add(self, unsigned long count=*, bool view=*)
     cpdef add(self, unsigned long count=*, bint view=*)
 
     cpdef flush(self)
@@ -35,8 +30,8 @@ cdef class SpeedCounter:
 
     cpdef view(self, bint flush=*)
 
-#cdef class FileReader(object):
-cdef class FileReader:
+
+cdef class FileReader(object):
     cdef SpeedCounter counter
     cdef object source
 
@@ -51,12 +46,13 @@ cdef class FileReader:
 
     cpdef long tell(self) except *
 
-#cdef class Iterator(object):
-cdef class Iterator:
+
+cdef class Iterator(object):
     cdef SpeedCounter counter
     cdef object source
 
     cdef close(self)
+
 
 # functions
 cdef str format_time(unsigned long seconds)

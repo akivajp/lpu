@@ -6,14 +6,12 @@
 
 # Standard libraries
 import ast
-import inspect
-#import linecache
 import codecs
 import re
 import sys
 import traceback
 
-#from lpu.__system__ import logging
+from lpu.backends import safe_cython as cython
 from lpu.backends import safe_logging as logging
 
 #import lpu
@@ -25,13 +23,15 @@ from lpu.common.compat import MethodType
 
 logger = logging.getLogger(__name__)
 
-#class LoggingStatus(environ.StackHolder, object):
 class LoggingStatus(environ.StackHolder):
-    def __init__(self, logger=None):
+    #def __init__(self, logger=None):
+    def __init__(self, loggers=None):
         #print(LoggingStatus)
         #print(type(LoggingStatus))
+        #logger.debug("initializing logging status")
         super(LoggingStatus, self).__init__()
-        self.loggers = None
+        #self.loggers = None
+        self.set_loggers(loggers)
 
     def _reconfigureLogger(self):
         if self.loggers:
@@ -177,19 +177,14 @@ class ColorizingFormatter(logging.Formatter):
                 text = put_color(text, color_default)
         return text
 
+    @cython.locals(text = str)
     def format(self, record):
         #cdef str text
         #print("formatting... {}".format(record))
         fmt_apply = None
         for flt, fmt in self._format_rules:
             if flt.filter(record):
-                #print("filter: {}".format(flt))
-                #print("format: {}".format(fmt))
-                #print("record: {}".format(record))
                 if fmt:
-                    #self._style._fmt = self._fmt = fmt
-                    #setFormat(self, fmt)
-                    #self._setColorizedFormat(fmt, record)
                     fmt_apply = fmt
                 break
         if fmt_apply:
@@ -263,6 +258,105 @@ class ColorizingFormatter(logging.Formatter):
         level_name = getLevelString(level)
         #self._colors[level_name] = color_name
         self.setColor(level_name, color_name)
+
+class CustomLogger(logging.Logger):
+    #cpdef _debug_print(self, val=None, limit=0):
+    def debug_print(self, val=None, limit=0, offset=0):
+        if not cython.compiled:
+            offset += 1
+        #stack = traceback.extract_stack(limit=limit)
+        stack = traceback.extract_stack(limit=offset+limit)
+        if offset > 0:
+            stack = stack[:-offset]
+        format = ""
+        if limit > 0:
+            for path, lineno, func, line in stack:
+                line = _get_cached_line(path, lineno, line).strip()
+                s = '\n  file:{}, line:{}, func:{}, code:{}'.format(path, lineno, func, line)
+                format += s
+        stack = traceback.extract_stack(limit=offset+1)
+        #for path, lineno, func, line in stack:
+        #    print(path, lineno, func, line)
+        path, lineno, func, line = stack[0]
+        #print(line)
+        line = _get_cached_line(path, lineno, line).strip()
+        #expr = _get_cached_expr(path, lineno)
+        args = _seek_args(path, lineno)
+        if args:
+            expr = args[0]
+        else:
+            expr = ""
+        #print(expr)
+        #if tree:
+        #    for elem in ast.walk(tree):
+        #        if isinstance(elem, ast.Call):
+        #            print(elem)
+        #            print(elem.lineno)
+        line = compat.to_str(line)
+        #if val is not None:
+        #expr = re.findall(r'\(.*\)$', line)
+        #if expr:
+        #    expr = expr[0][1:-1].strip()
+        if expr:
+            #if expr.find(',') > 0:
+            #    expr = str.join(',', expr.split(',')[:-1]).strip()
+            if sys.version_info.major == 2:
+                #expr = compat.to_unicode(expr)
+                if isinstance(val, unicode):
+                    val = compat.to_str(val)
+            if isinstance(val, (int,float)):
+                str_val = '{}({})'.format(type(val).__name__,val)
+            elif isinstance(val, str):
+                str_val = val
+            elif isinstance(val, bytes):
+                repr(val)
+            else:
+                str_val = repr(val)
+            if str_val.find('\n') >= 0:
+                # multiple lines
+                #format = "{} => (see following lines)\n{}".format(expr, str_val) + format
+                format = "%s => (see following lines)\n%s"%(expr, str_val) + format
+            else:
+                # single line
+                #format = "{} => {}".format(expr, str_val) + format
+                format = "%s => %s"%(expr, str_val) + format
+        else:
+            format = str(val) + format
+        #module_name = inspect.getmodulename(path)
+        #if not module_name:
+        #    module_name = '__main__'
+        #module_name = '__main__'
+        #logger = getColorLogger(module_name)
+        #logger = getLogger(module_name)
+        #logger = colorizeLogger(logger)
+        extra = dict(
+            filename = path,
+            funcName = func,
+            lineno = lineno,
+        )
+        self.debug(format, extra=extra)
+
+    def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None, sinfo=None):
+        """
+        A factory method which can be overridden in subclasses to create
+        specialized LogRecords.
+        """
+        if sys.version_info.major <= 2:
+            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func)
+        else: # sys.version_info.major >= 3
+            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func, sinfo)
+        if extra is not None:
+            for key in extra:
+                # accept overwrite!
+                rv.__dict__[key] = extra[key]
+        return rv
+
+def debug_print(val=None, limit=0, offset=0):
+    if not cython.compiled:
+        offset += 1
+    logger = getColorLogger('__main__')
+    #return logger.debug_print(val, limit)
+    return logger.debug_print(val, limit, offset)
 
 DEFAULT_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
 DEFAULT_FORMAT = "[%(asctime)s %(name)s] %(message)s"
@@ -342,80 +436,162 @@ def configureLogger(logger, mode='auto'):
         logger.setLevel(mode)
     return logger
 
-_cache = {}
+_cached_lines = {}
 #cdef _get_cached_line(path, lineno, fallback):
 def _get_cached_line(path, lineno, fallback):
     try:
-        if path not in _cache:
-            _cache[path] = open(path).readlines()
-        if lineno in range(1, len(_cache[path])+1):
-            return _cache[path][lineno-1]
+        if path not in _cached_lines:
+            _cached_lines[path] = open(path).readlines()
+        lines = _cached_lines[path]
+        if lineno in range(1, len(lines)+1):
+            return lines[lineno-1]
+        #return _cached_lines.get(path).get(lineno-1, fallback)
     except:
         pass
     return fallback
 
-#cpdef _debug_print(self, val=None, limit=0):
-def _debug_print(self, val=None, limit=0):
-    stack = traceback.extract_stack(limit=limit)
-    format = ""
-    if limit > 0:
-        format = ""
-        for path, lineno, func, line in stack:
-            line = _get_cached_line(path, lineno, line).strip()
-            s = '\n  file:{}, line:{}, func:{}, code:{}'.format(path, lineno, func, line)
-            format += s
-    stack = traceback.extract_stack(limit=1)
-    path, lineno, func, line = stack[0]
-    line = _get_cached_line(path, lineno, line).strip()
-    line = compat.to_str(line)
-    #if val is not None:
-    expr = re.findall(r'\(.*\)$', line)
-    if expr:
-        expr = expr[0][1:-1].strip()
-    if expr:
-        if expr.find(',') > 0:
-            expr = str.join(',', expr.split(',')[:-1]).strip()
-        if sys.version_info.major == 2:
-            #expr = compat.to_unicode(expr)
-            if isinstance(val, unicode):
-                val = compat.to_str(val)
-        if isinstance(val, (int,float)):
-            str_val = '{}({})'.format(type(val).__name__,val)
-        elif isinstance(val, str):
-            str_val = val
-        elif isinstance(val, bytes):
-            repr(val)
-        else:
-            str_val = repr(val)
-        if str_val.find('\n') >= 0:
-            # multiple lines
-            #format = "{} => (see following lines)\n{}".format(expr, str_val) + format
-            format = "%s => (see following lines)\n%s"%(expr, str_val) + format
-        else:
-            # single line
-            #format = "{} => {}".format(expr, str_val) + format
-            format = "%s => %s"%(expr, str_val) + format
+#_cached_trees = {}
+_cached_calls = {}
+def _get_cached_calls(path, lineno, fallback=None):
+    if path not in _cached_calls:
+        #_cached_trees[path] = ast.parse(open(path).read())
+        tree = ast.parse(open(path).read())
+        calls = []
+        for elem in ast.walk(tree):
+            if isinstance(elem, ast.Call):
+                calls.append(elem)
+        calls.sort(key = lambda e: (e.lineno, e.col_offset))
+        #_cached_trees = 
+        _cached_calls[path] = calls
     else:
-        format = str(val) + format
-    #module_name = inspect.getmodulename(path)
-    #if not module_name:
-    #    module_name = '__main__'
-    #module_name = '__main__'
-    #logger = getColorLogger(module_name)
-    #logger = getLogger(module_name)
-    #logger = colorizeLogger(logger)
-    #logger.debug(format)
-    self.debug(format)
+        calls = _cached_calls[path]
+    call = None
+    #next_call = None
+    for i, c in enumerate(calls):
+        if c.lineno == lineno:
+            call = c
+            break
+        elif c.lineno > lineno:
+            if i > 0:
+                call = calls[i-1]
+            break
+    if not call:
+        return fallback
+    return call
 
-def debug_print(val=None, limit=0):
-    logger = getColorLogger('__main__')
-    return logger.debug_print(val, limit)
+def _seek_args(path, lineno, fallback=None):
+    try:
+        call = _get_cached_calls(path, lineno, fallback)
+        lines = _cached_lines[path]
+        def feed(lines, lineno):
+            for n in range(lineno-1, len(lines)):
+                yield lines[n]
+        feeder = feed(lines, call.lineno)
+        def seek_str(buf, offset):
+            i = offset
+            if buf[offset:offset+3] == '"""':
+                until = '"""'
+                i += 3
+            elif buf[offset:offset+3] == "'''":
+                until = "'''"
+                i += 3
+            elif buf[offset:offset+1] == '"':
+                until = '"'
+                i += 1
+            elif buf[offset:offset+1] == "'":
+                until = "'"
+                i += 1
+            else:
+                return "", i
+            expr = until
+            check_length = len(until)
+            while i < len(buf):
+                c = buf[i]
+                if c == "\\":
+                    expr += c
+                elif buf[i:i+check_length] == until:
+                    expr += until
+                    #i += check_length
+                    i += (check_length - 1)
+                    break
+                else:
+                    expr += c
+                i += 1
+            return expr, i
+        def parse_args(buf, offset=0, depth=0):
+            args = []
+            expr = ""
+            i = offset
+            last_char = ""
+            while i < len(buf):
+                #print(i, depth, buf[i:].strip())
+                c = buf[i]
+                if c == "(":
+                    if depth > 0:
+                        expr += "("
+                    result = parse_args(buf, i+1, depth+1)
+                    #print("result: {}".format(result))
+                    if depth == 0:
+                        #print("breaking")
+                        args += result[0]
+                        break
+                    else:
+                        expr += result[0]
+                    i = result[1]
+                elif c == ")":
+                    if depth == 0:
+                        raise Exception("parse error, unexpected depth")
+                    elif depth == 1:
+                        break
+                    elif depth >= 2:
+                        expr += ")"
+                    #print("expr: {}".format(expr))
+                    return expr, i
+                elif c == ",":
+                    if depth == 1:
+                        args.append(expr)
+                        expr = ""
+                    else:
+                        expr += c
+                    #print(depth, args, expr)
+                elif c in ["'", '"']:
+                    result = seek_str(buf, i)
+                    expr += result[0]
+                    i = result[1]
+                elif c == " ":
+                    if last_char != " ":
+                        expr += c
+                elif c == "\n":
+                    line = next(feeder)
+                    buf += line
+                else:
+                    if depth > 0:
+                        expr += c
+                last_char = c
+                i += 1
+            if expr:
+                args.append(expr)
+            #print(depth, args, expr, i)
+            if depth <= 1:
+                #print(depth, args, i)
+                return args, i
+            else:
+                #print(depth, expr, i)
+                return expr, i
+        buf = next(feeder)[call.col_offset:]
+        result = parse_args(buf)
+        #print(result)
+        return result[0]
+    except Exception as e:
+        print(e)
+        return fallback
 
 def getColorLogger(name, level_mode='auto', add_handler='auto'):
-    logger = logging.getLogger(name)
+    #logger = logging.getLogger(name)
+    logger = getLogger(name)
     if level_mode is not 'auto':
         logger = configureLogger(logger, mode=level_mode)
-    logger.debug_print = MethodType(_debug_print, logger, logging.Logger)
+    #logger.debug_print = MethodType(_debug_print, logger, logging.Logger)
     if add_handler == 'auto':
         if _checkLoggerColorized(logger):
             add_handler = None
@@ -459,4 +635,6 @@ Filter = logging.Filter
 StreamHandler = logging.StreamHandler
 FileHandler = logging.FileHandler
 
-getLogger = logging.getLogger
+#getLogger = logging.getLogger
+def getLogger(name=None):
+    return CustomLogger(name)

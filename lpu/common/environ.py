@@ -4,15 +4,10 @@
 
 '''this module provides globally shared stack of environment'''
 
-# C++ setting
-#from libcpp cimport bool
-
 # Standard libraries
 import os
 
 # Local libraries
-import lpu
-#from lpu.__system__ import logging
 from lpu.backends import safe_logging as logging
 from lpu.backends import safe_cython as cython
 
@@ -20,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 env_stack = []
 
-#cdef _safe_debug_print(msg):
 def _safe_debug_print(msg):
     try:
         #logger.debug(msg, stack_info=True)
@@ -38,8 +32,8 @@ def get_env(key, default=None, system=True):
     else:
         return default
 
-class StackHolder:
-    """Management class of stack
+class StackHolder(object):
+    """Class to manage layer on the stack of environment variables
     
     Returns:
         [type] -- [description]

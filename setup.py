@@ -77,6 +77,7 @@ try:
     ext_modules = cythonize(
         ext_modules,
         compiler_directives = compiler_directives,
+        #gdb_debug = True,
     )
     cmdclass = {'build_ext': build_ext}
 except ImportError:

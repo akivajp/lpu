@@ -4,39 +4,63 @@
 
 '''Configuration utility class for function settings'''
 
-# C++ setting
-from libcpp cimport bool
-
 # Standard libraries
-import json
 from collections import OrderedDict
 from collections import Iterable
+import json
 
 # Local libraries
+from lpu.backends import safe_cython as cython
 from lpu.common import logging
-from lpu.common import validation
-from lpu.common.logging import debug_print as dprint
+logger = logging.getColorLogger(__name__)
+dprint = logger.debug_print
 
-cdef class ConfigData:
+class ConfigData(object):
     '''Configuration data holder'''
-    def __cinit__(self, _base=None, **args):
+    @cython.locals(base = object, main = object)
+    def __init__(self, _base=None, **args):
+        base = None
+        main = None
         if isinstance(_base, Config):
-            self.__base = _base.data
+            #self.__base = _base.data
+            base = _base.data
         elif isinstance(_base, ConfigData):
-            self.__base = _base
+            #self.__base = _base
+            base = _base
         elif isinstance(_base, dict):
             #self.__base = _base
-            self.__base = dict2data(_base)
+            #self.__base = dict2data(_base)
+            base = dict2data(_base)
+        #else:
+        #    self.__base = None
+        #self.__main = OrderedDict()
+        main = OrderedDict()
+        if cython.compiled:
+            self.__base = base
+            self.__main = main
         else:
-            self.__base = None
-        self.__main = OrderedDict()
+            dprint(self.__dict__)
+            # access from this class
+            self.__dict__["_ConfigData__base"] = base
+            self.__dict__["_ConfigData__main"] = main
+            # access from Config class
+            self.__dict__["_Config__base"] = base
+            self.__dict__["_Config__main"] = main
+            # access from functions
+            self.__dict__["__base"] = base
+            self.__dict__["__main"] = main
+            dprint(self.__dict__)
         if args:
             self.__main.update(args)
 
+    @cython.locals(first_key = str, remain_keys = str)
+    @cython.locals(main = object, base = object)
     def __contains__(self, key):
-        cdef str first_key, remain_keys
-        cdef object main = self.__main
-        cdef object base = self.__base
+        #cdef str first_key, remain_keys
+        #cdef object main = self.__main
+        #cdef object base = self.__base
+        main = self.__main
+        base = self.__base
         if isinstance(key, str) and key.find('.') >= 0:
             # chained key access
             try:
@@ -58,20 +82,27 @@ cdef class ConfigData:
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
     #def __getattr__(self, key):
-    def __getattr__(self, str key):
-        cdef str name
+    #def __getattr__(self, str key):
+    @cython.locals(name = str)
+    def __getattr__(self, key):
+        #cdef str name
         try:
             return self.__getitem__(key)
         except:
             name = self.__class__.__name__
+            dprint(name)
+            dprint(key)
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
+    @cython.locals(msg = str)
+    @cython.locals(main = object, base = object, value = object)
+    @cython.locals(first_key = str, remain_keys = str)
     def __getitem__(self, key):
-        cdef str msg
-        cdef object main
-        cdef object base
-        cdef object value
-        cdef str first_key, remain_keys
+        #cdef str msg
+        #cdef object main
+        #cdef object base
+        #cdef object value
+        #cdef str first_key, remain_keys
         main = self.__main
         if isinstance(key, str):
             if key.find('.') >= 0:
@@ -89,7 +120,8 @@ cdef class ConfigData:
                 if isinstance(value, ConfigData):
                     # derive, instead of copying
                     value = ConfigData(value)
-                main[key] = value
+                    main[key] = value
+                #main[key] = value
                 return value
                 #return base[key]
             raise KeyError(key)
@@ -103,33 +135,51 @@ cdef class ConfigData:
             msg = 'Invalid type of key object is given: {} (expected str or Iterable, but expected: {})'
             raise TypeError(msg.format(repr(key), type(key).__name__))
 
+    @cython.locals(s = set)
+    @cython.locals(l = list)
+    @cython.locals(key = str)
+    @cython.locals(main = object, base = object)
     def __iter__(self):
-        cdef set s
-        cdef list l
-        cdef str key
-        cdef object base = self.__base
-        cdef object main = self.__main
-        l = list(self.__main)
-        s = set(l)
+        #cdef set s
+        #cdef list l
+        #cdef str key
+        #cdef object base = self.__base
+        #cdef object main = self.__main
+        base = self.__base
+        main = self.__main
+        l = list()
+        s = set()
+        #l = list(self.__main)
+        #s = set(l)
         if base:
             #s.update(base)
             for key in base:
-                if key not in s:
-                    s.add(key)
-                    l.append(key)
+                s.add(key)
+                l.append(key)
+        for key in main:
+            if key not in s:
+                s.add(key)
+                l.append(key)
         for key in l:
             if not key.startswith('_'):
                 yield(key)
 
     def __len__(self):
-        return len(set(self))
+        #return len(set(self))
+        return sum(1 for _ in self)
 
+    @cython.locals(str_params = str)
+    @cython.locals(name = str)
+    @cython.locals(main = object, base = object)
     def __repr__(self):
         #cdef str str_base
-        cdef str str_params
-        cdef str name = self.__class__.__name__
-        cdef object main = self.__main
-        cdef object base = self.__base
+        #cdef str str_params
+        #cdef str name = self.__class__.__name__
+        #cdef object main = self.__main
+        #cdef object base = self.__base
+        name = self.__class__.__name__
+        main = self.__main
+        base = self.__base
         #if base:
         #    str_base = repr(base)
         #else:
@@ -158,12 +208,18 @@ cdef class ConfigData:
         #    #self.__dict__.__setitem__(key, val)
         #    self.__main.__setitem__(key, val)
 
+    @cython.locals(msg = str)
+    @cython.locals(retrieved = object)
+    #@cython.locals(conf = ConfigData)
+    @cython.locals(main = object, base = object)
     def __setitem__(self, key, val):
-        cdef str msg
-        cdef object retrieved
-        cdef ConfigData conf
-        cdef object main = self.__main
-        cdef object base = self.__base
+        #cdef str msg
+        #cdef object retrieved
+        #cdef ConfigData conf
+        #cdef object main = self.__main
+        #cdef object base = self.__base
+        main = self.__main
+        base = self.__base
         # check the key validity
         if not isinstance(key, (str,bytes)):
             raise TypeError('key value should be type of str, but given: %s' % type(key).__name__)
@@ -200,10 +256,12 @@ cdef class ConfigData:
                 val = ConfigData(val)
             main.__setitem__(key, val)
 
-cdef class Config:
+#cdef class Config:
+class Config(object):
     '''Configuration maintenance class'''
 
-    def __cinit__(self, _base = None, **args):
+    #def __cinit__(self, _base = None, **args):
+    def __init__(self, _base = None, **args):
         #self.data = ConfigData(_base)
         self.data = ConfigData(_base=_base)
         self.base = self.data.__base
@@ -243,7 +301,8 @@ cdef class Config:
         for key in self:
             yield key, self[key]
 
-    def load_json(self, str str_json, bool override=True):
+    #def load_json(self, str str_json, bool override=True):
+    def load_json(self, str_json, override=True):
         #self.update(json.loads(compat.to_str(strJSON)))
         #uniDict = json.loads(strJSON)
         d = json.loads(str_json, object_pairs_hook=OrderedDict)
@@ -285,25 +344,35 @@ cdef class Config:
         else:
             return self[key]
 
+    @cython.locals(dtype = type)
+    @cython.locals(data = ConfigData)
+    @cython.locals(dic = object)
     def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, purge=False, flat=False):
-        cdef type dtype
-        cdef ConfigData data = self.data
+        #cdef type dtype
+        #cdef ConfigData data = self.data
+        data = self.data
+        #cdef object dic
+        #cdef object dic
         if ordered:
             dtype = OrderedDict
         else:
             dtype = dict
         if key:
             data = data[key]
+        dic = data2dict(data, dtype, upstream, recursive, purge)
         if flat:
             #return flat_dict(data2dict(data, dtype, upstream, recursive), dtype, False)
-            return flat_dict(data2dict(data, dtype, upstream, recursive, purge), dtype, False)
+            #return flat_dict(data2dict(data, dtype, upstream, recursive, purge), dtype, False)
+            return flat_dict(dic, dtype, False)
         else:
             #return data2dict(data, dtype, upstream, recursive)
-            return data2dict(data, dtype, upstream, recursive, purge)
+            #return data2dict(data, dtype, upstream, recursive, purge)
+            return dic
 
+    @cython.locals(d = object)
     def to_json(self, key=None, upstream=False, purge=None, **options):
-        cdef object d
-        d = self.to_dict(key, True, upstream, True, purge, None)
+        #cdef object d
+        d = self.to_dict(key, True, upstream, True, purge, False)
         return json.dumps(d, **options)
 
     def update(self, _conf = None, _override=True, _override_none=False, **args):
@@ -336,9 +405,11 @@ cdef class Config:
     def __len__(self):
         return self.data.__len__()
 
+    @cython.locals(cls = type)
+    @cython.locals(name = str)
     def __repr__(self):
-        cdef type cls
-        cdef str name
+        #cdef type cls
+        #cdef str name
         cls = self.__class__
         name = cls.__name__
         #strParams = get_key_val_str(vars(self.data), False)
@@ -347,25 +418,42 @@ cdef class Config:
     def __setitem__(self, key, val):
         self.data.__setitem__(key, val)
 
-def get_items(object data, bool purge):
+#def get_items(object data, bool purge):
+def get_items(data, purge):
     for key in data:
         val = data[key]
-        if purge:
-            if val is not None:
-                yield key, val
-        else:
+        if should_take(val, purge):
             yield key, val
+
+#cdef bool should_take(object val, bool purge):
+def should_take(val, purge):
+    if not purge:
+        return True
+    if val is None:
+        return False
+    elif isinstance(val, ConfigData):
+        if len(val) == 0:
+            return False
+    elif isinstance(val, dict):
+        if len(val) == 0:
+            return False
+    return True
 
 # type object is problematic in python 3.6?
 #cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
 #cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
-cdef object data2dict(object data, object dtype, bool upstream, bool recursive, bool purge):
+#cdef object data2dict(object data, object dtype, bool upstream, bool recursive, bool purge):
+@cython.locals(cdata = ConfigData)
+@cython.locals(items = object)
+def data2dict(data, dtype, upstream, recursive, purge):
     #dprint("--")
     #dprint(data)
     #dprint(dtype)
     #dprint(upstream)
     #dprint(recursive)
-    cdef ConfigData cdata
+    #cdef ConfigData cdata
+    #cdef object items
+    #data = data
     if not isinstance(data, ConfigData):
         # as-is
         return data
@@ -373,24 +461,38 @@ cdef object data2dict(object data, object dtype, bool upstream, bool recursive, 
     if not recursive:
         if upstream:
             #return dtype((key,data[key]) for key in data)
-            return dtype(get_items(data))
+            #return dtype(get_items(data))
+            items = get_items(cdata, purge)
         else:
             #return dtype((key,data[key]) for key in cdata.__main)
-            return dtype(get_items(data))
+            items = get_items(cdata.__main, purge)
+        return dtype(items)
     else:
         if upstream:
             #return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in data)
             #return dtype((key,data2dict(data[key], dtype, upstream, recursive, purge)) for key in data)
-            return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata, purge))
+            #return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata, purge))
+            #items = ((key, data2dict(val, dtype, upstream, recursive, purge)) for key, val in cdata)
+            pass
         else:
             #dprint(cdata.__main)
             #return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in cdata.__main)
             #return dtype((key,data2dict(data[key], dtype, upstream, recursive, purge)) for key in cdata.__main)
-            return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata.__main, purge))
+            #return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata.__main, purge))
+            data = cdata.__main
+        #items = ((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(data, purge))
+        items = [(key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(data, purge)]
+        if purge:
+            #items = ((key, val) for key, val in items if should_take(val, purge))
+            items = [(key, val) for key, val in items if should_take(val, purge)]
+        return dtype(items)
 
-cdef object dict2data(object obj):
-    cdef object key, value
-    cdef ConfigData conf
+#cdef object dict2data(object obj):
+@cython.locals(key = object, value = object)
+@cython.locals(conf = ConfigData)
+def dict2data(obj):
+    #cdef object key, value
+    #cdef ConfigData conf
     if not isinstance(obj, dict):
         # as-is
         return obj
@@ -399,17 +501,23 @@ cdef object dict2data(object obj):
         conf[key] = dict2data(value)
     return conf
 
-cdef get_key_val_str(object d, bool verbose):
+#cdef get_key_val_str(object d, bool verbose):
+def get_key_val_str(d, verbose):
     if verbose:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items()]
     else:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items() if not t[0].startswith('_')]
     return str.join(', ', items)
 
-cdef list flat_items(object items, str prefix, bool chain_key):
-    cdef object flatten = []
-    cdef str str_prefix
-    cdef str full_key
+#cdef list flat_items(object items, str prefix, bool chain_key):
+@cython.locals(flatten = list)
+@cython.locals(str_prefix = str)
+@cython.locals(full_key = str)
+def flat_items(items, prefix, chain_key):
+    #cdef object flatten = []
+    #cdef str str_prefix
+    #cdef str full_key
+    flatten = []
     if chain_key:
         if prefix:
             str_prefix = prefix + '.'
@@ -424,15 +532,25 @@ cdef list flat_items(object items, str prefix, bool chain_key):
         else:
             flatten.append( (full_key,val) )
     return flatten
-cdef object flat_dict(object d, type dtype, bool chain_key):
-    cdef object flatten = dtype()
+#cdef object flat_dict(object d, type dtype, bool chain_key):
+@cython.locals(flatten = object)
+def flat_dict(d, dtype, chain_key):
+    #cdef object flatten = dtype()
+    flatten = dtype()
     for key, val in flat_items(d.items(), None, chain_key):
         if key not in flatten:
             flatten[key] = val
     return flatten
 
 #def update_data(ConfigData cdata, _conf = None, _override=True, **args):
-def update_data(ConfigData cdata, _conf = None, _override=True, _override_none=False, **args):
+#def update_data(ConfigData cdata, _conf = None, _override=True, _override_none=False, **args):
+def update_data(cdata, _conf = None, _override=True, _override_none=False, **args):
+    cdata = update_data(cdata, _conf, _override, _override_none)
+    if args:
+        cdata = update_data(cdata, args, _override, _override_none)
+    return cdata
+#def update_data(cdata, _conf = None, _override=True, _override_none=False, **args):
+def _update_data(cdata, _conf = None, _override=True, _override_none=False):
     #if _conf:
     if isinstance(_conf, (dict,ConfigData)):
         if isinstance(_conf, ConfigData):
@@ -460,7 +578,4 @@ def update_data(ConfigData cdata, _conf = None, _override=True, _override_none=F
                     cdata[key] = _conf[key]
     else:
         raise TypeError("unsupported configuration type: {}".type(_conf).__name__)
-    if args:
-        update_data(cdata, args, _override)
     return cdata
-

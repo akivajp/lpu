@@ -1,4 +1,5 @@
-cdef class StackHolder:
+#cdef class StackHolder:
+cdef class StackHolder(object):
     #cdef readonly bool affect_system
     cdef readonly bint affect_system
     cdef readonly int level

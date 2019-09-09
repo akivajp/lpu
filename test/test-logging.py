@@ -6,12 +6,13 @@
 """
 
 from lpu.common import logging
-from lpu.common.logging import debug_print as dprint
+#from lpu.common.logging import debug_print as dprint
+logger = logging.getColorLogger(__name__)
+dprint = logger.debug_print
 
 if __name__ == '__main__':
-    logger = logging.getColorLogger(__name__)
     logger.info(logging)
-    print(logger.handlers)
+    logger.info(logger.handlers)
     formatter = logger.handlers[0].formatter
     logger.info("-----")
     logger.info("testing colorized logger instance")
@@ -47,4 +48,24 @@ if __name__ == '__main__':
         dprint("debug print", 1)
         dprint("debug print", 2)
         dprint("debug print", 3)
+        #dprint(100)
+        #dprint(200, 2)
+        #dprint( (100, 200 * 2, "abc" * 2, ), 2)
+        #dprint((100, 200 * 2, "abc" * 2))
+        #dprint(
+        #    (100,
+        #     200 * 2,
+        #     "abc" * 2),
+        #     3,
+        #     offset=0,
+        #)
+        #dprint( (100, ")" ) )
+        #dprint( (100, ",,,200" ) )
+        #dprint( ",,,)))" )
+        #dprint( "))),,," )
     f()
+    #def g():
+    #    f()
+    #g2 = g
+    #g()
+    #g2()
