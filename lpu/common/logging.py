@@ -262,10 +262,13 @@ class ColorizingFormatter(logging.Formatter):
 class CustomLogger(logging.Logger):
     #cpdef _debug_print(self, val=None, limit=0):
     def debug_print(self, val=None, limit=0, offset=0):
+        if logging.DEBUG < self.level:
+            return
         if not cython.compiled:
             offset += 1
         #stack = traceback.extract_stack(limit=limit)
         stack = traceback.extract_stack(limit=offset+limit)
+        #print("offset", offset)
         if offset > 0:
             stack = stack[:-offset]
         format = ""
@@ -279,7 +282,8 @@ class CustomLogger(logging.Logger):
         #    print(path, lineno, func, line)
         path, lineno, func, line = stack[0]
         #print(line)
-        line = _get_cached_line(path, lineno, line).strip()
+        #line = _get_cached_line(path, lineno, line).strip()
+        #print("line", line)
         #expr = _get_cached_expr(path, lineno)
         args = _seek_args(path, lineno)
         if args:
@@ -309,7 +313,8 @@ class CustomLogger(logging.Logger):
             elif isinstance(val, str):
                 str_val = val
             elif isinstance(val, bytes):
-                repr(val)
+                #repr(val)
+                str_val = repr(val)
             else:
                 str_val = repr(val)
             if str_val.find('\n') >= 0:
@@ -583,7 +588,8 @@ def _seek_args(path, lineno, fallback=None):
         #print(result)
         return result[0]
     except Exception as e:
-        print(e)
+        #print(e)
+        logger.exception(e)
         return fallback
 
 def getColorLogger(name, level_mode='auto', add_handler='auto'):

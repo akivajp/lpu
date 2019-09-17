@@ -20,12 +20,14 @@ if sys.platform == 'linux2':
     opt = opt.replace('-Wstrict-prototypes', '')
     #opt = opt + ' -Wno-strict-prototypes'
     opt = opt + ' -Wno-cpp'
+    opt = opt + ' -Wno-sign-compare'
     #opt = opt + ' -DNPY_NO_DEPRECATED_API'
     sysconfig.get_config_vars()['OPT'] = opt
     # Omitting 'strict-prototypes' warning For Python 3.x
     cflags = sysconfig.get_config_vars().get('CFLAGS', '')
     cflags = cflags.replace('-Wstrict-prototypes', '')
     cflags = cflags + ' -Wno-cpp'
+    cflags = cflags + ' -Wno-sign-compare'
     sysconfig.get_config_vars()['CFLAGS'] = cflags
 
 def get_package(path):
