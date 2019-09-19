@@ -1,5 +1,4 @@
 from lpu.common cimport environ
-from lpu.backends import safe_logging
 
 #cdef class CustomLogger(logging.Logger):
 #    pass
@@ -10,4 +9,11 @@ cdef class LoggingStatus(environ.StackHolder):
 
 cpdef using_config(object loggers, object debug=*, object quiet=*)
 
-#cpdef _debug_print(self, object val=*, int limit=*)
+cdef _get_cached_line(str path, unsigned int lineno, object fallback=*, object frame=*)
+
+cdef _get_cached_calls(str path, unsigned int lineno, object fallback=*, object frame=*)
+cdef _get_call_key(object call)
+
+cdef _seek_args(str path, unsigned int lineno, object fallback=*, object frame=*)
+cdef _parse_args(str buf, object feeder, unsigned int offset=*, unsigned int depth=*)
+cdef _seek_str(str buf, unsigned int offset)

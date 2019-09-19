@@ -44,6 +44,8 @@ class SpeedCounter(object):
         """
         self.refresh = refresh
         self.header = header 
+        self.start_time = -1
+        self.last_time = -1
         self.reset()
         self.force = force
         self.max_count = max_count
@@ -74,16 +76,9 @@ class SpeedCounter(object):
             force {[bool]} -- new force mode (default: {None})
             color {[bool]} -- new text color (default: {None})
         """
-        #cdef double now
         if self.last_time > self.start_time:
             self.flush()
-            fobj = None
-            if sys.stderr.isatty():
-                fobj = sys.stderr
-            elif sys.stdout.isatty():
-                fobj = sys.stdout
-            elif force:
-                fobj = sys.stderr
+            fobj = self._get_fobj()
             if fobj:
                 fobj.write("\n")
         now = time.time()
@@ -100,6 +95,16 @@ class SpeedCounter(object):
             self.force = force
         if color != None:
             self.color = color
+    @cython.locals(fobj = object)
+    def _get_fobj(self):
+        fobj = None
+        if sys.stderr.isatty():
+            fobj = sys.stderr
+        elif sys.stdout.isatty():
+            fobj = sys.stdout
+        elif self.force:
+            fobj = sys.stderr
+        return fobj
 
     def set_count(self, count, view=False):
         """set the counter value
@@ -152,14 +157,7 @@ class SpeedCounter(object):
         if not flush:
             if delta_time < self.refresh:
                 return False
-        fobj = None
-        if not self.force:
-            if sys.stderr.isatty():
-                fobj = sys.stderr
-            elif sys.stdout.isatty():
-                fobj = sys.stdout
-        else:
-            fobj = sys.stderr
+        fobj = self._get_fobj()
         if fobj:
             delta_count = self.count - self.last_count
             show_bytes = False
@@ -179,25 +177,15 @@ class SpeedCounter(object):
             else:
                 str_ratio = ""
             try:
-                #strTimeStamp = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-                #str_timestamp = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
                 str_timestamp = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
                 fobj.write("\r")
                 str_elapsed = format_time(now - self.start_time)
-                #logging.debug(elapsed)
-                #fobj.write("%s%s %s%s [%s/s] [%s]" % (showName, about(self.count,show_bytes), strRatio, strElapsed, strRate, strTimeStamp))
-                #fobj.write("[%s] %s%s %s%s [%s/s]" % (strTimeStamp, showName, about(self.count,show_bytes), strRatio, strElapsed, strRate))
-                #fobj.write("  \b\b")
                 str_about = about(self.count, show_bytes)
                 str_print = "[%s] %s%s %s%s [%s/s]%s" % (str_timestamp, str_header, str_about, str_ratio, str_elapsed, str_rate, BACK_WHITE)
-                #logging.put_color(str_print, self.color, newline=False)
                 str_print = put_color(str_print, self.color)
-                #logger.debug(str_print)
                 fobj.write(str_print)
             except Exception as e:
                 logger.exception(e)
-        #if fobj and flush:
-        #    fobj.write("\n")
         self.last_time = now
         self.last_count = self.count
         return True
@@ -404,8 +392,8 @@ def open(path, header=""):
 
 @cython.locals(buf = bytes)
 @cython.locals(counter = SpeedCounter)
-@cython.locals(delta = long)
-@cython.locals(max_count = long)
+@cython.locals(delta = cython.long)
+@cython.locals(max_count = cython.long)
 def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTERVAL, outfunc=None):
     max_count = -1
     delta = 1

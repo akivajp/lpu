@@ -7,6 +7,8 @@
 # Standard libraries
 import ast
 import codecs
+import inspect
+import os
 import re
 import sys
 import traceback
@@ -34,15 +36,21 @@ class LoggingStatus(environ.StackHolder):
         self.set_loggers(loggers)
 
     def _reconfigureLogger(self):
+        print(self.loggers)
         if self.loggers:
             for logger in self.loggers:
+                print(self["LPU_DEBUG"])
+                print(logger)
+                print("configuration")
                 configureLogger(logger)
+                print(logger)
         else:
             try:
                 import lpu
                 configureLogger(lpu.logger)
             except Exception as e:
-                pass
+                #pass
+                lpu.logger.exception(e)
 
     def set_loggers(self, loggers):
         if loggers:
@@ -51,7 +59,8 @@ class LoggingStatus(environ.StackHolder):
                 loggers = [loggers]
             for logger in loggers:
                 if isinstance(logger, str):
-                    logger = logging.getLogger(logger)
+                    #logger = logging.getLogger(logger)
+                    logger = getColorLogger(logger)
                 set_loggers.add(logger)
             self.loggers = set_loggers
 
@@ -285,7 +294,17 @@ class CustomLogger(logging.Logger):
         #line = _get_cached_line(path, lineno, line).strip()
         #print("line", line)
         #expr = _get_cached_expr(path, lineno)
-        args = _seek_args(path, lineno)
+        #frame = sys._getframe(1)
+        frame = sys._getframe(offset)
+        #print(frame)
+        #print(inspect.getsource(frame))
+        #print(inspect.getsourcelines(frame))
+        #print(frame.f_lineno)
+        #print(inspect.getsource(frame.f_code))
+        #args = _seek_args(path, lineno)
+        args = _seek_args(path, lineno, None, frame)
+        #frame = sys._getframe(offset)
+        #args = _get_first_arg(frame)
         if args:
             expr = args[0]
         else:
@@ -442,11 +461,14 @@ def configureLogger(logger, mode='auto'):
     return logger
 
 _cached_lines = {}
-#cdef _get_cached_line(path, lineno, fallback):
-def _get_cached_line(path, lineno, fallback):
+def _get_cached_line(path, lineno, fallback=None, frame=None):
     try:
         if path not in _cached_lines:
-            _cached_lines[path] = open(path).readlines()
+            if os.path.exists(path):
+                _cached_lines[path] = open(path).readlines()
+            elif frame is not None:
+                # falling back for iPython
+                _cached_lines[path], _ = inspect.getsourcelines(frame)
         lines = _cached_lines[path]
         if lineno in range(1, len(lines)+1):
             return lines[lineno-1]
@@ -455,23 +477,23 @@ def _get_cached_line(path, lineno, fallback):
         pass
     return fallback
 
-#_cached_trees = {}
 _cached_calls = {}
-def _get_cached_calls(path, lineno, fallback=None):
+def _get_cached_calls(path, lineno, fallback=None, frame=None):
     if path not in _cached_calls:
-        #_cached_trees[path] = ast.parse(open(path).read())
-        tree = ast.parse(open(path).read())
+        if os.path.exists(path):
+            tree = ast.parse(open(path).read())
+        elif frame is not None:
+            # falling back for iPython
+            tree = ast.parse(inspect.getsource(frame))
         calls = []
         for elem in ast.walk(tree):
             if isinstance(elem, ast.Call):
                 calls.append(elem)
-        calls.sort(key = lambda e: (e.lineno, e.col_offset))
-        #_cached_trees = 
+        calls.sort(key = _get_call_key)
         _cached_calls[path] = calls
     else:
         calls = _cached_calls[path]
     call = None
-    #next_call = None
     for i, c in enumerate(calls):
         if c.lineno == lineno:
             call = c
@@ -483,114 +505,116 @@ def _get_cached_calls(path, lineno, fallback=None):
     if not call:
         return fallback
     return call
+def _get_call_key(call):
+    return (call.lineno, call.col_offset)
 
-def _seek_args(path, lineno, fallback=None):
+def _seek_args(path, lineno, fallback=None, frame=None):
     try:
-        call = _get_cached_calls(path, lineno, fallback)
+        call = _get_cached_calls(path, lineno, fallback, frame)
+        _get_cached_line(path, lineno, fallback, frame)
         lines = _cached_lines[path]
-        def feed(lines, lineno):
-            for n in range(lineno-1, len(lines)):
-                yield lines[n]
-        feeder = feed(lines, call.lineno)
-        def seek_str(buf, offset):
-            i = offset
-            if buf[offset:offset+3] == '"""':
-                until = '"""'
-                i += 3
-            elif buf[offset:offset+3] == "'''":
-                until = "'''"
-                i += 3
-            elif buf[offset:offset+1] == '"':
-                until = '"'
-                i += 1
-            elif buf[offset:offset+1] == "'":
-                until = "'"
-                i += 1
-            else:
-                return "", i
-            expr = until
-            check_length = len(until)
-            while i < len(buf):
-                c = buf[i]
-                if c == "\\":
-                    expr += c
-                elif buf[i:i+check_length] == until:
-                    expr += until
-                    #i += check_length
-                    i += (check_length - 1)
-                    break
-                else:
-                    expr += c
-                i += 1
-            return expr, i
-        def parse_args(buf, offset=0, depth=0):
-            args = []
-            expr = ""
-            i = offset
-            last_char = ""
-            while i < len(buf):
-                #print(i, depth, buf[i:].strip())
-                c = buf[i]
-                if c == "(":
-                    if depth > 0:
-                        expr += "("
-                    result = parse_args(buf, i+1, depth+1)
-                    #print("result: {}".format(result))
-                    if depth == 0:
-                        #print("breaking")
-                        args += result[0]
-                        break
-                    else:
-                        expr += result[0]
-                    i = result[1]
-                elif c == ")":
-                    if depth == 0:
-                        raise Exception("parse error, unexpected depth")
-                    elif depth == 1:
-                        break
-                    elif depth >= 2:
-                        expr += ")"
-                    #print("expr: {}".format(expr))
-                    return expr, i
-                elif c == ",":
-                    if depth == 1:
-                        args.append(expr)
-                        expr = ""
-                    else:
-                        expr += c
-                    #print(depth, args, expr)
-                elif c in ["'", '"']:
-                    result = seek_str(buf, i)
-                    expr += result[0]
-                    i = result[1]
-                elif c == " ":
-                    if last_char != " ":
-                        expr += c
-                elif c == "\n":
-                    line = next(feeder)
-                    buf += line
-                else:
-                    if depth > 0:
-                        expr += c
-                last_char = c
-                i += 1
-            if expr:
-                args.append(expr)
-            #print(depth, args, expr, i)
-            if depth <= 1:
-                #print(depth, args, i)
-                return args, i
-            else:
-                #print(depth, expr, i)
-                return expr, i
+        feeder = _get_feeder(lines, call.lineno)
         buf = next(feeder)[call.col_offset:]
-        result = parse_args(buf)
-        #print(result)
+        result = _parse_args(buf, feeder)
         return result[0]
     except Exception as e:
-        #print(e)
         logger.exception(e)
         return fallback
+def _parse_args(buf, feeder, offset=0, depth=0):
+    args = []
+    expr = ""
+    i = offset
+    last_char = ""
+    while i < len(buf):
+        #print(i, depth, buf[i:].strip())
+        c = buf[i]
+        if c == "(":
+            if depth > 0:
+                expr += "("
+            #result = _parse_args(buf, i+1, depth+1)
+            result = _parse_args(buf, feeder, i+1, depth+1)
+            #print("result: {}".format(result))
+            if depth == 0:
+                #print("breaking")
+                args += result[0]
+                break
+            else:
+                expr += result[0]
+            i = result[1]
+        elif c == ")":
+            if depth == 0:
+                raise Exception("parse error, unexpected depth")
+            elif depth == 1:
+                break
+            elif depth >= 2:
+                expr += ")"
+            #print("expr: {}".format(expr))
+            return expr, i
+        elif c == ",":
+            if depth == 1:
+                args.append(expr)
+                expr = ""
+            else:
+                expr += c
+            #print(depth, args, expr)
+        elif c in ["'", '"']:
+            result = _seek_str(buf, i)
+            expr += result[0]
+            i = result[1]
+        elif c == " ":
+            if last_char != " ":
+                expr += c
+        elif c == "\n":
+            line = next(feeder)
+            buf += line
+        else:
+            if depth > 0:
+                expr += c
+        last_char = c
+        i += 1
+    if expr:
+        args.append(expr)
+    #print(depth, args, expr, i)
+    if depth <= 1:
+        #print(depth, args, i)
+        return args, i
+    else:
+        #print(depth, expr, i)
+        return expr, i
+def _seek_str(buf, offset):
+    i = offset
+    if buf[offset:offset+3] == '"""':
+        until = '"""'
+        i += 3
+    elif buf[offset:offset+3] == "'''":
+        until = "'''"
+        i += 3
+    elif buf[offset:offset+1] == '"':
+        until = '"'
+        i += 1
+    elif buf[offset:offset+1] == "'":
+        until = "'"
+        i += 1
+    else:
+        return "", i
+    expr = until
+    check_length = len(until)
+    while i < len(buf):
+        c = buf[i]
+        if c == "\\":
+            expr += c
+        elif buf[i:i+check_length] == until:
+            expr += until
+            #i += check_length
+            i += (check_length - 1)
+            break
+        else:
+            expr += c
+        i += 1
+    return expr, i
+def _get_feeder(lines, lineno):
+    for n in range(lineno-1, len(lines)):
+        yield lines[n]
 
 def getColorLogger(name, level_mode='auto', add_handler='auto'):
     #logger = logging.getLogger(name)

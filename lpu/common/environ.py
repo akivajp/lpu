@@ -46,6 +46,19 @@ class StackHolder(object):
         self.affect_system = affect_system
         self.level = len(env_stack)
 
+    def get(self, key, default=""):
+        """
+        Get configuration
+        
+        Arguments:
+            key {[str]} -- name of variable
+            default {[str]} -- default variable
+
+        Returns:
+            [str] -- configured value
+        """
+        return self.env_layer.get(key, default)
+
     #cpdef set(self, str key, str value):
     @cython.locals(prev_exist = bool)
     @cython.locals(prev_value = str)

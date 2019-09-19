@@ -23,6 +23,7 @@ cdef class SpeedCounter(object):
     cpdef flush(self)
 
     cpdef reset(self, object refresh=*, object header=*, object force=*, object color=*)
+    cdef _get_fobj(self)
 
     cpdef set_count(self, unsigned long count, bint view=*)
 

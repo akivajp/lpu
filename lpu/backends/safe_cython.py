@@ -40,4 +40,5 @@ else:
     size_t = None
     struct = None
     uchar = None
+    uint = None
     ulong = None

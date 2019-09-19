@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os.path
+import os
 import sys
 
+from distutils.util import strtobool
 from setuptools import findall
 from setuptools import find_packages
 from setuptools import setup
 from setuptools import Extension
 
 import numpy
+
+USE_CYTHON = True
+if 'USE_CYTHON' in os.environ:
+    USE_CYTHON = bool(strtobool(os.environ['USE_CYTHON']))
 
 MAIN_PACKAGE = 'lpu'
 
@@ -64,25 +69,28 @@ include_dirs = [
     numpy.get_include(),
 ]
 
-try:
-    from Cython.Build import build_ext
-    from Cython.Build import cythonize
-    compiler_directives = dict(
-        language_level = sys.version_info[0],
-    )
-    ext_modules = get_modules(
-        #MAIN_PACKAGE, ['.pyx'],
-        MAIN_PACKAGE, ['.pyx', '.py'],
-        #MAIN_PACKAGE, ['*.py'],
-        include_dirs = include_dirs,
-    )
-    ext_modules = cythonize(
-        ext_modules,
-        compiler_directives = compiler_directives,
-        #gdb_debug = True,
-    )
-    cmdclass = {'build_ext': build_ext}
-except ImportError:
+if USE_CYTHON:
+    try:
+        from Cython.Build import build_ext
+        from Cython.Build import cythonize
+        compiler_directives = dict(
+            language_level = sys.version_info[0],
+        )
+        ext_modules = get_modules(
+            #MAIN_PACKAGE, ['.pyx'],
+            MAIN_PACKAGE, ['.pyx', '.py'],
+            #MAIN_PACKAGE, ['*.py'],
+            include_dirs = include_dirs,
+        )
+        ext_modules = cythonize(
+            ext_modules,
+            compiler_directives = compiler_directives,
+            #gdb_debug = True,
+        )
+        cmdclass = {'build_ext': build_ext}
+    except ImportError:
+        USE_CYTHON = False
+if not USE_CYTHON:
     ext_modules = get_modules(
         MAIN_PACKAGE, ['.c', '.cpp'],
         include_dirs = include_dirs,

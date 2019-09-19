@@ -7,5 +7,6 @@ cdef class StackHolder(object):
     cdef list back_log
 
     cpdef clear(self)
+    cpdef str get(self, str key, str default=*)
     cpdef set(self, str key, str value)
     cpdef unset(self, str key)
