@@ -355,9 +355,9 @@ class Iterator(object):
 @cython.locals(show_hours = cython.ulong)
 def format_time(seconds):
     seconds = int(seconds)
-    show_seconds = seconds % 60
-    show_minutes = (seconds / 60) % 60
-    show_hours = seconds / (60*60)
+    show_seconds = int(seconds % 60)
+    show_minutes = int((seconds / 60) % 60)
+    show_hours = int(seconds / (60*60))
     return "%02d:%02d:%02d" % (show_hours,show_minutes,show_seconds)
 
 

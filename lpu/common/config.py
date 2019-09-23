@@ -370,7 +370,8 @@ class Config(object):
             return dic
 
     @cython.locals(d = object)
-    def to_json(self, key=None, upstream=False, purge=None, **options):
+    #def to_json(self, key=None, upstream=False, purge=None, **options):
+    def to_json(self, key=None, upstream=True, purge=None, **options):
         #cdef object d
         d = self.to_dict(key, True, upstream, True, purge, False)
         return json.dumps(d, **options)
@@ -542,16 +543,16 @@ def flat_dict(d, dtype, chain_key):
             flatten[key] = val
     return flatten
 
-#def update_data(ConfigData cdata, _conf = None, _override=True, **args):
-#def update_data(ConfigData cdata, _conf = None, _override=True, _override_none=False, **args):
+@cython.locals(cdata = ConfigData)
+@cython.returns(ConfigData)
 def update_data(cdata, _conf = None, _override=True, _override_none=False, **args):
-    cdata = update_data(cdata, _conf, _override, _override_none)
+    cdata = _update_data(cdata, _conf, _override, _override_none)
     if args:
-        cdata = update_data(cdata, args, _override, _override_none)
+        cdata = _update_data(cdata, args, _override, _override_none)
     return cdata
-#def update_data(cdata, _conf = None, _override=True, _override_none=False, **args):
+@cython.locals(key = str)
+@cython.locals(val = object)
 def _update_data(cdata, _conf = None, _override=True, _override_none=False):
-    #if _conf:
     if isinstance(_conf, (dict,ConfigData)):
         if isinstance(_conf, ConfigData):
             _conf = ConfigData.__main

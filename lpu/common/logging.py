@@ -25,25 +25,16 @@ from lpu.common.compat import MethodType
 
 logger = logging.getLogger(__name__)
 
-class LoggingStatus(environ.StackHolder):
-    #def __init__(self, logger=None):
+class LoggingConfig(environ.StackHolder):
     def __init__(self, loggers=None):
-        #print(LoggingStatus)
-        #print(type(LoggingStatus))
         #logger.debug("initializing logging status")
-        super(LoggingStatus, self).__init__()
-        #self.loggers = None
+        super(LoggingConfig, self).__init__()
         self.set_loggers(loggers)
 
     def _reconfigureLogger(self):
-        print(self.loggers)
         if self.loggers:
             for logger in self.loggers:
-                print(self["LPU_DEBUG"])
-                print(logger)
-                print("configuration")
                 configureLogger(logger)
-                print(logger)
         else:
             try:
                 import lpu
@@ -84,11 +75,11 @@ class LoggingStatus(environ.StackHolder):
 
     def __enter__(self):
         #logger.debug("entering logging environment")
-        super(LoggingStatus,self).__enter__()
+        super(LoggingConfig,self).__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        super(LoggingStatus,self).__exit__(exc_type, exc_val, exc_tb)
+        super(LoggingConfig,self).__exit__(exc_type, exc_val, exc_tb)
         #logger.debug("exiting from logging environment")
         self._reconfigureLogger()
 
@@ -616,8 +607,11 @@ def _get_feeder(lines, lineno):
     for n in range(lineno-1, len(lines)):
         yield lines[n]
 
+def getLogger(name=None):
+    CustomLogger.manager.setLoggerClass(CustomLogger)
+    return CustomLogger.manager.getLogger(name)
+
 def getColorLogger(name, level_mode='auto', add_handler='auto'):
-    #logger = logging.getLogger(name)
     logger = getLogger(name)
     if level_mode is not 'auto':
         logger = configureLogger(logger, mode=level_mode)
@@ -639,19 +633,14 @@ def getColorLogger(name, level_mode='auto', add_handler='auto'):
     return colorizeLogger(logger)
 
 # global environ
-#def push_environ(logger):
-#cpdef using_config(logger, debug=None, quiet=None):
-#cpdef using_config(loggers, debug=None, quiet=None):
 def using_config(loggers, debug=None, quiet=None):
-    env_layer = environ.push(LoggingStatus)
+    env_layer = environ.push(LoggingConfig)
     env_layer.set_loggers(loggers)
     if debug is not None:
         env_layer.set_debug(debug)
     if quiet is not None:
         env_layer.set_quiet(debug)
     return env_layer
-#env = push_environ(logger)
-#env = using_config(None)
 
 # importing from system logging module
 NOTSET   = logging.NOTSET
@@ -664,7 +653,3 @@ CRITICAL = logging.CRITICAL
 Filter = logging.Filter
 StreamHandler = logging.StreamHandler
 FileHandler = logging.FileHandler
-
-#getLogger = logging.getLogger
-def getLogger(name=None):
-    return CustomLogger(name)

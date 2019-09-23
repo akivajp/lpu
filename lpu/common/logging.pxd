@@ -3,9 +3,11 @@ from lpu.common cimport environ
 #cdef class CustomLogger(logging.Logger):
 #    pass
 
-cdef class LoggingStatus(environ.StackHolder):
-    #cdef list loggers
+cdef class LoggingConfig(environ.StackHolder):
+    # members
     cdef set loggers
+    # methods
+    cdef void _reconfigureLogger(self)
 
 cpdef using_config(object loggers, object debug=*, object quiet=*)
 
