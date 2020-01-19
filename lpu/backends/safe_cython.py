@@ -23,11 +23,11 @@ else:
     def _dummy_decorator_without_arguments(func):
         return func
     locals = _dummy_decorator_with_arguments
+    returns = _dummy_decorator_with_arguments
     # dummy functions
     def _dummy_function(*args, **kwargs):
         pass
     address = _dummy_function
-    returns = _dummy_function
     typedef = _dummy_function
     struct = _dummy_function
     # dummy types

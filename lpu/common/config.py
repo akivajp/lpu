@@ -5,9 +5,13 @@
 '''Configuration utility class for function settings'''
 
 # Standard libraries
-from collections import OrderedDict
-from collections import Iterable
 import json
+import sys
+from collections import OrderedDict
+if sys.version_info.major <= 2:
+    from collections import Iterable
+else:
+    from collections.abc import Iterable
 
 # Local libraries
 from lpu.backends import safe_cython as cython
@@ -22,18 +26,11 @@ class ConfigData(object):
         base = None
         main = None
         if isinstance(_base, Config):
-            #self.__base = _base.data
             base = _base.data
         elif isinstance(_base, ConfigData):
-            #self.__base = _base
             base = _base
         elif isinstance(_base, dict):
-            #self.__base = _base
-            #self.__base = dict2data(_base)
             base = dict2data(_base)
-        #else:
-        #    self.__base = None
-        #self.__main = OrderedDict()
         main = OrderedDict()
         if cython.compiled:
             self.__base = base
