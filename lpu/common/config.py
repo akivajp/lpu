@@ -21,7 +21,7 @@ dprint = logger.debug_print
 
 class ConfigData(object):
     '''Configuration data holder'''
-    @cython.locals(base = object, main = object)
+    #@cython.locals(base = object, main = object) # error in python 3.x
     def __init__(self, _base=None, **args):
         base = None
         main = None
@@ -50,8 +50,8 @@ class ConfigData(object):
         if args:
             self.__main.update(args)
 
-    @cython.locals(first_key = str, remain_keys = str)
-    @cython.locals(main = object, base = object)
+    #@cython.locals(first_key = str, remain_keys = str) # error in cython 3.x
+    #@cython.locals(main = object, base = object) # error in cython 3.x
     def __contains__(self, key):
         #cdef str first_key, remain_keys
         #cdef object main = self.__main
@@ -78,9 +78,7 @@ class ConfigData(object):
             name = self.__class__.__name__
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    #def __getattr__(self, key):
-    #def __getattr__(self, str key):
-    @cython.locals(name = str)
+    #@cython.locals(name = str) # error in python 3.x
     def __getattr__(self, key):
         #cdef str name
         try:
@@ -91,15 +89,10 @@ class ConfigData(object):
             dprint(key)
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    @cython.locals(msg = str)
-    @cython.locals(main = object, base = object, value = object)
-    @cython.locals(first_key = str, remain_keys = str)
+    #@cython.locals(msg = str) # error in python 3.x
+    #@cython.locals(main = object, base = object, value = object) # error in python 3.x
+    #@cython.locals(first_key = str, remain_keys = str) # error in python 3.x
     def __getitem__(self, key):
-        #cdef str msg
-        #cdef object main
-        #cdef object base
-        #cdef object value
-        #cdef str first_key, remain_keys
         main = self.__main
         if isinstance(key, str):
             if key.find('.') >= 0:
@@ -132,16 +125,11 @@ class ConfigData(object):
             msg = 'Invalid type of key object is given: {} (expected str or Iterable, but expected: {})'
             raise TypeError(msg.format(repr(key), type(key).__name__))
 
-    @cython.locals(s = set)
-    @cython.locals(l = list)
-    @cython.locals(key = str)
-    @cython.locals(main = object, base = object)
+    #@cython.locals(s = set) # error in python 3.x
+    #@cython.locals(l = list) # error in python 3.x
+    #@cython.locals(key = str) # error in python 3.x
+    #@cython.locals(main = object, base = object) # error in python 3.x
     def __iter__(self):
-        #cdef set s
-        #cdef list l
-        #cdef str key
-        #cdef object base = self.__base
-        #cdef object main = self.__main
         base = self.__base
         main = self.__main
         l = list()
@@ -165,15 +153,10 @@ class ConfigData(object):
         #return len(set(self))
         return sum(1 for _ in self)
 
-    @cython.locals(str_params = str)
-    @cython.locals(name = str)
-    @cython.locals(main = object, base = object)
+    #@cython.locals(str_params = str) # error in python 3.x
+    #@cython.locals(name = str) # error in python 3.x
+    #@cython.locals(main = object, base = object) # error in python 3.x
     def __repr__(self):
-        #cdef str str_base
-        #cdef str str_params
-        #cdef str name = self.__class__.__name__
-        #cdef object main = self.__main
-        #cdef object base = self.__base
         name = self.__class__.__name__
         main = self.__main
         base = self.__base
@@ -205,16 +188,11 @@ class ConfigData(object):
         #    #self.__dict__.__setitem__(key, val)
         #    self.__main.__setitem__(key, val)
 
-    @cython.locals(msg = str)
-    @cython.locals(retrieved = object)
-    #@cython.locals(conf = ConfigData)
-    @cython.locals(main = object, base = object)
+    #@cython.locals(msg = str) # error in python 3.x
+    #@cython.locals(retrieved = object) # error in python 3.x
+    ##@cython.locals(conf = ConfigData) # error in python 3.x
+    #@cython.locals(main = object, base = object) # error in python 3.x
     def __setitem__(self, key, val):
-        #cdef str msg
-        #cdef object retrieved
-        #cdef ConfigData conf
-        #cdef object main = self.__main
-        #cdef object base = self.__base
         main = self.__main
         base = self.__base
         # check the key validity
@@ -403,8 +381,8 @@ class Config(object):
     def __len__(self):
         return self.data.__len__()
 
-    @cython.locals(cls = type)
-    @cython.locals(name = str)
+    #@cython.locals(cls = type) # error in python 3.x
+    #@cython.locals(name = str) # error in python 3.x
     def __repr__(self):
         #cdef type cls
         #cdef str name

@@ -89,10 +89,9 @@ class TreeNode(object):
 
     def __str__(self):
         return self.toStr()
-    @cython.locals(mod = str)
-    @cython.returns(str)
+    #@cython.locals(mod = str) # error in python3.x
+    #@cython.returns(str) # error in python3.x
     def __repr__(self):
-        #cdef str mod = str(self.__class__.__module__)
         mod = str(self.__class__.__module__)
         try:
             return "%s.fromS(%r)" % (mod,self.toStr())

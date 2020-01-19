@@ -146,7 +146,7 @@ setup(
         'console_scripts': [
             'lpu-abspath = lpu.commands.abspath:main',
             'lpu-clean-parallel= lpu.commands.clean_parallel:main',
-            'lpu-dialog  = lpu.commands.prompt:main',
+            'lpu-dialog  = lpu.commands.dialog:main',
             'lpu-exec-parallel= lpu.commands.exec_parallel:main',
             'lpu-guess-langcode= lpu.commands.guess_langcode:main',
             'lpu-progress= lpu.commands.progress:main',

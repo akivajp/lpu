@@ -5,6 +5,7 @@ __all__ = [
   'compat',
   'colors',
   'config',
+  'dialog',
   'files',
   'logging',
   'numbers',
