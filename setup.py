@@ -97,8 +97,11 @@ if not USE_CYTHON:
     )
     cmdclass = {}
 
-version_file = os.path.join(os.path.dirname(__file__), MAIN_PACKAGE, 'VERSION')
-version = open(version_file).read().strip()
+base_path = os.path.dirname(__file__)
+version_path = os.path.join(base_path, MAIN_PACKAGE, 'VERSION')
+version = open(version_path).read().strip()
+description_path = os.path.join(base_path, 'README.md')
+long_description = open(description_path).read()
 
 install_requires = [
     #'Cython',
@@ -112,7 +115,7 @@ setup(
     ext_modules = ext_modules,
     install_requires = install_requires,
     description = 'A Language Processing Utility',
-    long_description = open('README.md').read(),
+    long_description = long_description,
     long_description_content_type = 'text/markdown',
     url = 'https://github.com/akivajp/lpu',
     author = 'Akiva Miura',
@@ -126,9 +129,9 @@ setup(
     ],
     classifiers = [
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Topic :: Utilities",
     ],
     packages = find_packages(),

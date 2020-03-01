@@ -4,11 +4,10 @@
 /lpu/*/*.cpp
 /lpu/*/*/*.c
 /lpu/*/*/*.cpp
-/.idea
-/*.code-workspace
+/wheelhouse
 /*.egg-info
-/*.vscode
 .*.swp
+/*.vscode
 *.pyc
 *.rej
 *.so
