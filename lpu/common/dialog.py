@@ -17,12 +17,12 @@ def get_yes_no_string(default=None):
 
 def get_answer(default=None):
     ans = sys.stdin.readline().strip().lower()
+    if not ans:
+        ans = default
     if ans in ("yes", "y"):
         return True
     elif ans in ("no", "n"):
         return False
-    elif not ans:
-        return default
     else:
         return None
 
