@@ -103,17 +103,19 @@ version = open(version_path).read().strip()
 description_path = os.path.join(base_path, 'README.md')
 long_description = open(description_path).read()
 
-install_requires = [
+setup_requires = [
     #'Cython',
     'numpy',
 ]
+
+print(find_packages())
 
 setup(
     name = 'lpu',
     version = version,
     cmdclass = cmdclass,
     ext_modules = ext_modules,
-    install_requires = install_requires,
+    setup_requires = setup_requires,
     description = 'A Language Processing Utility',
     long_description = long_description,
     long_description_content_type = 'text/markdown',
