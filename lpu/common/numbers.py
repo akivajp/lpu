@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''functions for numbers'''
@@ -9,14 +8,11 @@ import math
 import sys
 
 # Local libraries
-from lpu.backends import safe_cython as cython
 from lpu.common import logging
 
 logger = logging.getColorLogger(__name__)
 
 #cpdef object toNumber(anyNum, float margin = 0):
-@cython.locals(num_float = float)
-@cython.locals(num_int = long)
 def toNumber(num_any, margin=0):
     #cdef float floatNum
     #cdef int intNum

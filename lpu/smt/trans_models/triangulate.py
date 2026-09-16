@@ -10,7 +10,6 @@ import math
 import sys
 
 # Local libraries
-from lpu.common import compat
 from lpu.common import files
 from lpu.common import logging
 from lpu.common import progress

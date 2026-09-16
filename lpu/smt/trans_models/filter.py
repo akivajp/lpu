@@ -19,9 +19,9 @@ from lpu.smt.trans_models import records
 def matchRules(rec, rules):
     for rule in rules:
         expr = rule
-        expr = re.sub('c\.c', str(rec.counts.cooc),  expr)
-        expr = re.sub('c\.s', str(rec.counts.src), expr)
-        expr = re.sub('c\.t', str(rec.counts.trg), expr)
+        expr = re.sub(r'c\.c', str(rec.counts.cooc),  expr)
+        expr = re.sub(r'c\.s', str(rec.counts.src), expr)
+        expr = re.sub(r'c\.t', str(rec.counts.trg), expr)
         #debug.log(expr)
         if eval(expr):
             #print("MATCH")

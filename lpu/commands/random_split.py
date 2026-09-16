@@ -6,12 +6,12 @@ import argparse
 import random
 
 # Local libraries
-from lpu.common import compat
 from lpu.common import files
 from lpu.common import environ
 from lpu.common import logging
 from lpu.common import numbers
 from lpu.common import progress
+from lpu.common import text
 from lpu.common.config import Config
 
 logger = logging.getColorLogger(__name__)
@@ -22,9 +22,9 @@ def get_valid_indices(conf):
     infiles = [files.open(path,'rb') for path in conf.data.inpaths]
     infiles[0] = progress.view(infiles[0], 'loading')
     #for i, lines in enumerate(progress.view(compat.zip(*infiles), 'loading')):
-    for i, lines in enumerate(compat.zip(*infiles)):
+    for i, lines in enumerate(zip(*infiles)):
         try:
-            lines = map(compat.to_unicode, lines)
+            lines = map(text.to_unicode, lines)
             if conf.data.ignore_empty:
                 if all([line.rstrip("\n") for line in lines]):
                         indices.append(i)

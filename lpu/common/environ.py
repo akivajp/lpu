@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''this module provides globally shared stack of environment'''
@@ -8,8 +7,7 @@
 import os
 
 # Local libraries
-from lpu.backends import safe_logging as logging
-from lpu.backends import safe_cython as cython
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +58,6 @@ class StackHolder(object):
         return self.env_layer.get(key, default)
 
     #cpdef set(self, str key, str value):
-    @cython.locals(prev_exist = bool)
-    @cython.locals(prev_value = str)
     def set(self, key, value):
         """
         Set new configuration
@@ -82,10 +78,7 @@ class StackHolder(object):
         self.env_layer[key] = value
 
     #cpdef clear(self):
-    @cython.locals(key = str)
     #@cython.locals(prev_exist = bool)
-    @cython.locals(prev_exist = cython.bint)
-    @cython.locals(prev_value = str)
     def clear(self):
         #cdef str key
         #cdef bool prev_exist
@@ -110,9 +103,6 @@ class StackHolder(object):
         # note: python2.7 does not have list.clear
         del self.back_log[:]
 
-    @cython.locals(prev_exist = cython.bint)
-    @cython.locals(prev_value = str)
-    @cython.locals(found = tuple)
     def unset(self, key):
         if self.back_log:
             #found = next((t[1:] for t in self.back_log if t[0] == key), None)

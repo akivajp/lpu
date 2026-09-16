@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''Customizable logging functions'''
@@ -13,15 +12,13 @@ import re
 import sys
 import traceback
 
-from lpu.backends import safe_cython as cython
-from lpu.backends import safe_logging as logging
+import logging
 
 #import lpu
 from lpu.common import environ
 from lpu.common import validation
 from lpu.common.colors import put_color
-from lpu.common import compat
-from lpu.common.compat import MethodType
+from lpu.common import text
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +174,6 @@ class ColorizingFormatter(logging.Formatter):
                 text = put_color(text, color_default)
         return text
 
-    @cython.locals(text = str)
     def format(self, record):
         #cdef str text
         #print("formatting... {}".format(record))
@@ -264,8 +260,11 @@ class CustomLogger(logging.Logger):
     def debug_print(self, val=None, limit=0, offset=0):
         if logging.DEBUG < self.level:
             return
-        if not cython.compiled:
-            offset += 1
+        # Skip one frame, because this method's own frame is on the stack
+        # when running as pure Python.
+        # 純 Python 実行時はこのメソッド自身のフレームがスタックに乗るため
+        # 1 段分ずらす
+        offset += 1
         #stack = traceback.extract_stack(limit=limit)
         stack = traceback.extract_stack(limit=offset+limit)
         #print("offset", offset)
@@ -306,7 +305,7 @@ class CustomLogger(logging.Logger):
         #        if isinstance(elem, ast.Call):
         #            print(elem)
         #            print(elem.lineno)
-        line = compat.to_str(line)
+        line = text.to_str(line)
         #if val is not None:
         #expr = re.findall(r'\(.*\)$', line)
         #if expr:
@@ -314,10 +313,6 @@ class CustomLogger(logging.Logger):
         if expr:
             #if expr.find(',') > 0:
             #    expr = str.join(',', expr.split(',')[:-1]).strip()
-            if sys.version_info.major == 2:
-                #expr = compat.to_unicode(expr)
-                if isinstance(val, unicode):
-                    val = compat.to_str(val)
             if isinstance(val, (int,float)):
                 str_val = '{}({})'.format(type(val).__name__,val)
             elif isinstance(val, str):
@@ -367,8 +362,10 @@ class CustomLogger(logging.Logger):
         return rv
 
 def debug_print(val=None, limit=0, offset=0):
-    if not cython.compiled:
-        offset += 1
+    # Skip one frame, because this function's own frame is on the stack
+    # when running as pure Python.
+    # 純 Python 実行時はこの関数自身のフレームがスタックに乗るため 1 段分ずらす
+    offset += 1
     logger = getColorLogger('__main__')
     #return logger.debug_print(val, limit)
     return logger.debug_print(val, limit, offset)
@@ -613,7 +610,7 @@ def getLogger(name=None):
 
 def getColorLogger(name, level_mode='auto', add_handler='auto'):
     logger = getLogger(name)
-    if level_mode is not 'auto':
+    if level_mode != 'auto':
         logger = configureLogger(logger, mode=level_mode)
     #logger.debug_print = MethodType(_debug_print, logger, logging.Logger)
     if add_handler == 'auto':
@@ -628,7 +625,7 @@ def getColorLogger(name, level_mode='auto', add_handler='auto'):
                 add_handler = None
         if add_handler:
             logger.addHandler(add_handler)
-            if level_mode is 'auto':
+            if level_mode == 'auto':
                 configureLogger(logger, mode=level_mode)
     return colorizeLogger(logger)
 

@@ -1,4 +1,3 @@
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''
@@ -6,9 +5,9 @@
 '''
 
 from collections import defaultdict
+from functools import reduce
 import math
 
-from lpu.common.compat import reduce
 from lpu.common import logging
 from lpu.common.logging import debug_print as dprint
 

@@ -16,13 +16,13 @@ from numpy cimport int64_t
 
 # Local libraries
 
-from lpu.common import compat
+from lpu.common import text
 from lpu.common import environ
 from lpu.common import files
 from lpu.common import progress
 
-from lpu.common.config cimport Config
-from lpu.common.vocab cimport StringEnumerator
+from lpu.common.config import Config
+from lpu.common.vocab import StringEnumerator
 from lpu.common import logging
 
 logger = logging.getColorLogger(__name__)
@@ -90,10 +90,10 @@ cdef class Vocab:
         sent_pairs = []
         for src_line, trg_line in zip(src_file, trg_file):
             if character_based:
-                src_words = list( compat.to_unicode(src_line.strip("\n")) )
-                trg_words = list( compat.to_unicode(trg_line.strip("\n")) )
-                src_words = list( map(compat.to_str, src_words) )
-                trg_words = list( map(compat.to_str, trg_words) )
+                src_words = list( text.to_unicode(src_line.strip("\n")) )
+                trg_words = list( text.to_unicode(trg_line.strip("\n")) )
+                src_words = list( map(text.to_str, src_words) )
+                trg_words = list( map(text.to_str, trg_words) )
             else:
                 src_words = src_line.strip("\n").split(' ')
                 trg_words = trg_line.strip("\n").split(' ')

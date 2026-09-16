@@ -1,4 +1,3 @@
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''

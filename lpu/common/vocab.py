@@ -1,17 +1,45 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''functions mapping from words/phrases to IDs and vice versa'''
 
-# Local libraries
-from lpu.backends import safe_cython as cython
-from lpu.data_structs.trie import TwoWayIDMap
+# The actual phraseMap object, created on first access.
+# phraseMap の実体。初回参照時に生成される
+_phrase_map = None
 
-#wordMap   = TwoWayIDMap()
-#wordMap   = {}
-phraseMap = TwoWayIDMap()
-#phraseMap = {}
+
+def _get_phrase_map():
+    '''Get the ID map for phrases (phraseMap)
+
+    The object is a Double-Array Trie based `TwoWayIDMap`, which requires
+    the Cython extension and the `pycedar` package. `StringEnumerator` in
+    this module does not depend on them, so the map is created on first
+    access rather than at import time.
+
+    フレーズ用 ID マップ (phraseMap) を取得する。
+    実体は Double-Array Trie ベースの `TwoWayIDMap` であり、Cython 拡張と
+    `pycedar` パッケージを必要とする。本モジュールの `StringEnumerator` は
+    それらに依存しないため、import 時ではなく初回参照時に生成する。
+
+    Returns:
+        A `TwoWayIDMap` instance converting between phrases and IDs.
+            フレーズ文字列と ID を相互変換する `TwoWayIDMap` インスタンス。
+    '''
+    global _phrase_map
+    if _phrase_map is None:
+        from lpu.data_structs.trie import TwoWayIDMap
+        _phrase_map = TwoWayIDMap()
+    return _phrase_map
+
+
+def __getattr__(name):
+    '''Provide the module attribute `phraseMap` lazily (PEP 562)
+
+    モジュール属性 `phraseMap` を遅延生成で提供する (PEP 562)。
+    '''
+    if name == 'phraseMap':
+        return _get_phrase_map()
+    raise AttributeError("module {!r} has no attribute {!r}".format(__name__, name))
 
 #cdef class StringEnumerator:
 class StringEnumerator(object):
@@ -30,7 +58,6 @@ class StringEnumerator(object):
         return True
 
     #cpdef long str2id(self, str string):
-    @cython.locals(new_id = long)
     def str2id(self, string):
         #cdef long new_id
         if string in self.dict_str2id:
@@ -48,8 +75,6 @@ class StringEnumerator(object):
         else:
             raise IndexError("id %s is not registered in vocabulary set" % (number,))
 
-    @cython.locals(i = long)
-    @cython.locals(length = long)
     def ids(self):
         #cdef long i = 0, length = len(self.list_id2str)
         i = 0
@@ -58,7 +83,6 @@ class StringEnumerator(object):
             yield i
             i += 1
 
-    @cython.locals(string = str)
     def strings(self):
         #cdef str string
         for string in self.list_id2str:
@@ -100,15 +124,13 @@ def idvec2phrase(idvec):
     return str.join(' ', map(id2word, map(int, idvec.split(','))))
 
 #cpdef long phrase2id(str phrase):
-@cython.locals(idvec = str)
 def phrase2id(phrase):
     #cdef str idvec = str.join(',', map(str, map(word2id, phrase.split(' '))))
     idvec = str.join(',', map(str, map(word2id, phrase.split(' '))))
-    return phraseMap[idvec]
+    return _get_phrase_map()[idvec]
 
 #cpdef str id2phrase(long number):
-@cython.locals(idvec = str)
 def id2phrase(number):
     #cdef str idvec = phraseMap.id2str(number)
-    idvec = phraseMap.id2str(number)
+    idvec = _get_phrase_map().id2str(number)
     return str.join(' ', map(id2word, map(int, idvec.split(','))))

@@ -1,4 +1,3 @@
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 # cython: profile=True
 
@@ -8,13 +7,9 @@
 import json
 import sys
 from collections import OrderedDict
-if sys.version_info.major <= 2:
-    from collections import Iterable
-else:
-    from collections.abc import Iterable
+from collections.abc import Iterable
 
 # Local libraries
-from lpu.backends import safe_cython as cython
 from lpu.common import logging
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print
@@ -32,21 +27,23 @@ class ConfigData(object):
         elif isinstance(_base, dict):
             base = dict2data(_base)
         main = OrderedDict()
-        if cython.compiled:
-            self.__base = base
-            self.__main = main
-        else:
-            dprint(self.__dict__)
-            # access from this class
-            self.__dict__["_ConfigData__base"] = base
-            self.__dict__["_ConfigData__main"] = main
-            # access from Config class
-            self.__dict__["_Config__base"] = base
-            self.__dict__["_Config__main"] = main
-            # access from functions
-            self.__dict__["__base"] = base
-            self.__dict__["__main"] = main
-            dprint(self.__dict__)
+        # __setattr__ is overridden, so write into __dict__ directly.
+        # The same value is registered under several aliases to absorb the
+        # differences in name mangling between the referring classes.
+        # __setattr__ をオーバーライドしているため、__dict__ に直接書き込む。
+        # 名前修飾 (name mangling) の違いを吸収するため、参照元のクラスごとに
+        # 別名でも登録しておく
+        dprint(self.__dict__)
+        # access from this class
+        self.__dict__["_ConfigData__base"] = base
+        self.__dict__["_ConfigData__main"] = main
+        # access from Config class
+        self.__dict__["_Config__base"] = base
+        self.__dict__["_Config__main"] = main
+        # access from functions
+        self.__dict__["__base"] = base
+        self.__dict__["__main"] = main
+        dprint(self.__dict__)
         if args:
             self.__main.update(args)
 
@@ -319,9 +316,6 @@ class Config(object):
         else:
             return self[key]
 
-    @cython.locals(dtype = type)
-    @cython.locals(data = ConfigData)
-    @cython.locals(dic = object)
     def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, purge=False, flat=False):
         #cdef type dtype
         #cdef ConfigData data = self.data
@@ -344,7 +338,6 @@ class Config(object):
             #return data2dict(data, dtype, upstream, recursive, purge)
             return dic
 
-    @cython.locals(d = object)
     #def to_json(self, key=None, upstream=False, purge=None, **options):
     def to_json(self, key=None, upstream=True, purge=None, **options):
         #cdef object d
@@ -419,8 +412,6 @@ def should_take(val, purge):
 #cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
 #cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
 #cdef object data2dict(object data, object dtype, bool upstream, bool recursive, bool purge):
-@cython.locals(cdata = ConfigData)
-@cython.locals(items = object)
 def data2dict(data, dtype, upstream, recursive, purge):
     #dprint("--")
     #dprint(data)
@@ -464,8 +455,6 @@ def data2dict(data, dtype, upstream, recursive, purge):
         return dtype(items)
 
 #cdef object dict2data(object obj):
-@cython.locals(key = object, value = object)
-@cython.locals(conf = ConfigData)
 def dict2data(obj):
     #cdef object key, value
     #cdef ConfigData conf
@@ -486,9 +475,6 @@ def get_key_val_str(d, verbose):
     return str.join(', ', items)
 
 #cdef list flat_items(object items, str prefix, bool chain_key):
-@cython.locals(flatten = list)
-@cython.locals(str_prefix = str)
-@cython.locals(full_key = str)
 def flat_items(items, prefix, chain_key):
     #cdef object flatten = []
     #cdef str str_prefix
@@ -509,7 +495,6 @@ def flat_items(items, prefix, chain_key):
             flatten.append( (full_key,val) )
     return flatten
 #cdef object flat_dict(object d, type dtype, bool chain_key):
-@cython.locals(flatten = object)
 def flat_dict(d, dtype, chain_key):
     #cdef object flatten = dtype()
     flatten = dtype()
@@ -518,19 +503,26 @@ def flat_dict(d, dtype, chain_key):
             flatten[key] = val
     return flatten
 
-@cython.locals(cdata = ConfigData)
-@cython.returns(ConfigData)
 def update_data(cdata, _conf = None, _override=True, _override_none=False, **args):
     cdata = _update_data(cdata, _conf, _override, _override_none)
     if args:
         cdata = _update_data(cdata, args, _override, _override_none)
     return cdata
-@cython.locals(key = str)
-@cython.locals(val = object)
 def _update_data(cdata, _conf = None, _override=True, _override_none=False):
+    if _conf is None:
+        # Nothing to do when no source is given. This branch is taken when
+        # called with keyword arguments only, as in Config.update(key=value).
+        # 更新元が指定されていない場合は何もしない
+        # (Config.update(key=value) のようにキーワード引数のみで
+        #  呼び出された場合にここを通る)
+        return cdata
     if isinstance(_conf, (dict,ConfigData)):
         if isinstance(_conf, ConfigData):
-            _conf = ConfigData.__main
+            # ConfigData has no items(), so take out the inner dict directly.
+            # __main is held via __dict__ to avoid name mangling.
+            # ConfigData は items() を持たないため、内部の辞書を直接取り出す。
+            # __main は名前修飾を避けて __dict__ 経由で保持されている
+            _conf = _conf.__dict__["__main"]
         if _override:
             for key, val in _conf.items():
                 if val is None:
@@ -553,5 +545,5 @@ def _update_data(cdata, _conf = None, _override=True, _override_none=False):
                 if key not in cdata:
                     cdata[key] = _conf[key]
     else:
-        raise TypeError("unsupported configuration type: {}".type(_conf).__name__)
+        raise TypeError("unsupported configuration type: {}".format(type(_conf).__name__))
     return cdata

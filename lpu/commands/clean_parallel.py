@@ -10,26 +10,29 @@ import unicodedata
 from functools import reduce
 
 # Local libraries
-from lpu.common import compat
 from lpu.common import logging
 from lpu.common import progress
+from lpu.common import text
 
 logger = logging.getColorLogger(__name__)
 
+# Escape table for characters that Moses/Travatar style tools use as
+# field delimiters.
+# Moses/Travatar 系ツールがフィールド区切りに用いる記号のエスケープ表
 REPLACE_MAP = {
-    compat.to_unicode('<'): compat.to_unicode('-LT-'),
-    compat.to_unicode('>'): compat.to_unicode('-GT-'),
-    compat.to_unicode('('): compat.to_unicode('-LRB-'),
-    compat.to_unicode(')'): compat.to_unicode('-RRB-'),
-    compat.to_unicode('{'): compat.to_unicode('-LCB-'),
-    compat.to_unicode('}'): compat.to_unicode('-RCB-'),
-    compat.to_unicode('['): compat.to_unicode('-LSB-'),
-    compat.to_unicode(']'): compat.to_unicode('-RSB-'),
-    compat.to_unicode('|'): compat.to_unicode('-BAR-'),
-    compat.to_unicode('&'): compat.to_unicode('-AMP-'),
-    compat.to_unicode('\t'): compat.to_unicode(' '),
-    unicodedata.lookup('ZERO WIDTH SPACE'): compat.to_unicode(' '),
-    unicodedata.lookup('ZERO WIDTH NO-BREAK SPACE'): compat.to_unicode(' '),
+    '<': '-LT-',
+    '>': '-GT-',
+    '(': '-LRB-',
+    ')': '-RRB-',
+    '{': '-LCB-',
+    '}': '-RCB-',
+    '[': '-LSB-',
+    ']': '-RSB-',
+    '|': '-BAR-',
+    '&': '-AMP-',
+    '\t': ' ',
+    unicodedata.lookup('ZERO WIDTH SPACE'): ' ',
+    unicodedata.lookup('ZERO WIDTH NO-BREAK SPACE'): ' ',
 }
 
 def getLongestCommonPrefix(s1, s2):
@@ -55,12 +58,10 @@ def replaceChar(c):
         return c
 
 def normalize(line, escape=False):
-    #line = compat.to_unicode( line.strip() )
     line = unicodedata.normalize('NFKD', line)
     if escape:
-        line = compat.to_unicode('').join(map(replaceChar, line))
+        line = ''.join(map(replaceChar, line))
     line = unicodedata.normalize('NFC', line)
-    line = compat.to_str(line)
     line = re.sub(r'\s+', ' ', line)
     return line
 
@@ -107,15 +108,14 @@ def cleanParallel(**args):
             outPath = commonPrefix + outTag + diff
         outPaths.append(os.path.join(out_dir, outPath))
     logger.info("writing cleaned corpora into: %s ..." % str.join(' ',outPaths))
-    if sys.version_info.major >= 3:
-        infiles  = [open(path,'rb') for path in srcFilePaths]
-    else:
-        infiles  = [open(path,'r') for path in srcFilePaths]
+    # Read as binary and decode each line strictly as UTF-8.
+    # バイナリで読み込み、行ごとに UTF-8 として厳密にデコードする
+    infiles  = [open(path,'rb') for path in srcFilePaths]
     outfiles = [open(path,'w') for path in outPaths]
     infiles[0] = progress.view(infiles[0], header='processing')
     for i, lines in enumerate(zip(*infiles)):
         try:
-            lines = [compat.to_unicode(line.strip()) for line in lines]
+            lines = [text.to_unicode(line.strip()) for line in lines]
             if args.get('normalize'):
                 escape = args.get('escape')
                 #lines = list( map(normalize, lines) )

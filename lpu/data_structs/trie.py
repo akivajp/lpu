@@ -4,25 +4,32 @@
 
 '''Dictionaries and ID Maps implemented by Double-Array Trie'''
 
-import logging
-import sys
-
 # Local libraries
-from lpu.backends import safe_cython as cython
-from lpu.common import compat
+# trie.py handles a C++ std::deque<std::string>, so Cython is mandatory
+# here and the cython module is imported directly.
+# trie.py は C++ の std::deque<std::string> を扱うため Cython 必須であり、
+# cython モジュールを直接 import する
+import cython
 
-logger = logging.getLogger(__name__)
+from lpu.common import text
 
 # 3rd party library
+# pycedar is a dependency of this module only; the other lpu modules remain
+# usable in environments without it. Since this is imported as a library, it
+# must not terminate the process, so an ImportError is raised instead
+# (0.2.x called sys.exit(1) here).
+# pycedar は本モジュール専用の依存であり、インストールされていない環境でも
+# lpu の他のモジュールは利用できる。ライブラリとして import されている以上、
+# プロセスを終了させてはならないため ImportError を送出する
+# (0.2.x では sys.exit(1) を呼んでいた)。
 try:
     import pycedar
-except Exception as e:
-    logger.exception(e)
-    logger.error(
-        "module 'pycedar' is not found, please install 'pycedar' package\n"
-        "(e.g. $ pip install --user pycedar)"
-    )
-    sys.exit(1)
+except ImportError as exc:
+    raise ImportError(
+        "module 'pycedar' is required by 'lpu.data_structs.trie' "
+        "but not installed; please install it "
+        "(e.g. $ pip install 'lpu[smt]' or $ pip install pycedar)"
+    ) from exc
 
 #cdef class IDMap:
 class IDMap(object):
@@ -52,27 +59,31 @@ class IDMap(object):
             if len(self.unusedIDs) > 0:
                 n = self.unusedIDs.pop()
             else:
-                n = self.dict.num_keys() + 1
+                n = len(self.dict) + 1
             self.dict[key] = n
             return n
 
     def ids(self):
         if self.numEmpty > 0:
             yield 0
-        for r in self.dict.predict(''):
-            yield r.value()
+        # pycedar 0.2 and later provide a dict-compatible API
+        # (predict() / node.value() of the 0.1 series were removed).
+        # pycedar 0.2 以降は dict 互換 API を持つ
+        # (0.1 系の predict() / node.value() は廃止された)
+        for value in self.dict.values():
+            yield value
 
     def items(self):
         if self.numEmpty > 0:
             yield ('', 0)
-        for r in self.dict.predict(''):
-            yield (r.key(), r.value())
+        for key, value in self.dict.items():
+            yield (key, value)
 
     def keys(self):
         if self.numEmpty > 0:
             yield ''
-        for r in self.dict.predict(''):
-            yield r.key()
+        for key in self.dict.keys():
+            yield key
 
     #cpdef long remove(self, str key):
     @cython.locals(n = long)
@@ -83,7 +94,7 @@ class IDMap(object):
             self.numEmpty = 0
             return 0
         elif n > 0:
-            self.dict.erase(key)
+            del self.dict[key]
             self.unusedIDs.append(n)
             return n
         else:
@@ -113,7 +124,7 @@ class IDMap(object):
     def __iter__(self):
         return self.keys()
     def __len__(self):
-        return self.dict.num_keys() + self.numEmpty
+        return len(self.dict) + self.numEmpty
 
 #cdef class TwoWayIDMap(IDMap):
 class TwoWayIDMap(IDMap):
@@ -132,10 +143,10 @@ class TwoWayIDMap(IDMap):
     def append(self, key):
         n = IDMap.append(self, key)
         if n >= self.keyList.size():
-            self.keyList.push_back(compat.to_bytes(key))
+            self.keyList.push_back(text.to_bytes(key))
         else:
             #self.keyList[n] = key
-            self.keyList[n] = compat.to_bytes(key)
+            self.keyList[n] = text.to_bytes(key)
         return n
 
     #cpdef str id2str(self, long num):
@@ -149,16 +160,13 @@ class TwoWayIDMap(IDMap):
         #if key:
         if not key.empty():
             #return key
-            return compat.to_str(key)
+            return text.to_str(key)
         else:
             #raise IndexError(key)
-            raise IndexError(compat.to_str(key))
+            raise IndexError(text.to_str(key))
 
     @cython.locals(i = cython.size_t)
-    #@cython.locals(k = string)
-    #@cython.locals(k = cython.address(string))
-    #@cython.locals(k = cython.pointer(string))
-    #@cython.locals(k = ref_string)
+    @cython.locals(k = string)
     def ids(self):
         #cdef long i
         #cdef size_t i
@@ -178,7 +186,7 @@ class TwoWayIDMap(IDMap):
                 yield i
 
     @cython.locals(i = cython.size_t)
-    @cython.locals(k = object)
+    @cython.locals(k = string)
     def items(self):
         #cdef long i
         #cdef size_t i
@@ -190,10 +198,10 @@ class TwoWayIDMap(IDMap):
             k = self.keyList[i]
             if not k.empty():
                 #yield (i, k)
-                yield (i, compat.to_str(k))
+                yield (i, text.to_str(k))
 
     @cython.locals(i = cython.size_t)
-    @cython.locals(k = object)
+    @cython.locals(k = string)
     def keys(self):
         #cdef long i
         #cdef size_t i
@@ -205,7 +213,7 @@ class TwoWayIDMap(IDMap):
             k = self.keyList[i]
             if not k.empty():
                 #yield k
-                yield compat.to_str(k)
+                yield text.to_str(k)
 
     #cpdef void purge(self):
     def purge(self):

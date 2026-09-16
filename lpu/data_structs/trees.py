@@ -1,26 +1,14 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''tree expression and operations'''
 
 import copy
-from collections import Iterable
+from collections.abc import Iterable
 
-from lpu.backends import safe_cython as cython
 from lpu.common import logging
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print
-
-# third party library
-#import numpy as np
-
-if cython.compiled:
-    # safe typedef
-    TreeNodeType = TreeNode
-else:
-    # empty type declarations
-    TreeNodeType = cython.struct()
 
 #cdef class TreeNode:
 class TreeNode(object):
@@ -59,9 +47,7 @@ class TreeNode(object):
     @staticmethod
     #def fromS(str expr):
     #@cython.locals(t = TreeNode)
-    @cython.locals(expr = str)
     #@cython.returns(TreeNode)
-    @cython.returns(TreeNodeType)
     #@cython.locals(tmp = TreeNode)
     def fromS(expr):
         #cdef TreeNode t = TreeNode('')
@@ -146,8 +132,6 @@ def parseSExpression(expr, i=0):
     return cont, i
 
 #def indexTree(list tree):
-@cython.locals(indexToLabel = list)
-@cython.locals(indexToLeftRange = list)
 def indexTree(tree):
     #cdef list indexToTree = []
     #cdef list indexToLabel = []
@@ -192,9 +176,6 @@ def indexTree(tree):
 #def countElements(list tree):
 def countElements(tree):
     #def innerCount(object node):
-    @cython.locals(node = object)
-    @cython.locals(numElems = int)
-    @cython.returns(int)
     def innerCount(node):
         #cdef int numElems = 0
         numElems = 0
@@ -228,15 +209,6 @@ def calcEditDistance(seq1, seq2):
 
 import pprint
 #def calcTreeEditDistance(object tree1, object tree2):
-@cython.locals(tree1 = object)
-@cython.locals(tree2 = object)
-@cython.locals(memo = dict)
-@cython.locals(indexToLabel1 = list)
-@cython.locals(indexToLeftRange1 = list)
-@cython.locals(indexToLabel2 = list)
-@cython.locals(indexToLeftRange2 = list)
-@cython.locals(numNodes1 = int)
-@cython.locals(numNodes2 = int)
 def calcTreeEditDistance(tree1, tree2):
     #cdef dict memo = {}
     #cdef list indexToLabel1
@@ -269,10 +241,6 @@ def calcTreeEditDistance(tree1, tree2):
 
     #dprint(tree1)
     #dprint(tree2)
-    @cython.locals(left1 = int, right1 = int)
-    @cython.locals(left2 = int, right2 = int)
-    @cython.locals(v1 = int, v2 = int, v3 = int, v = int)
-    @cython.returns(int)
     def calcInnerDistance(left1, right1, left2, right2):
         print("-----------------------")
         #pprint.pprint((left1, right1, left2, right2))

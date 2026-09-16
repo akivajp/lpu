@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''Auxiliary functions for file I/O'''
@@ -75,9 +74,16 @@ def getContentSize(path):
     try:
         f_in = _open(path, 'rb')
         if is_gzipped(path):
-            f_in.seek(-8, 2)
-            crc32 = gzip.read32(f_in)
-            isize = gzip.read32(f_in)
+            # In the gzip format, the last 4 bytes (the ISIZE field) hold
+            # the uncompressed size modulo 2^32, little-endian. The previous
+            # implementation used gzip.read32(), which has since been
+            # removed, so it always raised and returned -1.
+            # gzip 形式では末尾 4 バイト (ISIZE フィールド) に展開後サイズを
+            # 2^32 で割った余りがリトルエンディアンで格納されている。
+            # 旧実装は既に削除された gzip.read32() を使っていたため、
+            # 常に例外となって -1 を返していた。
+            f_in.seek(-4, 2)
+            isize = int.from_bytes(f_in.read(4), 'little')
             f_in.close()
             return isize
         else:
@@ -99,12 +105,20 @@ def get_ext(filename):
 #    return isinstance(obj, FileType)
 
 def is_gzipped(filename):
-    '''check whether the given file is compressed by gzip or not'''
+    '''check whether the given file is compressed by gzip or not
+
+    Only the 2-byte magic number (0x1f 0x8b) at the head is checked.
+    The previous implementation actually decompressed one line, which
+    caused wasteful I/O and decompression for huge files.
+
+    先頭 2 バイトのマジックナンバー (0x1f 0x8b) のみを確認する。
+    旧実装は実際に 1 行を解凍していたため、巨大なファイルに対して
+    無駄な I/O と展開処理が発生していた。
+    '''
     try:
-        f = gzip.open(filename, 'r')
-        f.readline()
-        return True
-    except Exception as e:
+        with _open(filename, 'rb') as f:
+            return f.read(2) == b'\x1f\x8b'
+    except Exception:
         return False
 
 def is_mode(fobj, mode):
@@ -240,7 +254,11 @@ def rawsize(f):
     try:
         raw = rawfile(f)
         pos = raw.tell()
-        raw.seek(-1, 2)
+        # seek(-1, 2) points one byte before the end of the file, which
+        # made the reported size one byte too small.
+        # seek(-1, 2) ではファイル末尾の 1 バイト手前を指すため
+        # サイズが 1 バイト少なくなっていた
+        raw.seek(0, 2)
         size = raw.tell()
         raw.seek(pos, 0)
         return size

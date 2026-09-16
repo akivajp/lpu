@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''Utility functions handling colors'''
@@ -10,7 +9,7 @@
 #from lpu.common.compat cimport strtype
 
 #from lpu.__system__ import logging
-from lpu.backends import safe_logging as logging
+import logging
 
 logger = logging.getLogger(__name__)
 

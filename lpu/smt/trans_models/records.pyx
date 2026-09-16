@@ -7,9 +7,9 @@
 import math
 
 # Local libraries
-from lpu.common import compat
 from lpu.common import logging
 from lpu.common import numbers
+from lpu.common import text
 
 # Matching Method
 #   tree:    Full Match (Tree Match)
@@ -265,7 +265,7 @@ cdef class TravatarRecord(Record):
     def __cinit__(self, object line="", str delim='|||'):
         Record.__init__(self)
         self.delim = delim
-        self.loadLine(compat.to_str(line), delim)
+        self.loadLine(text.to_str(line), delim)
 
 #    cpdef getSrcSymbols(self):
 #      return getTravatarSymbols(self.src)

@@ -1,0 +1,94 @@
+[build-system]
+# Build-time only dependencies. Cython and numpy must be declared here or
+# they cannot be imported under pip's build isolation (0.2.10 did not declare
+# them, so building from the sdist always failed).
+# ビルド時にのみ必要な依存関係。
+# Cython / numpy はここで宣言しないと pip のビルド分離下で import できない
+# (0.2.10 ではこれが宣言されておらず、sdist ビルドが必ず失敗していた)。
+requires = [
+    "setuptools>=77",
+    "Cython>=3.0",
+    "numpy>=2.0",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lpu"
+dynamic = ["version"]
+description = "A Language Processing Utility"
+readme = "README.md"
+# Python 3.9 reached EOL in 2025-10, so 3.10 is the lower bound.
+# Python 3.9 は 2025-10 に EOL 済みのため 3.10 を下限とする
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Akiva Miura", email = "akiva.miura@gmail.com" },
+]
+keywords = [
+    "CL",
+    "NLP",
+    "computational linguistics",
+    "natural language processing",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Cython",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+    "Topic :: Utilities",
+]
+# The core features (lpu.common.*, lpu.commands.*, lpu.metrics.*,
+# lpu.data_structs.trees) run on the standard library alone, so there are
+# no runtime dependencies.
+# コア機能 (lpu.common.*, lpu.commands.*, lpu.metrics.*, lpu.data_structs.trees)
+# は標準ライブラリのみで動作するため、実行時依存は無し
+dependencies = []
+
+[project.optional-dependencies]
+# Dependencies required to use the SMT modules and the Double-Array Trie.
+# 統計的機械翻訳 (SMT) 系モジュールおよび Double-Array Trie を使う場合の依存関係
+smt = [
+    "numpy>=1.19",
+    "pycedar>=0.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/akivajp/lpu"
+Repository = "https://github.com/akivajp/lpu"
+Issues = "https://github.com/akivajp/lpu/issues"
+
+[project.scripts]
+lpu-abspath = "lpu.commands.abspath:main"
+lpu-clean-parallel = "lpu.commands.clean_parallel:main"
+lpu-dialog = "lpu.commands.dialog:main"
+lpu-exec-parallel = "lpu.commands.exec_parallel:main"
+lpu-guess-langcode = "lpu.commands.guess_langcode:main"
+lpu-progress = "lpu.commands.progress:main"
+lpu-random-split = "lpu.commands.random_split:main"
+lpu-wait-files = "lpu.commands.wait_files:main"
+lpu-word-align-train = "lpu.smt.align.ibm_models:main_train"
+lpu-word-align-score = "lpu.smt.align.ibm_models:main_score"
+
+[tool.setuptools.dynamic]
+version = { file = "lpu/VERSION" }
+
+[tool.setuptools.packages.find]
+include = ["lpu*"]
+
+[tool.setuptools.package-data]
+# VERSION is read at runtime; .pxd / .pyx are needed to rebuild from the sdist.
+# VERSION は実行時に読み込まれる。.pxd / .pyx は sdist からの再ビルドに必要
+lpu = ["VERSION"]
+"*" = ["*.pxd", "*.pyx"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
