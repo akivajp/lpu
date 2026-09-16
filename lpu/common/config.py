@@ -1,4 +1,3 @@
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 # cython: profile=True
 
@@ -8,20 +7,15 @@
 import json
 import sys
 from collections import OrderedDict
-if sys.version_info.major <= 2:
-    from collections import Iterable
-else:
-    from collections.abc import Iterable
+from collections.abc import Iterable
 
 # Local libraries
-from lpu.backends import safe_cython as cython
 from lpu.common import logging
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print
 
 class ConfigData(object):
     '''Configuration data holder'''
-    #@cython.locals(base = object, main = object) # error in python 3.x
     def __init__(self, _base=None, **args):
         base = None
         main = None
@@ -32,30 +26,27 @@ class ConfigData(object):
         elif isinstance(_base, dict):
             base = dict2data(_base)
         main = OrderedDict()
-        if cython.compiled:
-            self.__base = base
-            self.__main = main
-        else:
-            dprint(self.__dict__)
-            # access from this class
-            self.__dict__["_ConfigData__base"] = base
-            self.__dict__["_ConfigData__main"] = main
-            # access from Config class
-            self.__dict__["_Config__base"] = base
-            self.__dict__["_Config__main"] = main
-            # access from functions
-            self.__dict__["__base"] = base
-            self.__dict__["__main"] = main
-            dprint(self.__dict__)
+        # __setattr__ is overridden, so write into __dict__ directly.
+        # The same value is registered under several aliases to absorb the
+        # differences in name mangling between the referring classes.
+        # __setattr__ をオーバーライドしているため、__dict__ に直接書き込む。
+        # 名前修飾 (name mangling) の違いを吸収するため、参照元のクラスごとに
+        # 別名でも登録しておく
+        dprint(self.__dict__)
+        # access from this class
+        self.__dict__["_ConfigData__base"] = base
+        self.__dict__["_ConfigData__main"] = main
+        # access from Config class
+        self.__dict__["_Config__base"] = base
+        self.__dict__["_Config__main"] = main
+        # access from functions
+        self.__dict__["__base"] = base
+        self.__dict__["__main"] = main
+        dprint(self.__dict__)
         if args:
             self.__main.update(args)
 
-    #@cython.locals(first_key = str, remain_keys = str) # error in cython 3.x
-    #@cython.locals(main = object, base = object) # error in cython 3.x
     def __contains__(self, key):
-        #cdef str first_key, remain_keys
-        #cdef object main = self.__main
-        #cdef object base = self.__base
         main = self.__main
         base = self.__base
         if isinstance(key, str) and key.find('.') >= 0:
@@ -78,9 +69,7 @@ class ConfigData(object):
             name = self.__class__.__name__
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    #@cython.locals(name = str) # error in python 3.x
     def __getattr__(self, key):
-        #cdef str name
         try:
             return self.__getitem__(key)
         except:
@@ -89,9 +78,6 @@ class ConfigData(object):
             dprint(key)
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    #@cython.locals(msg = str) # error in python 3.x
-    #@cython.locals(main = object, base = object, value = object) # error in python 3.x
-    #@cython.locals(first_key = str, remain_keys = str) # error in python 3.x
     def __getitem__(self, key):
         main = self.__main
         if isinstance(key, str):
@@ -111,7 +97,6 @@ class ConfigData(object):
                     # derive, instead of copying
                     value = ConfigData(value)
                     main[key] = value
-                #main[key] = value
                 return value
                 #return base[key]
             raise KeyError(key)
@@ -125,10 +110,6 @@ class ConfigData(object):
             msg = 'Invalid type of key object is given: {} (expected str or Iterable, but expected: {})'
             raise TypeError(msg.format(repr(key), type(key).__name__))
 
-    #@cython.locals(s = set) # error in python 3.x
-    #@cython.locals(l = list) # error in python 3.x
-    #@cython.locals(key = str) # error in python 3.x
-    #@cython.locals(main = object, base = object) # error in python 3.x
     def __iter__(self):
         base = self.__base
         main = self.__main
@@ -153,16 +134,11 @@ class ConfigData(object):
         #return len(set(self))
         return sum(1 for _ in self)
 
-    #@cython.locals(str_params = str) # error in python 3.x
-    #@cython.locals(name = str) # error in python 3.x
-    #@cython.locals(main = object, base = object) # error in python 3.x
     def __repr__(self):
         name = self.__class__.__name__
         main = self.__main
         base = self.__base
-        #if base:
         #    str_base = repr(base)
-        #else:
         #    str_base = ""
         str_params = get_key_val_str(main, False)
         if base:
@@ -175,23 +151,17 @@ class ConfigData(object):
                 return "{}({})".format(name, str_params)
             else:
                 return "{}()".format(name)
-        #if str_params:
         #    return "%s(%r, %s)" % (name,self.__base,str_params)
-        #else:
         #    return "%s(%s)" % (name,self.__base)
 
     def __setattr__(self, key, val):
         self.__setitem__(key, val)
         #if key.startswith('_'):
         #    raise KeyError('Key should not start with "_": %s' % key)
-        #else:
         #    #self.__dict__.__setitem__(key, val)
         #    self.__main.__setitem__(key, val)
 
-    #@cython.locals(msg = str) # error in python 3.x
-    #@cython.locals(retrieved = object) # error in python 3.x
     ##@cython.locals(conf = ConfigData) # error in python 3.x
-    #@cython.locals(main = object, base = object) # error in python 3.x
     def __setitem__(self, key, val):
         main = self.__main
         base = self.__base
@@ -231,7 +201,6 @@ class ConfigData(object):
                 val = ConfigData(val)
             main.__setitem__(key, val)
 
-#cdef class Config:
 class Config(object):
     '''Configuration maintenance class'''
 
@@ -319,15 +288,8 @@ class Config(object):
         else:
             return self[key]
 
-    @cython.locals(dtype = type)
-    @cython.locals(data = ConfigData)
-    @cython.locals(dic = object)
     def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, purge=False, flat=False):
-        #cdef type dtype
-        #cdef ConfigData data = self.data
         data = self.data
-        #cdef object dic
-        #cdef object dic
         if ordered:
             dtype = OrderedDict
         else:
@@ -344,26 +306,17 @@ class Config(object):
             #return data2dict(data, dtype, upstream, recursive, purge)
             return dic
 
-    @cython.locals(d = object)
     #def to_json(self, key=None, upstream=False, purge=None, **options):
     def to_json(self, key=None, upstream=True, purge=None, **options):
-        #cdef object d
         d = self.to_dict(key, True, upstream, True, purge, False)
         return json.dumps(d, **options)
 
     def update(self, _conf = None, _override=True, _override_none=False, **args):
         #if _conf:
-        #    if _override:
-        #        for key, val in _conf.items():
         #            if val != None:
         #                #dprint(key)
         #                #dprint(val)
-        #                self[key] = val
-        #    else:
-        #        for key in _conf:
-        #            if key not in self:
         #                self[key] = _conf[key]
-        #if args:
         #    self.update(args, _override)
         #update_data(self.data, _conf, _override, **args)
         update_data(self.data, _conf, _override, _override_none, **args)
@@ -381,11 +334,7 @@ class Config(object):
     def __len__(self):
         return self.data.__len__()
 
-    #@cython.locals(cls = type) # error in python 3.x
-    #@cython.locals(name = str) # error in python 3.x
     def __repr__(self):
-        #cdef type cls
-        #cdef str name
         cls = self.__class__
         name = cls.__name__
         #strParams = get_key_val_str(vars(self.data), False)
@@ -401,7 +350,6 @@ def get_items(data, purge):
         if should_take(val, purge):
             yield key, val
 
-#cdef bool should_take(object val, bool purge):
 def should_take(val, purge):
     if not purge:
         return True
@@ -416,19 +364,7 @@ def should_take(val, purge):
     return True
 
 # type object is problematic in python 3.6?
-#cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
-#cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
-#cdef object data2dict(object data, object dtype, bool upstream, bool recursive, bool purge):
-@cython.locals(cdata = ConfigData)
-@cython.locals(items = object)
 def data2dict(data, dtype, upstream, recursive, purge):
-    #dprint("--")
-    #dprint(data)
-    #dprint(dtype)
-    #dprint(upstream)
-    #dprint(recursive)
-    #cdef ConfigData cdata
-    #cdef object items
     #data = data
     if not isinstance(data, ConfigData):
         # as-is
@@ -451,7 +387,6 @@ def data2dict(data, dtype, upstream, recursive, purge):
             #items = ((key, data2dict(val, dtype, upstream, recursive, purge)) for key, val in cdata)
             pass
         else:
-            #dprint(cdata.__main)
             #return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in cdata.__main)
             #return dtype((key,data2dict(data[key], dtype, upstream, recursive, purge)) for key in cdata.__main)
             #return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata.__main, purge))
@@ -463,12 +398,7 @@ def data2dict(data, dtype, upstream, recursive, purge):
             items = [(key, val) for key, val in items if should_take(val, purge)]
         return dtype(items)
 
-#cdef object dict2data(object obj):
-@cython.locals(key = object, value = object)
-@cython.locals(conf = ConfigData)
 def dict2data(obj):
-    #cdef object key, value
-    #cdef ConfigData conf
     if not isinstance(obj, dict):
         # as-is
         return obj
@@ -477,7 +407,6 @@ def dict2data(obj):
         conf[key] = dict2data(value)
     return conf
 
-#cdef get_key_val_str(object d, bool verbose):
 def get_key_val_str(d, verbose):
     if verbose:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items()]
@@ -485,14 +414,7 @@ def get_key_val_str(d, verbose):
         items = ["%s=%r" % (t[0],t[1]) for t in d.items() if not t[0].startswith('_')]
     return str.join(', ', items)
 
-#cdef list flat_items(object items, str prefix, bool chain_key):
-@cython.locals(flatten = list)
-@cython.locals(str_prefix = str)
-@cython.locals(full_key = str)
 def flat_items(items, prefix, chain_key):
-    #cdef object flatten = []
-    #cdef str str_prefix
-    #cdef str full_key
     flatten = []
     if chain_key:
         if prefix:
@@ -508,29 +430,40 @@ def flat_items(items, prefix, chain_key):
         else:
             flatten.append( (full_key,val) )
     return flatten
-#cdef object flat_dict(object d, type dtype, bool chain_key):
-@cython.locals(flatten = object)
 def flat_dict(d, dtype, chain_key):
-    #cdef object flatten = dtype()
     flatten = dtype()
     for key, val in flat_items(d.items(), None, chain_key):
         if key not in flatten:
             flatten[key] = val
     return flatten
 
-@cython.locals(cdata = ConfigData)
-@cython.returns(ConfigData)
 def update_data(cdata, _conf = None, _override=True, _override_none=False, **args):
     cdata = _update_data(cdata, _conf, _override, _override_none)
     if args:
         cdata = _update_data(cdata, args, _override, _override_none)
     return cdata
-@cython.locals(key = str)
-@cython.locals(val = object)
 def _update_data(cdata, _conf = None, _override=True, _override_none=False):
+    if _conf is None:
+        # Nothing to do when no source is given. This branch is taken when
+        # called with keyword arguments only, as in Config.update(key=value).
+        # 更新元が指定されていない場合は何もしない
+        # (Config.update(key=value) のようにキーワード引数のみで
+        #  呼び出された場合にここを通る)
+        return cdata
     if isinstance(_conf, (dict,ConfigData)):
         if isinstance(_conf, ConfigData):
-            _conf = ConfigData.__main
+            # ConfigData has no items(), and its values are split between the
+            # base (inherited) and the main (overriding) layer. Iterating the
+            # object itself yields the merged view of the two, so build a
+            # plain dict from that.
+            # 0.2.x referred to ConfigData.__main as a class attribute here,
+            # which always failed.
+            # ConfigData は items() を持たず、値は base (継承層) と
+            # main (上書き層) に分かれて保持される。オブジェクト自身を反復
+            # すると両者をマージした一覧が得られるため、そこから辞書を作る。
+            # 0.2.x ではここで ConfigData.__main をクラス属性として参照して
+            # いたため、常に失敗していた。
+            _conf = {key: _conf[key] for key in _conf}
         if _override:
             for key, val in _conf.items():
                 if val is None:
@@ -553,5 +486,5 @@ def _update_data(cdata, _conf = None, _override=True, _override_none=False):
                 if key not in cdata:
                     cdata[key] = _conf[key]
     else:
-        raise TypeError("unsupported configuration type: {}".type(_conf).__name__)
+        raise TypeError("unsupported configuration type: {}".format(type(_conf).__name__))
     return cdata

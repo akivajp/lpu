@@ -1,4 +1,3 @@
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''
@@ -6,9 +5,9 @@
 '''
 
 from collections import defaultdict
+from functools import reduce
 import math
 
-from lpu.common.compat import reduce
 from lpu.common import logging
 from lpu.common.logging import debug_print as dprint
 
@@ -30,7 +29,6 @@ def calc_ngram_precision(ref, hyp, n, smooth=False):
         correct += min(count, ref_ngram_count[ngram])
     if total == 0:
         return 0.0
-        #return 1.0
     if smooth and n >= 2:
         return (correct + 1) / float(total + 1)
     else:

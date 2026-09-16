@@ -44,7 +44,6 @@ cdef class Model2Trainer:
         self.model = Model2()
 
     cdef void init_align_dist(self) except *:
-        #cdef np.ndarray uniform_dist
         cdef ndarray[float64_t, ndim=4] uniform_dist
         cdef int max_len_src = self.model.vocab.max_len_src
         cdef int max_len_trg = self.model.vocab.max_len_trg

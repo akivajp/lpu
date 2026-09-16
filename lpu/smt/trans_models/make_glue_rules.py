@@ -54,7 +54,6 @@ def main():
     parser.add_argument('--progress', '-p', action='store_true',
                         help='show progress bar (pv command should be installed')
     args = vars(parser.parse_args())
-    #print(args)
     makeGlueRules(**args)
 
 if __name__ == '__main__':

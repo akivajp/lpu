@@ -1,13 +1,25 @@
+# Build artifacts / ビルド生成物
 /build
 /dist
+/wheelhouse
+/*.egg-info
+*.so
+# Cython generated sources / Cython の生成ソース
 /lpu/*/*.c
 /lpu/*/*.cpp
 /lpu/*/*/*.c
 /lpu/*/*/*.cpp
-/wheelhouse
-/*.egg-info
-.*.swp
-/*.vscode
+# Python caches / Python のキャッシュ
+__pycache__/
 *.pyc
+.pytest_cache/
+# Virtual environments / 仮想環境
+/.venv
+/venv
+# Editor / エディタ
+.*.swp
+/.vscode
 *.rej
-*.so
+# uv lock file (a library pins nothing at runtime, so it is not tracked)
+# uv のロックファイル (ライブラリは実行時依存を固定しないため追跡しない)
+/uv.lock

@@ -6,12 +6,11 @@ cimport numpy as np
 from numpy cimport ndarray
 from numpy cimport float64_t
 
-# local library
-from lpu.common.vocab cimport StringEnumerator
-
 cdef class Vocab:
-    cdef StringEnumerator src
-    cdef StringEnumerator trg
+    # StringEnumerator is a pure Python implementation, so hold it as object
+    # StringEnumerator は純 Python 実装のため object として保持する
+    cdef object src
+    cdef object trg
     cdef int max_len_src
     cdef int max_len_trg
 

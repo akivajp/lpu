@@ -7,9 +7,9 @@
 import math
 
 # Local libraries
-from lpu.common import compat
 from lpu.common import logging
 from lpu.common import numbers
+from lpu.common import text
 
 # Matching Method
 #   tree:    Full Match (Tree Match)
@@ -65,7 +65,6 @@ cdef class CoOccurrence:
 
 cdef class Record(object):
     cdef public str src, trg
-    #cdef public long src, trg
     cdef public dict features
     cdef public CoOccurrence counts
     cdef public set aligns
@@ -74,7 +73,6 @@ cdef class Record(object):
     def __cinit__(self):
       self.src = ""
       self.trg = ""
-      #self.src = ()
       #self.trg = ()
       #self.src = 0
       #self.trg = 0
@@ -169,21 +167,13 @@ class MosesRecord(Record):
             listCounts = getCounts(fields[4])
             self.counts.setCounts(trg = listCounts[0], src = listCounts[1], co = listCounts[2])
 
-#    def getSrcSymbols(self):
 #        return self.src.split(' ')
-#    src_symbols = property(getSrcSymbols)
 #
-#    def getSrcTerms(self):
 #        return self.src.split(' ')
-#    srcTerms = property(getSrcTerms)
 #
-#    def getTrgSymbols(self):
 #        return self.trg.split(' ')
-#    trgSymbols = property(getTrgSymbols)
 #
-#    def getTrgTerms(self):
 #        return self.trg.split(' ')
-#    trgTerms = property(getTrgTerms)
 
     def to_str(self, s = ' ||| '):
         strFeatures = getStrMosesFeatures(self.features)
@@ -265,27 +255,23 @@ cdef class TravatarRecord(Record):
     def __cinit__(self, object line="", str delim='|||'):
         Record.__init__(self)
         self.delim = delim
-        self.loadLine(compat.to_str(line), delim)
+        self.loadLine(text.to_str(line), delim)
 
-#    cpdef getSrcSymbols(self):
 #      return getTravatarSymbols(self.src)
 #    #src_symbols = property(getSrcSymbols)
 #    property src_symbols:
 #        def __get__(self): return self.getSrcSymbols()
 #
-#    cpdef getSrcTerms(self):
 #      return getTravatarTerms(self.src)
 #    #srcTerms = property(getSrcTerms)
 #    property srcTerms:
 #        def __get__(self): return self.getSrcTerms()
 #
-#    cpdef getTrgSymbols(self):
 #      return getTravatarSymbols(self.trg)
 #    #trgSymbols = property(getTrgSymbols)
 #    property trgSymbols:
 #        def __get__(self): return self.trgSrcSymbols()
 #
-#    cpdef getTrgTerms(self):
 #      return getTravatarTerms(self.trg)
 #    #trgTerms = property(getTrgTerms)
 #    property trgTerms:
@@ -323,8 +309,6 @@ cdef class TravatarRecord(Record):
       recRev.features = revFeatures
       return recRev
 
-#    cpdef loadLine(self, str line, str delim = '|||'):
-    #def loadLine(self, line, delim = '|||'):
     cpdef loadLine(self, str line, str delim = '|||'):
         cdef list fields
         cdef list listCounts
@@ -360,14 +344,10 @@ cdef class TravatarRecord(Record):
                 for s in src_symbols:
                     if s[0:1] == 'x' and s[1:2].isdigit():
                         srcNonTerminals.append(s)
-#                        if len(s) > 3:
 #                            srcNonTerminals.append(s[3:])
-#                        else:
 #                            srcNonTerminals.append('X')
                 for i, s in enumerate(trgSymbols):
-#                    print("TRG SYMBOLS: %s" % s)
                     if s[0:1] == 'x' and s[1:2].isdigit():
-#                        print("NONTERMINAL!")
                         if len(s) > 3:
                             # symbol is tagged
                             pass
@@ -389,10 +369,8 @@ cdef class TravatarRecord(Record):
             tag = src_symbols[2]
             if src_symbols[0] == "x0:"+tag:
                 # src is unary cycle
-                #self.src = ""
                 self.src = ()
 
-#    cpdef toDict(self):
 #        d = {}
 #        d['src'] = self.src
 #        d['trg'] = self.trg
@@ -516,9 +494,7 @@ def getTravatarFeatures(field):
     (key, val) = strKeyVal.split('=')
     val = getNumber(val)
 #    if key in ['egfl', 'egfp', 'fgel', 'fgep']:
-#      val = math.e ** val
 #    if key[-1] not in ['p', 'w']:
-#      val = math.e ** val
     if len(key) >= 4 :
       val = math.e ** val
     features[key] = val
@@ -544,14 +520,10 @@ def syncTags(src_symbols, trgSymbols, sync):
             for s in src_symbols:
                 if s[0:1] == 'x' and s[1:2].isdigit():
                     srcNonTerminals.append(s)
-#                        if len(s) > 3:
 #                            srcNonTerminals.append(s[3:])
-#                        else:
 #                            srcNonTerminals.append('X')
             for i, s in enumerate(trgSymbols):
-#                    print("TRG SYMBOLS: %s" % s)
                 if s[0:1] == 'x' and s[1:2].isdigit():
-#                        print("NONTERMINAL!")
                     if len(s) > 3:
                         # symbol is tagged
                         pass
@@ -568,12 +540,6 @@ def syncTags(src_symbols, trgSymbols, sync):
                 trgSymbols.append(srcTag)
             elif sync == 'hiero':
                 trgSymbols.append('X')
-#            self.trg = intern(str.join(' ', trgSymbols))
-#    if len(src_symbols) == 3:
-#        tag = src_symbols[2]
-#        if src_symbols[0] == "x0:"+tag:
 #            # src is unary cycle
-#            self.src = ""
-#    print(trgSymbols)
     return src_symbols, trgSymbols
 

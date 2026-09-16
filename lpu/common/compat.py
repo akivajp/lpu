@@ -1,202 +1,81 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
-'''Utility functions for Python 2/3 compatibility'''
+'''[DEPRECATED] Python 2/3 compatibility layer
 
-import collections
-import sys
+LPU became Python 3 only in 0.3.0, so this module has lost its purpose.
+It is kept as a thin alias for backward compatibility and is scheduled
+for removal in the next major update.
+
+【非推奨】Python 2/3 互換レイヤ。
+
+LPU 0.3.0 で Python 3 専用となったため、本モジュールの役割は失われた。
+後方互換のための薄いエイリアスとしてのみ残してあり、次のメジャー更新で
+削除する予定である。
+
+Migration guide / 移行先:
+
+===============================  ==========================================
+Old / 旧                         New / 新
+===============================  ==========================================
+``compat.to_str``                ``lpu.common.text.to_str``
+``compat.to_unicode``            ``lpu.common.text.to_unicode``
+``compat.to_bytes``              ``lpu.common.text.to_bytes``
+``compat.bytes_to_str``          ``lpu.common.text.to_str``
+``compat.range`` / ``zip``       builtin ``range`` / ``zip``
+``compat.reduce``                ``functools.reduce``
+``compat.MethodType``            ``types.MethodType``
+===============================  ==========================================
+'''
+
+import functools
 import types
+import warnings
 
-from lpu.backends import safe_cython as cython
+from lpu.common.text import to_bytes
+from lpu.common.text import to_str
+from lpu.common.text import to_unicode
 
-#cdef bytes py2_bytes_to_str(bytes b):
-def py2_bytes_to_str(b):
-    # as-is
-    return b
-def py3_bytes_to_str(b):
-    #return str(b, 'utf-8', errors='backslashreplace')
-    return b.decode('utf-8', 'backslashreplace')
+__all__ = [
+    'MethodType',
+    'range',
+    'reduce',
+    'to_bytes',
+    'to_str',
+    'to_unicode',
+    'zip',
+]
 
-#cdef unicode py2_bytes_to_unicode(bytes b):
-def py2_bytes_to_unicode(b):
-    return b.decode('utf-8')
-#cdef unicode py3_bytes_to_unicode(bytes b):
-def py3_bytes_to_unicode(b):
-    return b.decode('utf-8')
+warnings.warn(
+    "'lpu.common.compat' is deprecated since LPU 0.3.0 and will be removed "
+    "in a future release; use 'lpu.common.text' and the standard library "
+    "instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-#cdef bytes py2_str_to_bytes(bytes b):
-def py2_str_to_bytes(b):
-    # as-is
-    return b
-#cdef bytes py3_str_to_bytes(str s):
-def py3_str_to_bytes(s):
-    return s.encode('utf-8', 'backslashreplace')
+# String conversions, delegated to lpu.common.text
+# 文字列変換 (lpu.common.text への委譲)
+bytes_to_str = to_str
+unicode_to_str = to_str
+py3_bytes_to_str = to_str
+py3_to_str = to_str
+py3_to_unicode = to_unicode
+py3_to_bytes = to_bytes
 
-#cdef unicode py2_str_to_unicode(bytes b):
-def py2_str_to_unicode(b):
-    return b.decode('utf-8')
-#cdef unicode py3_str_to_unicode(str s):
-def py3_str_to_unicode(s):
-    # as-is
-    return unicode(s)
+# Names that builtins or the standard library already cover on Python 3
+# Python 3 では組み込み / 標準ライブラリで足りるもの
+range = range
+zip = zip
+reduce = functools.reduce
 
-#cdef bytes py2_unicode_to_bytes(unicode u):
-def py2_unicode_to_bytes(u):
-    return u.encode('utf-8')
-#cdef bytes py3_unicode_to_bytes(unicode u):
-def py3_unicode_to_bytes(u):
-    return u.encode('utf-8')
 
-#cdef bytes py2_unicode_to_str(unicode u):
-def py2_unicode_to_str(u):
-    return u.encode('utf-8')
-def py3_unicode_to_str(u):
-    # as-is
-    return str(u)
+def MethodType(function, instance, cls=None):
+    '''[DEPRECATED] Wrapper around ``types.MethodType``
 
-#cdef convert_struct(data, converter_func, fallback_func):
-def convert_struct(data, converter_func, fallback_func):
-    if isinstance(data, collections.Mapping):
-        return type(data)(map(converter_func, data.items()))
-    elif isinstance(data, collections.Iterable):
-        return type(data)(map(converter_func, data))
-    else:
-        return fallback_func(data)
+    ``cls`` is ignored so that the 3-argument form of Python 2 is accepted.
 
-#cdef bytes py2_to_bytes(s):
-def py2_to_bytes(s):
+    【非推奨】``types.MethodType`` のラッパ。
+    Python 2 の 3 引数形式を受け付けるため ``cls`` を無視する。
     '''
-    convert to byte string
-    '''
-    if isinstance(s, unicode):
-        return s.encode('utf-8')
-    else:
-        return bytes(s)
-#cdef bytes py3_to_bytes(s):
-def py3_to_bytes(s):
-    '''
-    convert to byte string
-    '''
-    if isinstance(s, str):
-        return bytes(s, 'utf-8')
-    elif isinstance(s, bytes):
-        return s
-    else:
-        return bytes(str(s), 'utf-8')
-
-#cdef bytes py2_to_str(object data):
-@cython.locals(dtype = type)
-def py2_to_str(data):
-    '''
-    convert to object based on standard strings
-    '''
-    #cdef type dtype = type(data)
-    dtype = type(data)
-    if dtype is str:
-        # as-is
-        #return str(data)
-        return bytes(data)
-    elif dtype is unicode:
-        return py2_unicode_to_str(data)
-    else:
-        return bytes(data)
-    #if isinstance(data, basestring):
-    #    if isinstance(data, unicode):
-    #        return data.encode('utf-8')
-    #    else:
-    #        return data
-    ##elif isinstance(data, collections.Mapping):
-    ##    return type(data)(map(to_str, data.iteritems()))
-    ##elif isinstance(data, collections.Iterable):
-    ##    return type(data)(map(to_str, data))
-    #else:
-    #    return str(data)
-#cdef str py3_to_str(data):
-@cython.locals(dtype = type)
-def py3_to_str(data):
-    '''
-    convert to object based on standard strings
-    '''
-    #cdef type dtype = type(data)
-    dtype = type(data)
-    if dtype is str:
-        # as-is
-        return data
-    elif dtype is bytes:
-        return py3_bytes_to_str(data)
-    else:
-        return str(data)
-    #if isinstance(data, str):
-    #    return data
-    #elif isinstance(data, bytes):
-    #    return str(data, 'utf-8')
-    #elif isinstance(data, collections.Mapping):
-    #    return type(data)(map(to_str, data.items()))
-    #elif isinstance(data, collections.Iterable):
-    #    return type(data)(map(to_str, data))
-    #else:
-    #    return str(data)
-
-#cdef unicode py2_to_unicode(data):
-@cython.locals(dtype = type)
-def py2_to_unicode(data):
-    '''
-    convert to unicode string
-    '''
-    #return unicode(s, 'utf-8')
-    #cdef type dtype = type(data)
-    dtype = type(data)
-    if dtype is unicode:
-        # as-is
-        return data
-    elif dtype is bytes:
-        return py3_bytes_to_unicode(data)
-    else:
-        return unicode(data)
-    #else:
-    #    return convert_struct(data, py2_to_unicode, unicode)
-#cdef unicode py3_to_unicode(s):
-def py3_to_unicode(s):
-    '''
-    convert to unicode string
-    '''
-    if isinstance(s, bytes):
-        return str(s, 'utf-8')
-    else:
-        return str(s)
-
-
-#cpdef __py3__MethodType(function, instance, cls=None):
-def __py3__MethodType(function, instance, cls=None):
-#def __py3__MethodType(function, instance, cls):
-    # cls (class type) is not used
     return types.MethodType(function, instance)
-
-if sys.version_info.major == 2:
-    # Python2
-    import itertools
-    to_bytes   = py2_to_bytes
-    to_str     = py2_to_str
-    to_unicode = py2_to_unicode
-    bytes_to_str = py2_bytes_to_str
-    unicode_to_str = py2_unicode_to_str
-    range = xrange
-    reduce = reduce
-    zip   = itertools.izip
-    MethodType = types.MethodType
-elif sys.version_info.major == 3:
-    # Python3
-    import functools
-    to_bytes   = py3_to_bytes
-    to_str     = py3_to_str
-    to_unicode = py3_to_unicode
-    bytes_to_str = py3_bytes_to_str
-    unicode_to_str = py3_unicode_to_str
-    range = range
-    reduce = functools.reduce
-    zip   = zip
-    MethodType = __py3__MethodType
-else:
-    raise SystemError("Unsupported python version: %s" % sys.version)
-

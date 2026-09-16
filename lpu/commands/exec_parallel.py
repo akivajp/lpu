@@ -6,6 +6,7 @@ import argparse
 import math
 import multiprocessing
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -15,16 +16,21 @@ from lpu.common import files
 from lpu.common import progress
 from lpu.common import logging
 from lpu.common.config import Config
-#from lpu.commands.wait_files import wait_file
 
 logger = logging.getColorLogger(__name__)
 
 numCPUs = multiprocessing.cpu_count()
 SLEEP_DURATION = 1.0
 
-#def getHostProcID():
 def getCurrentWorkerID():
-    return "%s:%s" % (os.uname()[1],os.getpid())
+    '''return an identifier unique to this host and process
+
+    0.2.x used os.uname(), which does not exist on Windows.
+
+    ホストとプロセスに対して一意な識別子を返す。
+    0.2.x は Windows に存在しない os.uname() を使っていた。
+    '''
+    return "%s:%s" % (platform.node(), os.getpid())
 
 def report(filepath, message):
     if os.path.exists(filepath):
@@ -92,7 +98,6 @@ def reportInit(conf, phase):
     logger.info('Waiting %s second to confirm the responsible process of the phase' % conf.data.interval)
     time.sleep(conf.data.interval)
     return checkPhaseCharge(conf, phase)
-    #return True
 
 def reportDone(conf, phase):
     tmpdir = conf.data.tmpdir
@@ -116,7 +121,6 @@ def getInBuffer(conf):
         inbuf = open(bufname, 'w+')
         logger.info("Buffering into file: \"%s\"" % inbuf.name)
         lineCount = 0
-        #for line in inFile:
         with progress.view(inFile, 'buffering') as p:
             for line in p:
                 lineCount += 1
@@ -147,7 +151,6 @@ def splitFile(conf):
         return True
     #threads = conf.require('threads')
     splitSize = conf.get('splitSize', None)
-    #numChunks = conf.data.numChunks
     numChunks = conf.get('numChunks', conf.data.threads)
     inbuf = getInBuffer(conf)
     lineCount = conf.data.lineCount
@@ -179,7 +182,6 @@ def splitFile(conf):
                     #line = inbuf.readline()
                     if line:
                         outFile.write(line)
-                        #progCounter.add(1, view=True)
                     else:
                         break
     progInbuf.close()
@@ -195,7 +197,6 @@ def splitFile(conf):
 #def getFileNumberDigits(conf):
 #    MAX_DIGITS=20
 #    #prefix = getPrefix(conf)
-#    prefix = getSplitPrefix(conf)
 #    for digits in range(1, MAX_DIGITS+1):
 #        path = "%s.%s.in" % (prefix,int2str(1, digits, '0'))
 #        if os.path.exists(path):

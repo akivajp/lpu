@@ -1,30 +1,21 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''Utilities for viewing I/O progress'''
 
 # Standard libraries
-from collections import Iterable
+from collections.abc import Iterable
 from datetime import datetime
-#import io
 import sys
 import time
 
 # Local libraries
-from lpu.backends import safe_cython as cython
 from lpu.common import files
 from lpu.common import logging
 from lpu.common.colors import put_color
+from lpu.common.text import to_str as bytes_to_str
 
 logger = logging.getLogger(__name__)
-
-from lpu.common import compat
-
-if sys.version_info.major >= 3:
-    bytes_to_str = compat.py3_bytes_to_str
-else:
-    bytes_to_str = compat.py2_bytes_to_str
 
 # constants
 BACK_WHITE = '  \b\b'
@@ -66,7 +57,6 @@ class SpeedCounter(object):
         """update the console"""
         self.view(flush=True)
 
-    @cython.locals(now = cython.double)
     def reset(self, refresh=None, header=None, force=None, color=None):
         """reset the counter
         
@@ -95,7 +85,6 @@ class SpeedCounter(object):
             self.force = force
         if color != None:
             self.color = color
-    @cython.locals(fobj = object)
     def _get_fobj(self):
         fobj = None
         if sys.stderr.isatty():
@@ -132,17 +121,6 @@ class SpeedCounter(object):
         if view:
             self.view()
 
-    @cython.locals(delta_count = cython.float)
-    @cython.locals(delta_time = cython.float)
-    @cython.locals(now = cython.double)
-    @cython.locals(show_bytes = cython.bint)
-    @cython.locals(str_about = str)
-    @cython.locals(str_elapsed = str)
-    @cython.locals(str_header = str)
-    @cython.locals(str_print = str)
-    @cython.locals(str_rate = str)
-    @cython.locals(str_ratio = str)
-    @cython.locals(str_timestamp = str)
     def view(self, flush=False):
         """update the console on condition
         
@@ -205,7 +183,6 @@ class FileReader(object):
     def __init__(self, source, header="", refresh=DEFAULT_REFRESH_INTERVAL, force=False):
         if isinstance(source, str):
             #self.source = files.open(source, 'r')
-            #self.source = files.open(source, 'rb')
             if not header:
                 header = "reading file '%s'" % source
             #self.source = files.open(source, 'rt')
@@ -219,9 +196,6 @@ class FileReader(object):
         #self.counter = ProgressCounter(header=header, refresh=refresh, force=force, max_count=size)
         self.counter = SpeedCounter(header=header, max_count=size, refresh=refresh, force=force)
 
-    #def __del__(self):
-    #    print("DEL")
-    #    self.close()
 
     def __dealloc__(self):
         self.close()
@@ -242,14 +216,11 @@ class FileReader(object):
                 #self.counter.set_position(files.rawtell(self.source))
                 self.counter.set_position(self.tell())
             except Exception as e:
-                #logger.debug(e)
                 pass
             self.counter.view()
             return buf
 
-    @cython.locals(buf = bytes)
     def read_byte_chunks(self, bs = DEFAULT_BUFFER_SIZE):
-        #cdef bytes buf
         while True:
             buf = self.read(bs)
             if not buf:
@@ -257,13 +228,9 @@ class FileReader(object):
             yield buf
         self.close()
 
-    #cpdef bytes read_byte_line(self):
     def read_byte_line(self):
         return self._read_byte_line(True)
-    #cdef bytes _read_byte_line(self, bool countup=False):
-    @cython.locals(line = bytes)
     def _read_byte_line(self, countup=False):
-        #cdef bytes line
         if self.source:
             line = self.source.readline()
             if countup:
@@ -276,7 +243,6 @@ class FileReader(object):
             self.counter.view()
             return line
 
-    @cython.locals(line = bytes)
     def read_byte_lines(self):
         while True:
             line = self.read_byte_line()
@@ -285,7 +251,6 @@ class FileReader(object):
             yield line
         self.close()
 
-    @cython.locals(line = bytes)
     def readline(self):
         line = self._read_byte_line(False)
         if line:
@@ -297,7 +262,6 @@ class FileReader(object):
         return files.rawtell(self.source)
 
     def __iter__(self):
-        #cdef str line
         while True:
             line = self.readline()
             if not line:
@@ -350,9 +314,6 @@ class Iterator(object):
         self.close()
 
 
-@cython.locals(show_seconds = cython.uchar)
-@cython.locals(show_minutes = cython.uchar)
-@cython.locals(show_hours = cython.ulong)
 def format_time(seconds):
     seconds = int(seconds)
     show_seconds = int(seconds % 60)
@@ -390,10 +351,6 @@ def about(num, show_bytes=False):
 def open(path, header=""):
     return FileReader(path, header)
 
-@cython.locals(buf = bytes)
-@cython.locals(counter = SpeedCounter)
-@cython.locals(delta = cython.long)
-@cython.locals(max_count = cython.long)
 def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTERVAL, outfunc=None):
     max_count = -1
     delta = 1
@@ -401,7 +358,6 @@ def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTE
         refresh = DEFAULT_REFRESH_INTERVAL
     infiles = [files.open(fpath, 'rb') for fpath in filepaths]
     if infiles:
-        #if mode == 'bytes':
         try:
             max_count = sum(map(files.rawsize, infiles))
         except Exception as e:
@@ -419,8 +375,13 @@ def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTE
                 delta = buf.count(b"\n")
             if not buf:
                 break
-            #counter.add(view=True)
-            if not outfunc:
+            # Up to 0.2.x outfunc was only used as a flag to suppress the
+            # stdout write, and was never actually called.
+            # 0.2.x までは outfunc は stdout 出力を抑止するフラグとしてしか
+            # 使われておらず、実際には呼び出されていなかった。
+            if outfunc:
+                outfunc(buf)
+            else:
                 files.bin_stdout.write(buf)
             counter.add(delta)
             counter.set_position(counter.pos + len(buf))

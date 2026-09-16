@@ -1,31 +1,16 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''tree expression and operations'''
 
 import copy
-from collections import Iterable
+from collections.abc import Iterable
 
-from lpu.backends import safe_cython as cython
 from lpu.common import logging
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print
 
-# third party library
-#import numpy as np
-
-if cython.compiled:
-    # safe typedef
-    TreeNodeType = TreeNode
-else:
-    # empty type declarations
-    TreeNodeType = cython.struct()
-
-#cdef class TreeNode:
 class TreeNode(object):
-    #cdef readonly list children
-    #cdef public str label
 
     #def __cinit__(self, object label):
     #def __cinit__(self, str label):
@@ -34,47 +19,76 @@ class TreeNode(object):
         #self.children = Forest()
         self.label = label
 
-    #cpdef TreeNode append(self, node):
     def append(self, node):
         if isinstance(node, TreeNode):
             self.children.append(node)
         elif isinstance(node, str):
             self.children.append(TreeNode(node))
-        #else:
         #    raise TypeError('expected TreeNode or str, given %s' % type(node))
         return self
 
-    #cpdef checkValid(self, deep=True):
     def checkValid(self, deep=True):
-        #cdef TreeNode node
+        '''check whether this node (and optionally its subtree) is valid
+
+        A node is invalid when it has children but an empty label.
+        Note: up to 0.2.x the recursive check was commented out while its
+        "return False" was left behind, so a deep check reported any node
+        with children as invalid.
+
+        このノード (deep=True なら部分木全体) が妥当かを判定する。
+        子を持つのにラベルが空のノードは不正とみなす。
+        注意: 0.2.x までは再帰判定がコメントアウトされたまま
+        "return False" だけが残っており、子を持つノードは deep 判定で
+        常に不正と報告されていた。
+        '''
         if len(self.label) == 0 and len(self.children) > 0:
             return False
         if not deep:
             return True
         for node in self.children:
-#            if not node.checkValid(True):
+            if not node.checkValid(True):
                 return False
         return True
 
     @staticmethod
-    #def fromS(str expr):
-    #@cython.locals(t = TreeNode)
-    @cython.locals(expr = str)
-    #@cython.returns(TreeNode)
-    @cython.returns(TreeNodeType)
-    #@cython.locals(tmp = TreeNode)
     def fromS(expr):
-        #cdef TreeNode t = TreeNode('')
-        #cdef TreeNode tmp
-        #return t
-        return TreeNode('')
+        '''build a tree from an S-expression string
 
-    #cpdef str toStr(self):
+        Note: up to 0.2.x this ignored its argument and always returned an
+        empty node.
+
+        S 式の文字列から木を構築する。
+        注意: 0.2.x までは引数を無視して常に空ノードを返していた。
+
+        Args:
+            expr: S-expression, e.g. "(S (NP the cat) (VP sat))".
+                S 式。例: "(S (NP the cat) (VP sat))"
+
+        Returns:
+            The root TreeNode. 根の TreeNode。
+        '''
+        parsed, _ = parseSExpression(expr)
+        return TreeNode._fromParsed(parsed)
+
+    @staticmethod
+    def _fromParsed(parsed):
+        '''convert the nested lists of parseSExpression into TreeNodes
+
+        parseSExpression が返す入れ子リストを TreeNode に変換する。
+        '''
+        if not isinstance(parsed, list):
+            return TreeNode(parsed)
+        if not parsed:
+            return TreeNode('')
+        # The head is the label and the rest are the children
+        # 先頭がラベル、残りが子ノード
+        node = TreeNode(parsed[0])
+        for sub in parsed[1:]:
+            node.append(TreeNode._fromParsed(sub))
+        return node
+
     def toStr(self):
-#        cdef str strChildren = ''
 #        map(Tree.toStr, self.children)
-        #cdef str strChildren = ''
-        #cdef TreeNode node
         strChildren = ''
         if not self.checkValid(False):
             raise ValueError( (self.label, self.children) )
@@ -89,8 +103,6 @@ class TreeNode(object):
 
     def __str__(self):
         return self.toStr()
-    #@cython.locals(mod = str) # error in python3.x
-    #@cython.returns(str) # error in python3.x
     def __repr__(self):
         mod = str(self.__class__.__module__)
         try:
@@ -100,10 +112,6 @@ class TreeNode(object):
 
 Tree = TreeNode
 
-#cdef __findMin(str target, sub, start = 0, end = None):
-#    cdef str key
-#    cdef int found
-#    cdef int minFound = -1
 #    if isinstance(sub, str):
 #        return target.find(sub, start, end)
 #    elif isinstance(sub, Iterable):
@@ -111,34 +119,24 @@ Tree = TreeNode
 #            found = target.find(key, start, end)
 #            if minFound < 0:
 #                minFound = found
-#            else:
 #                minFound = min(minFound, found)
 #        return minFound
 
-#cpdef object parseSExpression(str expr, int i = 0):
 def parseSExpression(expr, i=0):
-    #cdef object cont = ''
-    #cdef object item
     cont = ''
     while i < len(expr):
-        #dprint('Expr[%s]: %s' % (i, expr[i]))
         if expr[i] == '(':
-            #dprint('Push')
             cont = []
             while i < len(expr):
                 if expr[i] == ')':
-                    #dprint("Closing: %s" % cont)
                     return cont, i + 1
                 item, i = parseSExpression(expr, i + 1)
                 if item:
-                    #print("Appending: %s" % item)
                     cont.append(item)
             return cont, i
         elif expr[i] == ')':
-            #dprint("Closing: " + cont)
             return cont, i
         elif expr[i] == ' ':
-            #dprint('Elem: ' + cont)
             return cont, i
         else:
             cont += expr[i]
@@ -146,24 +144,14 @@ def parseSExpression(expr, i=0):
     return cont, i
 
 #def indexTree(list tree):
-@cython.locals(indexToLabel = list)
-@cython.locals(indexToLeftRange = list)
 def indexTree(tree):
-    #cdef list indexToTree = []
-    #cdef list indexToLabel = []
-    #cdef list indexToLeftRange = []
     indexToLabel = []
     indexToLeftRange = []
     #def appendNodePostOrder(object node):
-    #@cython.locals(node = object)
-    #@cython.locals(leftRange = long)
-    #@cython.returns(long)
     def appendNodePostOrder(node):
         #global appendNodePostOrder
         #global indexToLabel
         #global indexToLeftRange
-        #cdef leftRange = -1
-        #cdef index
         leftRange = -1
         if isinstance(node, list):
             if len(node) > 0:
@@ -192,11 +180,7 @@ def indexTree(tree):
 #def countElements(list tree):
 def countElements(tree):
     #def innerCount(object node):
-    @cython.locals(node = object)
-    @cython.locals(numElems = int)
-    @cython.returns(int)
     def innerCount(node):
-        #cdef int numElems = 0
         numElems = 0
         if isinstance(node, list):
             if len(node) > 0:
@@ -216,8 +200,6 @@ def calcEditDistance(seq1, seq2):
         memo[0][j] = j
     for i in range(1, len(seq1)+1):
         for j in range(1, len(seq2)+1):
-            #print("--")
-            #print("i: %s (%s), j: %s (%s)" % (i, seq1[:i], j, seq2[:j]))
             if seq1[i-1] == seq2[j-1]:
                 memo[i][j] = min(memo[i-1][j]+1, memo[i][j-1]+1, memo[i-1][j-1])
             else:
@@ -226,25 +208,7 @@ def calcEditDistance(seq1, seq2):
     #pprint.pprint(memo)
     return memo[len(seq1)][len(seq2)]
 
-import pprint
-#def calcTreeEditDistance(object tree1, object tree2):
-@cython.locals(tree1 = object)
-@cython.locals(tree2 = object)
-@cython.locals(memo = dict)
-@cython.locals(indexToLabel1 = list)
-@cython.locals(indexToLeftRange1 = list)
-@cython.locals(indexToLabel2 = list)
-@cython.locals(indexToLeftRange2 = list)
-@cython.locals(numNodes1 = int)
-@cython.locals(numNodes2 = int)
 def calcTreeEditDistance(tree1, tree2):
-    #cdef dict memo = {}
-    #cdef list indexToLabel1
-    #cdef list indexToLeftRange1
-    #cdef list indexToLabel2
-    #cdef list indexToLeftRange2
-    #cdef int numNodes1
-    #cdef int numNodes2
     memo = {}
     if isinstance(tree1, str) and tree1.strip()[0] == '(':
         # S-expression
@@ -267,18 +231,9 @@ def calcTreeEditDistance(tree1, tree2):
     #memo = [copy.deepcopy(memo) for _ in indexToLabel1]
     #def calcInnerDistance(int left1, int right1, int left2, int right2):
 
-    #dprint(tree1)
-    #dprint(tree2)
-    @cython.locals(left1 = int, right1 = int)
-    @cython.locals(left2 = int, right2 = int)
-    @cython.locals(v1 = int, v2 = int, v3 = int, v = int)
-    @cython.returns(int)
     def calcInnerDistance(left1, right1, left2, right2):
-        print("-----------------------")
         #pprint.pprint((left1, right1, left2, right2))
         #pprint.pprint(memo)
-        #print("(%s,%s) vs (%s,%s)" % (left1, right1, left2, right2))
-        #cdef v1, v2, v3, v
         if left1 < 0 or left2 < 0:
             return 0
         if right1 < left1:
@@ -292,7 +247,6 @@ def calcTreeEditDistance(tree1, tree2):
         #if left2 < 0 or left2 > right2:
         #    return right1 - left1 + 1
         #if memo[left1, right1, left2, right2] >= 0:
-        #    return memo[left1, right1, left2, right2]
         if (left1, right1, left2, right2) in memo:
             return memo[left1, right1, left2, right2]
         # v1: modify
@@ -325,10 +279,6 @@ def calcTreeEditDistance(tree1, tree2):
         v = min(v1, v2, v3)
         memo[left1, right1, left2, right2] = v
         #pprint.pprint(memo)
-        #print("%s,%s :: %s,%s" % (indexToLabel1[left1:right1+1], indexToLeftRange1[left1:right1+1], indexToLabel2[left2:right2+1], indexToLeftRange2[left2:right2+1]))
-        #print("(%s,%s) vs (%s,%s) -> min(%s,%s,%s) = %s" % (left1, right1, left2, right2, v1, v2, v3, v))
-        #print("(%s,%s) vs (%s,%s) -> %s" % (left1, right1, left2, right2, v))
-        #print("------")
         return v
     #return calcInnerDistance(0, len(indexToLabel1)-1, 0, len(indexToLabel2)-1)
     return calcInnerDistance(0, numNodes1-1, 0, numNodes2-1)

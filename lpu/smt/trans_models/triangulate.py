@@ -10,7 +10,6 @@ import math
 import sys
 
 # Local libraries
-from lpu.common import compat
 from lpu.common import files
 from lpu.common import logging
 from lpu.common import progress
@@ -162,12 +161,9 @@ def updateFeatures(recPivot, recPair, workset, multi_target = False):
             else:
                 features['fgep'] = 1.0
 #            for key in ['egfp', 'fgep']:
-#                features.setdefault(key, 0)
-#                features[key] += (srcFeatures[key] * trgFeatures[key])
 #            # P(trg,pvt|src) = P(trg|pvt,src) * P(pvt|src) ~ P(trg|pvt) * P(pvt|src)
 #            features['egfp'] = (srcFeatures['egfp'] * trgFeatures['egfp'])
 #            # P(src|pvt,trg) ~ P(src|pvt)
-#            features['fgep'] = srcFeatures['fgep']
             for key in ['egfl', 'egfp', 'fgel', 'fgep']:
                 features['1'+key] = srcFeatures[key]
     else:
@@ -276,7 +272,6 @@ def calcPhraseTransProbsByCounts(records):
     '''calculate forward phrase trans probs by occurrence counts of the phrases'''
     srcCount = calcSrcCount(records)
     for rec in records.values():
-    #for rec in flattenRecords(records):
         counts = rec.counts
         counts.src = srcCount
         if srcCount > 0:
@@ -416,18 +411,8 @@ def pivotRecPairs(rows, workset):
 #            updateWordPairCounts(lexCounts, records)
 #            # filtering n-best records by co-occurrence counts
 #            if not NOPREFILTER:
-#                if workset.nbest > 0:
-#                    if len(records) > workset.nbest:
-#                        scores = []
-#                        for key, rec in records.items():
 #                            scores.append( (rec.counts.co, key) )
-#                        scores.sort(reverse = True)
-#                        bestRecords = {}
-#                        for _, key in scores[:workset.nbest]:
-#                            bestRecords[key] = records[key]
-#                        records = bestRecords
 #            # calculate forward phrase trans probs
-#            calcPhraseTransProbsByCounts(records)
         # if threshold is set (non-zero), aborting the records having trans probs under it
         if workset.threshold < 0:
             # aborting records for extremely small trans probs
@@ -502,7 +487,6 @@ def pivotRecPairs(rows, workset):
 
 
 def writeRecords(fileObj, records):
-#  for rec in flattenRecords(records):
   for rec in flattenRecords(records, sort = True):
       if rec.counts.co > 0:
           fileObj.write( rec.to_str() )
@@ -683,12 +667,10 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
 #                    combine_lex.combine_lex(alignLexPath, workset.tableLexPath, workset.combinedLexPath)
 #                    progress.log("loading combined word trans probabilities\n")
 #                    lexCounts = lex.loadWordPairCounts(workset.combinedLexPath)
-#                else:
 #                    progress.log("loading table lex: %s\n", workset.tableLexPath)
 #                    lexCounts = lex.loadWordPairCounts(workset.tableLexPath)
 #                    lexCounts.srcCounts["NULL"] = numNulls
 #                    lexCounts.trgCounts["NULL"] = numNulls
-#            else:
 #                progress.log("loading aligned lex: %s\n" % alignLexPath)
 #                lexCounts = lex.loadWordPairCounts(alignLexPath)
 ##        if workset.method == 'countmin':
@@ -723,24 +705,18 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
 #                progress.log("calculating lex weights into: %s\n" % workset.savePath)
 #                calcLexWeights(workset.countPath, lexCounts, workset.savePath, RecordClass)
 #                progress.log("calculated lex weights\n")
-#            else:
 #                progress.log("gzipping into: %s\n" % workset.savePath)
 #                files.autoCat(workset.countPath, workset.savePath)
-##        elif method == 'prodprob':
 #        elif method.find('prodprob') >= 0:
 #            if lexMethod != 'prodweight':
 #                # calculating lexical weights
 #                progress.log("calculating lex weights into: %s\n" % workset.savePath)
 #                calcLexWeights(workset.pivotPath, lexCounts, workset.savePath, RecordClass)
 #                progress.log("calculated lex weights\n")
-#            else:
 #                progress.log("gzipping into: %s\n" % workset.savePath)
 #                files.autoCat(workset.pivotPath, workset.savePath)
-##        elif method == 'multi':
 ##                progress.log("gzipping into: %s\n" % workset.savePath)
 ##                files.autoCat(workset.pivotPath, workset.savePath)
-#        else:
-#            assert False, "Invalid method: %s" % method
     except KeyboardInterrupt:
         # catching exception, finish all the workset processes
         print('')

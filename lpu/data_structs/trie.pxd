@@ -2,10 +2,6 @@
 from libcpp.string cimport string
 from libcpp.deque cimport deque
 
-# local library
-from lpu.common cimport compat
-
-#ctypedef string& ref_string
 
 cdef class IDMap(object):
     # members

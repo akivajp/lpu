@@ -16,13 +16,13 @@ from numpy cimport int64_t
 
 # Local libraries
 
-from lpu.common import compat
+from lpu.common import text
 from lpu.common import environ
 from lpu.common import files
 from lpu.common import progress
 
-from lpu.common.config cimport Config
-from lpu.common.vocab cimport StringEnumerator
+from lpu.common.config import Config
+from lpu.common.vocab import StringEnumerator
 from lpu.common import logging
 
 logger = logging.getColorLogger(__name__)
@@ -55,11 +55,8 @@ cdef ndarray normalize(ndarray tensor, int axis, ndarray target):
     return target
 
 cdef class Vocab:
-    # imported from "ibm_model1.pxd"
-    #cdef StringEnumerator src
-    #cdef StringEnumerator trg
-    #cdef int max_len_src
-    #cdef int max_len_trg
+    # Attributes and cdef methods are declared in ibm_models.pxd
+    # 属性と cdef メソッドは ibm_models.pxd で宣言されている
 
     def __cinit__(self):
         self.init()
@@ -90,13 +87,21 @@ cdef class Vocab:
         sent_pairs = []
         for src_line, trg_line in zip(src_file, trg_file):
             if character_based:
-                src_words = list( compat.to_unicode(src_line.strip("\n")) )
-                trg_words = list( compat.to_unicode(trg_line.strip("\n")) )
-                src_words = list( map(compat.to_str, src_words) )
-                trg_words = list( map(compat.to_str, trg_words) )
+                # Strip CR as well as LF. progress.FileReader reads bytes and
+                # decodes them itself, so it performs no newline translation,
+                # while files.open() in text mode does; a CRLF corpus therefore
+                # left a stray CR in the last word of every source line.
+                # LF だけでなく CR も除去する。progress.FileReader はバイトで
+                # 読んで自前でデコードするため改行変換を行わないが、
+                # files.open() のテキストモードは行うため、CRLF のコーパスでは
+                # 原言語側の各行末の語に CR が残っていた。
+                src_words = list( text.to_unicode(src_line.strip("\r\n")) )
+                trg_words = list( text.to_unicode(trg_line.strip("\r\n")) )
+                src_words = list( map(text.to_str, src_words) )
+                trg_words = list( map(text.to_str, trg_words) )
             else:
-                src_words = src_line.strip("\n").split(' ')
-                trg_words = trg_line.strip("\n").split(' ')
+                src_words = src_line.strip("\r\n").split(' ')
+                trg_words = trg_line.strip("\r\n").split(' ')
             src_words = [NULL_SYMBOL] + src_words
             src_ids = [self.src.str2id(word) for word in src_words]
             trg_ids = [self.trg.str2id(word) for word in trg_words]
@@ -106,9 +111,8 @@ cdef class Vocab:
         return sent_pairs
 
 cdef class Model:
-    # imported from "ibm_model1.pxd"
-    #cdef np.ndarray trans_dist
-    #cdef Vocab vocab
+    # Attributes and cdef methods are declared in ibm_models.pxd
+    # 属性と cdef メソッドは ibm_models.pxd で宣言されている
 
     def __cinit__(self):
         dprint("base model cinit")
@@ -161,13 +165,11 @@ cdef class Model:
                 align = []
                 #indices = np.where(align_trans_matrix > 0)
                 #for index_src, index_trg in zip(*indices):
-                #    prob = align_trans_matrix[index_src, index_trg]
                 #    if prob > 0.01:
                 #        align.append('{}-{}'.format(index_src,index_trg+1))
                 for index_trg in range(len_trg):
                     index_src = np.argpartition(-align_trans_matrix[:,index_trg], 1)[0]
                     prob = align_trans_matrix[index_src, index_trg]
-                    #dprint([index_src, index_trg, prob])
                     #if prob > 0.01:
                     #    align.append('{}-{}'.format(index_src,index_trg+1))
                     align.append('{}-{}'.format(index_trg+1,index_src))
@@ -193,7 +195,6 @@ cdef class Model:
                     fobj.write(record)
 
     cdef void save_trans_dist(self, out_path, threshold, nbest):
-        #cdef tuple indices
         cdef int src, trg
         cdef float prob
         cdef str record
@@ -214,12 +215,8 @@ cdef class Model:
                         fobj.write(record)
 
 cdef class Trainer:
-    # imported from "ibm_model1.pxd"
-    #cdef Model1 model
-    #cdef str src_path
-    #cdef str trg_path
-    #cdef list sent_pairs
-    #cdef np.ndarray cooc_src_trg
+    # Attributes and cdef methods are declared in ibm_models.pxd
+    # 属性と cdef メソッドは ibm_models.pxd で宣言されている
 
     def __init__(self, conf, **others):
         dprint("base trainer __init__")
@@ -310,12 +307,10 @@ cdef class Trainer:
 
 def check_train_config(conf):
     logger.debug("conf => %r"%(conf,))
-    #logger.debug(conf)
     #save_trans_path = conf.get('save_trans_path', None)
     #save_align_path = conf.get('save_align_path', None)
     #if not any [save_trans_path, save_align_path]:
     #    logger.error("At least one of arguments is necessary: --save-trans-path/--save_align_path")
-    #    return False
     return True
 
 def check_test_config(conf):
@@ -459,15 +454,8 @@ def train_model(parser, train_func):
     args = parser.parse_args()
     conf = Config(vars(args))
     #with logging.using_config(logger) as c:
-    #with logging.using_config(['lpu', '__main__']) as c:
     loggers = [__name__, '__main__']
     with logging.using_config(loggers, debug=args.debug, quiet=args.quiet):
-        #if conf.data.debug:
-        #    c.set_debug(True)
-        #    c.set_quiet(False)
-        #if conf.data.quiet:
-        #    c.set_quiet(True)
-        #    c.set_debug(False)
         dprint(args)
         dprint(conf)
         train_func(conf)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# distutils: language=c++
 # -*- coding: utf-8 -*-
 
 '''Customizable logging functions'''
@@ -11,17 +10,15 @@ import inspect
 import os
 import re
 import sys
+import tokenize
 import traceback
 
-from lpu.backends import safe_cython as cython
-from lpu.backends import safe_logging as logging
+import logging
 
-#import lpu
 from lpu.common import environ
 from lpu.common import validation
 from lpu.common.colors import put_color
-from lpu.common import compat
-from lpu.common.compat import MethodType
+from lpu.common import text
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +37,6 @@ class LoggingConfig(environ.StackHolder):
                 import lpu
                 configureLogger(lpu.logger)
             except Exception as e:
-                #pass
                 lpu.logger.exception(e)
 
     def set_loggers(self, loggers):
@@ -70,7 +66,11 @@ class LoggingConfig(environ.StackHolder):
         else:
             self.set('LPU_QUIET', '0')
         self._reconfigureLogger()
-    def unset_debug(self):
+    def unset_quiet(self):
+        # Up to 0.2.x this was another def unset_debug(), which shadowed the
+        # one above and left no way to unset the quiet flag.
+        # 0.2.x までは 2 つめの unset_debug() として定義されており、
+        # 上の定義を隠したうえ quiet を解除する手段が存在しなかった。
         return self.unset('LPU_QUIET')
 
     def __enter__(self):
@@ -114,15 +114,27 @@ def get_color_status():
         return False
 
 def get_quiet_status():
-    mode = environ.get_env('QUIET')
+    '''report whether quiet mode is enabled
+
+    Note: up to 0.2.x only the QUIET variable was consulted, while
+    LoggingConfig.set_quiet() writes LPU_QUIET, so quiet mode was never
+    detected. The lookup order now mirrors get_debug_status().
+
+    quiet モードが有効かどうかを返す。
+    注意: 0.2.x までは QUIET のみを参照していたが、
+    LoggingConfig.set_quiet() が設定するのは LPU_QUIET であるため、
+    quiet モードが検出されることが無かった。
+    参照順序は get_debug_status() に合わせている。
+    '''
+    mode = environ.get_env('LPU_QUIET')
+    if not mode:
+        mode = environ.get_env('QUIET')
     if not mode:
         return False
+    elif mode.lower() in ('', 'false', 'off', '0'):
+        return False
     else:
-        if mode.lower() in ('', 'false', '0'):
-            return False
-        elif mode.lower() in ('true', '1'):
-            return True
-    return False
+        return True
 
 class FilterCondition(logging.Filter):
     def __init__(self, **rules):
@@ -152,8 +164,6 @@ class ColorizingFormatter(logging.Formatter):
         self._colors = dict()
 
     def addFormatRule(self, rule, fmt=None):
-        #print("adding format: {}".format(fmt))self._fmt
-        #print("adding filter: {}".format(filter))
         #self._format_rules.append([rule, fmt])
         self._format_rules.insert(0, [rule, fmt])
 
@@ -163,10 +173,8 @@ class ColorizingFormatter(logging.Formatter):
             self._style._fmt = fmt
         return fmt
 
-    #cpdef str _colorizeText(self, record, str text):
     #def _colorizeText(self, record, str text):
     def _colorizeText(self, record, text):
-        #cdef object color_default
         level = record.levelname.lower()
         color_level = self._colors.get(level, None)
         if color_level:
@@ -177,10 +185,7 @@ class ColorizingFormatter(logging.Formatter):
                 text = put_color(text, color_default)
         return text
 
-    @cython.locals(text = str)
     def format(self, record):
-        #cdef str text
-        #print("formatting... {}".format(record))
         fmt_apply = None
         for flt, fmt in self._format_rules:
             if flt.filter(record):
@@ -260,15 +265,16 @@ class ColorizingFormatter(logging.Formatter):
         self.setColor(level_name, color_name)
 
 class CustomLogger(logging.Logger):
-    #cpdef _debug_print(self, val=None, limit=0):
     def debug_print(self, val=None, limit=0, offset=0):
         if logging.DEBUG < self.level:
             return
-        if not cython.compiled:
-            offset += 1
+        # Skip one frame, because this method's own frame is on the stack
+        # when running as pure Python.
+        # 純 Python 実行時はこのメソッド自身のフレームがスタックに乗るため
+        # 1 段分ずらす
+        offset += 1
         #stack = traceback.extract_stack(limit=limit)
         stack = traceback.extract_stack(limit=offset+limit)
-        #print("offset", offset)
         if offset > 0:
             stack = stack[:-offset]
         format = ""
@@ -278,46 +284,25 @@ class CustomLogger(logging.Logger):
                 s = '\n  file:{}, line:{}, func:{}, code:{}'.format(path, lineno, func, line)
                 format += s
         stack = traceback.extract_stack(limit=offset+1)
-        #for path, lineno, func, line in stack:
-        #    print(path, lineno, func, line)
         path, lineno, func, line = stack[0]
-        #print(line)
-        #line = _get_cached_line(path, lineno, line).strip()
-        #print("line", line)
         #expr = _get_cached_expr(path, lineno)
         #frame = sys._getframe(1)
         frame = sys._getframe(offset)
-        #print(frame)
-        #print(inspect.getsource(frame))
-        #print(inspect.getsourcelines(frame))
-        #print(frame.f_lineno)
-        #print(inspect.getsource(frame.f_code))
         #args = _seek_args(path, lineno)
         args = _seek_args(path, lineno, None, frame)
-        #frame = sys._getframe(offset)
         #args = _get_first_arg(frame)
         if args:
             expr = args[0]
         else:
             expr = ""
-        #print(expr)
         #if tree:
-        #    for elem in ast.walk(tree):
-        #        if isinstance(elem, ast.Call):
-        #            print(elem)
-        #            print(elem.lineno)
-        line = compat.to_str(line)
+        line = text.to_str(line)
         #if val is not None:
         #expr = re.findall(r'\(.*\)$', line)
-        #if expr:
         #    expr = expr[0][1:-1].strip()
         if expr:
             #if expr.find(',') > 0:
             #    expr = str.join(',', expr.split(',')[:-1]).strip()
-            if sys.version_info.major == 2:
-                #expr = compat.to_unicode(expr)
-                if isinstance(val, unicode):
-                    val = compat.to_str(val)
             if isinstance(val, (int,float)):
                 str_val = '{}({})'.format(type(val).__name__,val)
             elif isinstance(val, str):
@@ -367,8 +352,10 @@ class CustomLogger(logging.Logger):
         return rv
 
 def debug_print(val=None, limit=0, offset=0):
-    if not cython.compiled:
-        offset += 1
+    # Skip one frame, because this function's own frame is on the stack
+    # when running as pure Python.
+    # 純 Python 実行時はこの関数自身のフレームがスタックに乗るため 1 段分ずらす
+    offset += 1
     logger = getColorLogger('__main__')
     #return logger.debug_print(val, limit)
     return logger.debug_print(val, limit, offset)
@@ -412,7 +399,6 @@ def colorizeHandler(handler, mode='auto'):
     handler.setFormatter(formatter)
     return formatter
 
-#cdef _checkLoggerColorized(logger):
 def _checkLoggerColorized(logger):
     while logger:
         for handler in logger.handlers:
@@ -456,7 +442,17 @@ def _get_cached_line(path, lineno, fallback=None, frame=None):
     try:
         if path not in _cached_lines:
             if os.path.exists(path):
-                _cached_lines[path] = open(path).readlines()
+                # tokenize.open() honours the PEP 263 coding declaration and
+                # defaults to UTF-8. 0.2.x used a bare open(), so on a system
+                # whose locale encoding is not UTF-8 any source file with a
+                # non-ASCII character failed to be read, and the expression
+                # name could not be recovered.
+                # tokenize.open() は PEP 263 のコーディング宣言を尊重し、
+                # 既定を UTF-8 とする。0.2.x は素の open() を使っていたため、
+                # ロケール encoding が UTF-8 でない環境では非 ASCII を含む
+                # ソースファイルの読み取りに失敗し、式名を復元できなかった。
+                with tokenize.open(path) as f:
+                    _cached_lines[path] = f.readlines()
             elif frame is not None:
                 # falling back for iPython
                 _cached_lines[path], _ = inspect.getsourcelines(frame)
@@ -472,10 +468,21 @@ _cached_calls = {}
 def _get_cached_calls(path, lineno, fallback=None, frame=None):
     if path not in _cached_calls:
         if os.path.exists(path):
-            tree = ast.parse(open(path).read())
+            # See the note in _get_cached_line() about tokenize.open()
+            # tokenize.open() については _get_cached_line() の注記を参照
+            with tokenize.open(path) as f:
+                tree = ast.parse(f.read())
         elif frame is not None:
             # falling back for iPython
             tree = ast.parse(inspect.getsource(frame))
+        else:
+            # No source is available, e.g. when running from stdin, a REPL
+            # or exec(). 0.2.x left `tree` undefined and raised NameError,
+            # which surfaced as a full traceback in the log.
+            # stdin / REPL / exec() のようにソースが取得できない場合。
+            # 0.2.x では `tree` が未定義のまま NameError となり、
+            # ログにトレースバックがそのまま出力されていた。
+            return fallback
         calls = []
         for elem in ast.walk(tree):
             if isinstance(elem, ast.Call):
@@ -509,7 +516,14 @@ def _seek_args(path, lineno, fallback=None, frame=None):
         result = _parse_args(buf, feeder)
         return result[0]
     except Exception as e:
-        logger.exception(e)
+        # Recovering the expression is best-effort: without the caller's
+        # source (stdin, a REPL, exec(), a frozen build) the value is still
+        # printed, just without its label. 0.2.x logged this at ERROR level
+        # with a traceback.
+        # 式の復元はベストエフォートであり、呼び出し元のソースが無い場合
+        # (stdin / REPL / exec() / frozen ビルド) でも値自体は出力される。
+        # 0.2.x ではこれを ERROR レベルでトレースバック付きで出力していた。
+        logger.debug("could not recover the source expression: %r" % (e,))
         return fallback
 def _parse_args(buf, feeder, offset=0, depth=0):
     args = []
@@ -517,16 +531,13 @@ def _parse_args(buf, feeder, offset=0, depth=0):
     i = offset
     last_char = ""
     while i < len(buf):
-        #print(i, depth, buf[i:].strip())
         c = buf[i]
         if c == "(":
             if depth > 0:
                 expr += "("
             #result = _parse_args(buf, i+1, depth+1)
             result = _parse_args(buf, feeder, i+1, depth+1)
-            #print("result: {}".format(result))
             if depth == 0:
-                #print("breaking")
                 args += result[0]
                 break
             else:
@@ -539,7 +550,6 @@ def _parse_args(buf, feeder, offset=0, depth=0):
                 break
             elif depth >= 2:
                 expr += ")"
-            #print("expr: {}".format(expr))
             return expr, i
         elif c == ",":
             if depth == 1:
@@ -547,7 +557,6 @@ def _parse_args(buf, feeder, offset=0, depth=0):
                 expr = ""
             else:
                 expr += c
-            #print(depth, args, expr)
         elif c in ["'", '"']:
             result = _seek_str(buf, i)
             expr += result[0]
@@ -565,12 +574,9 @@ def _parse_args(buf, feeder, offset=0, depth=0):
         i += 1
     if expr:
         args.append(expr)
-    #print(depth, args, expr, i)
     if depth <= 1:
-        #print(depth, args, i)
         return args, i
     else:
-        #print(depth, expr, i)
         return expr, i
 def _seek_str(buf, offset):
     i = offset
@@ -613,7 +619,7 @@ def getLogger(name=None):
 
 def getColorLogger(name, level_mode='auto', add_handler='auto'):
     logger = getLogger(name)
-    if level_mode is not 'auto':
+    if level_mode != 'auto':
         logger = configureLogger(logger, mode=level_mode)
     #logger.debug_print = MethodType(_debug_print, logger, logging.Logger)
     if add_handler == 'auto':
@@ -628,7 +634,7 @@ def getColorLogger(name, level_mode='auto', add_handler='auto'):
                 add_handler = None
         if add_handler:
             logger.addHandler(add_handler)
-            if level_mode is 'auto':
+            if level_mode == 'auto':
                 configureLogger(logger, mode=level_mode)
     return colorizeLogger(logger)
 
@@ -639,7 +645,11 @@ def using_config(loggers, debug=None, quiet=None):
     if debug is not None:
         env_layer.set_debug(debug)
     if quiet is not None:
-        env_layer.set_quiet(debug)
+        # Up to 0.2.x this passed `debug` here, so the quiet flag was
+        # never applied.
+        # 0.2.x まではここで `debug` を渡していたため、quiet の指定が
+        # 反映されなかった。
+        env_layer.set_quiet(quiet)
     return env_layer
 
 # importing from system logging module
