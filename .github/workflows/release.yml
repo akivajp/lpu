@@ -51,8 +51,12 @@ jobs:
         run: |
           set -eu
           python -m venv "${RUNNER_TEMP}/sdist-check"
+          # The "name[extra] @ file://" form is the reliable way to request
+          # extras for a local archive.
+          # ローカルの配布物にエクストラを指定する確実な書式を使う
+          sdist="$(ls dist/*.tar.gz)"
           "${RUNNER_TEMP}/sdist-check/bin/python" -m pip install \
-            "$(echo dist/*.tar.gz)[smt]" pytest
+            "lpu[smt] @ file://${PWD}/${sdist}" pytest
           "${RUNNER_TEMP}/sdist-check/bin/python" -m pytest tests
       - uses: actions/upload-artifact@v7
         with:
