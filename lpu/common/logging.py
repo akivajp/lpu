@@ -461,6 +461,14 @@ def _get_cached_calls(path, lineno, fallback=None, frame=None):
         elif frame is not None:
             # falling back for iPython
             tree = ast.parse(inspect.getsource(frame))
+        else:
+            # No source is available, e.g. when running from stdin, a REPL
+            # or exec(). 0.2.x left `tree` undefined and raised NameError,
+            # which surfaced as a full traceback in the log.
+            # stdin / REPL / exec() のようにソースが取得できない場合。
+            # 0.2.x では `tree` が未定義のまま NameError となり、
+            # ログにトレースバックがそのまま出力されていた。
+            return fallback
         calls = []
         for elem in ast.walk(tree):
             if isinstance(elem, ast.Call):
@@ -494,7 +502,14 @@ def _seek_args(path, lineno, fallback=None, frame=None):
         result = _parse_args(buf, feeder)
         return result[0]
     except Exception as e:
-        logger.exception(e)
+        # Recovering the expression is best-effort: without the caller's
+        # source (stdin, a REPL, exec(), a frozen build) the value is still
+        # printed, just without its label. 0.2.x logged this at ERROR level
+        # with a traceback.
+        # 式の復元はベストエフォートであり、呼び出し元のソースが無い場合
+        # (stdin / REPL / exec() / frozen ビルド) でも値自体は出力される。
+        # 0.2.x ではこれを ERROR レベルでトレースバック付きで出力していた。
+        logger.debug("could not recover the source expression: %r" % (e,))
         return fallback
 def _parse_args(buf, feeder, offset=0, depth=0):
     args = []

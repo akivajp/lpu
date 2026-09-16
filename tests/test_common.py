@@ -194,6 +194,30 @@ class TestLogging:
         assert 'some_variable' in caplog.text
         assert '12345' in caplog.text
 
+    def test_debug_print_degrades_quietly_without_source(self, caplog):
+        '''Without the caller's source the value is still printed
+
+        When there is no source to parse (stdin, a REPL, exec(), a frozen
+        build) the expression cannot be recovered. 0.2.x raised a NameError
+        internally and logged the whole traceback at ERROR level.
+
+        呼び出し元のソースが無くても値は出力されること。
+        解析対象のソースが無い場合 (stdin / REPL / exec() / frozen ビルド)
+        は式を復元できない。0.2.x は内部で NameError を起こし、
+        トレースバック全体を ERROR レベルで出力していた。
+        '''
+        logger = logging.getColorLogger('lpu.test.debug_print_no_source')
+        namespace = {'logger': logger}
+        with caplog.at_level(logging.DEBUG,
+                             logger='lpu.test.debug_print_no_source'):
+            with logging.using_config('lpu.test.debug_print_no_source',
+                                      debug=True):
+                exec('logger.debug_print(12345)', namespace)
+        assert '12345' in caplog.text
+        assert 'Traceback' not in caplog.text
+        errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert not errors, [r.getMessage() for r in errors]
+
 
 class TestProgress:
     def test_format_time(self):
