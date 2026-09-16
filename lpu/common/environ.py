@@ -57,7 +57,6 @@ class StackHolder(object):
         """
         return self.env_layer.get(key, default)
 
-    #cpdef set(self, str key, str value):
     def set(self, key, value):
         """
         Set new configuration
@@ -77,12 +76,7 @@ class StackHolder(object):
             os.environ[key] = value
         self.env_layer[key] = value
 
-    #cpdef clear(self):
-    #@cython.locals(prev_exist = bool)
     def clear(self):
-        #cdef str key
-        #cdef bool prev_exist
-        #cdef str prev_value
         if self.back_log:
             for key, prev_exist, prev_value in self.back_log[::-1]:
                 if prev_exist:
@@ -98,7 +92,6 @@ class StackHolder(object):
                         #logging.log(e)
                         #logger.debug(e)
                         logger.exception(e)
-                        #pass
         self.env_layer.clear()
         # note: python2.7 does not have list.clear
         del self.back_log[:]

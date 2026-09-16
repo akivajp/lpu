@@ -49,7 +49,6 @@ def convertTravatarExtract(srcFile, saveFile, sync=None, flatten=None, reverse=F
 #                    tag = srcSymbols[2]
 #                    if srcSymbols[0] == "x0:"+tag:
 #                        # src is unary cycle
-#                        continue
             fields[0] = str.join(' ', srcSymbols)
             fields[1] = str.join(' ', trgSymbols)
             fields[0], fields[1] = records.TravatarRecord.fixOrderStrings(fields[0], fields[1])
@@ -67,7 +66,6 @@ def main():
     parser.add_argument('--progress', '-p', action='store_true', help='show progress')
     args = parser.parse_args()
     #args = vars(parser.parse_args())
-    #print(args)
     convertTravatarExtract(args.src_table, args.save_table, args.sync, args.flatten, args.reverse, args.no_unary, args.progress)
 
 if __name__ == '__main__':

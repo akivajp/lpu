@@ -77,6 +77,15 @@ lpu-random-split = "lpu.commands.random_split:main"
 lpu-wait-files = "lpu.commands.wait_files:main"
 lpu-word-align-train = "lpu.smt.align.ibm_models:main_train"
 lpu-word-align-score = "lpu.smt.align.ibm_models:main_score"
+# SMT phrase/rule table tools. These had a main() but were never registered,
+# so they were unreachable from the command line.
+# SMT のフレーズ/ルールテーブル操作ツール。main() を持ちながら未登録で、
+# コマンドラインから到達できない状態だった。
+lpu-smt-convert-extract = "lpu.smt.trans_models.convert_extract:main"
+lpu-smt-filter = "lpu.smt.trans_models.filter:main"
+lpu-smt-make-glue-rules = "lpu.smt.trans_models.make_glue_rules:main"
+lpu-smt-normalize = "lpu.smt.trans_models.normalize:main"
+lpu-smt-triangulate = "lpu.smt.trans_models.triangulate:main"
 
 [tool.setuptools.dynamic]
 version = { file = "lpu/VERSION" }

@@ -24,10 +24,8 @@ def matchRules(rec, rules):
         expr = re.sub(r'c\.t', str(rec.counts.trg), expr)
         #debug.log(expr)
         if eval(expr):
-            #print("MATCH")
             pass
         else:
-            #print("MISMATCH")
             return False
     return True
 
@@ -76,30 +74,10 @@ def filterMosesTable(srcFile, saveFile, rules, nbest):
     #filterTable(srcFile, saveFile, rules, nbest, progress = progress, RecordClass = records.MosesRecord)
     filterTable(srcFile, saveFile, rules, nbest, RecordClass = records.MosesRecord)
 
-#def main():
-#    epilog = '''
-#each rule should be as '{varname} {<,<=,==,>=,>} {value}'
-#varnames:
-#    c.s : source count
-#    c.t : target count
-#    c.c : co-occurrence count
-#example:
 #    %s model/phrase-table.gz model/filtered-table.gz 'c.c > 1'
-#    ''' % sys.argv[0]
-#    parser = argparse.ArgumentParser(
-#        formatter_class=argparse.RawDescriptionHelpFormatter,
 #        description='filter moses phrase-table by supplied rules',
-#        epilog = epilog,
-#    )
 #    parser.add_argument('srcFile',  help='file path to load phrase-table')
 #    parser.add_argument('saveFile', help='file path to save phrase-table')
-#    parser.add_argument('rules', metavar='rule', nargs='+', help='filtering rule to save record')
-#    parser.add_argument('--nbest', '-n', type=int, default=0,
-#                        help='target variation limit for one source')
-#    parser.add_argument('--progress', '-p', action='store_true',
-#                        help='show progress bar (pv command should be installed')
-#    args = vars(parser.parse_args())
-#    #print(args)
 #    filterMosesTable(**args)
 
 def filterTravatarTable(srcFile, saveFile, rules, nbest, progress = False):
@@ -129,7 +107,6 @@ example:
     parser.add_argument('--progress', '-p', action='store_true',
                         help='show progress bar (pv command should be installed')
     args = vars(parser.parse_args())
-    #print(args)
     filterTravatarTable(**args)
 
 if __name__ == '__main__':

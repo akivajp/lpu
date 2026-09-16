@@ -15,7 +15,6 @@ from lpu.common import progress
 from lpu.smt.trans_models.records import MosesRecord, TravatarRecord
 from lpu.smt.trans_models.tables import Table
 
-#from lpu.data_structs import trees
 
 def get_target_field(rec, target_number=None):
     if isinstance(target_number,int):

@@ -90,7 +90,6 @@ def cleanParallel(**args):
         logging.log("Making directory: %s" % out_dir)
         os.makedirs(out_dir)
 
-    #print(args)
     srcBaseNames = list( map(os.path.basename, srcFilePaths) )
     commonPrefix = reduce(getLongestCommonPrefix, srcBaseNames)
     commonSuffix = reduce(getLongestCommonSuffix, srcBaseNames)

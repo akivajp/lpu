@@ -14,7 +14,6 @@ import traceback
 
 import logging
 
-#import lpu
 from lpu.common import environ
 from lpu.common import validation
 from lpu.common.colors import put_color
@@ -37,7 +36,6 @@ class LoggingConfig(environ.StackHolder):
                 import lpu
                 configureLogger(lpu.logger)
             except Exception as e:
-                #pass
                 lpu.logger.exception(e)
 
     def set_loggers(self, loggers):
@@ -149,8 +147,6 @@ class ColorizingFormatter(logging.Formatter):
         self._colors = dict()
 
     def addFormatRule(self, rule, fmt=None):
-        #print("adding format: {}".format(fmt))self._fmt
-        #print("adding filter: {}".format(filter))
         #self._format_rules.append([rule, fmt])
         self._format_rules.insert(0, [rule, fmt])
 
@@ -160,10 +156,8 @@ class ColorizingFormatter(logging.Formatter):
             self._style._fmt = fmt
         return fmt
 
-    #cpdef str _colorizeText(self, record, str text):
     #def _colorizeText(self, record, str text):
     def _colorizeText(self, record, text):
-        #cdef object color_default
         level = record.levelname.lower()
         color_level = self._colors.get(level, None)
         if color_level:
@@ -175,8 +169,6 @@ class ColorizingFormatter(logging.Formatter):
         return text
 
     def format(self, record):
-        #cdef str text
-        #print("formatting... {}".format(record))
         fmt_apply = None
         for flt, fmt in self._format_rules:
             if flt.filter(record):
@@ -256,7 +248,6 @@ class ColorizingFormatter(logging.Formatter):
         self.setColor(level_name, color_name)
 
 class CustomLogger(logging.Logger):
-    #cpdef _debug_print(self, val=None, limit=0):
     def debug_print(self, val=None, limit=0, offset=0):
         if logging.DEBUG < self.level:
             return
@@ -267,7 +258,6 @@ class CustomLogger(logging.Logger):
         offset += 1
         #stack = traceback.extract_stack(limit=limit)
         stack = traceback.extract_stack(limit=offset+limit)
-        #print("offset", offset)
         if offset > 0:
             stack = stack[:-offset]
         format = ""
@@ -277,38 +267,21 @@ class CustomLogger(logging.Logger):
                 s = '\n  file:{}, line:{}, func:{}, code:{}'.format(path, lineno, func, line)
                 format += s
         stack = traceback.extract_stack(limit=offset+1)
-        #for path, lineno, func, line in stack:
-        #    print(path, lineno, func, line)
         path, lineno, func, line = stack[0]
-        #print(line)
-        #line = _get_cached_line(path, lineno, line).strip()
-        #print("line", line)
         #expr = _get_cached_expr(path, lineno)
         #frame = sys._getframe(1)
         frame = sys._getframe(offset)
-        #print(frame)
-        #print(inspect.getsource(frame))
-        #print(inspect.getsourcelines(frame))
-        #print(frame.f_lineno)
-        #print(inspect.getsource(frame.f_code))
         #args = _seek_args(path, lineno)
         args = _seek_args(path, lineno, None, frame)
-        #frame = sys._getframe(offset)
         #args = _get_first_arg(frame)
         if args:
             expr = args[0]
         else:
             expr = ""
-        #print(expr)
         #if tree:
-        #    for elem in ast.walk(tree):
-        #        if isinstance(elem, ast.Call):
-        #            print(elem)
-        #            print(elem.lineno)
         line = text.to_str(line)
         #if val is not None:
         #expr = re.findall(r'\(.*\)$', line)
-        #if expr:
         #    expr = expr[0][1:-1].strip()
         if expr:
             #if expr.find(',') > 0:
@@ -409,7 +382,6 @@ def colorizeHandler(handler, mode='auto'):
     handler.setFormatter(formatter)
     return formatter
 
-#cdef _checkLoggerColorized(logger):
 def _checkLoggerColorized(logger):
     while logger:
         for handler in logger.handlers:
@@ -514,16 +486,13 @@ def _parse_args(buf, feeder, offset=0, depth=0):
     i = offset
     last_char = ""
     while i < len(buf):
-        #print(i, depth, buf[i:].strip())
         c = buf[i]
         if c == "(":
             if depth > 0:
                 expr += "("
             #result = _parse_args(buf, i+1, depth+1)
             result = _parse_args(buf, feeder, i+1, depth+1)
-            #print("result: {}".format(result))
             if depth == 0:
-                #print("breaking")
                 args += result[0]
                 break
             else:
@@ -536,7 +505,6 @@ def _parse_args(buf, feeder, offset=0, depth=0):
                 break
             elif depth >= 2:
                 expr += ")"
-            #print("expr: {}".format(expr))
             return expr, i
         elif c == ",":
             if depth == 1:
@@ -544,7 +512,6 @@ def _parse_args(buf, feeder, offset=0, depth=0):
                 expr = ""
             else:
                 expr += c
-            #print(depth, args, expr)
         elif c in ["'", '"']:
             result = _seek_str(buf, i)
             expr += result[0]
@@ -562,12 +529,9 @@ def _parse_args(buf, feeder, offset=0, depth=0):
         i += 1
     if expr:
         args.append(expr)
-    #print(depth, args, expr, i)
     if depth <= 1:
-        #print(depth, args, i)
         return args, i
     else:
-        #print(depth, expr, i)
         return expr, i
 def _seek_str(buf, offset):
     i = offset

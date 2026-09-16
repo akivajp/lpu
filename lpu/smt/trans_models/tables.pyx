@@ -15,9 +15,7 @@ from lpu.smt.trans_models import records
 
 key_types = ['src', 'src_hiero', 'src_symbols', 'src_tree']
 
-#cdef get_track_str(object trie, str key):
 #    return str(trie.get_node(key)).replace(' ', '')
-    #return str(node.track()).replace(' ', '')
 cdef get_track_str(object node):
     return str(node.track()).replace(' ', '')
 
@@ -35,10 +33,7 @@ cdef class Table(object):
     cdef object table_file
     cdef str key_type
     cdef readonly object field_dict
-    #cdef object record_dict
     cdef readonly object record_dict
-    #cdef readonly object trg_record_dict
-    #cdef readonly object key_record_dict
     cdef readonly object src_record_dict
     cdef readonly object trg_record_dict
     cdef readonly object trg_field_record_dicts
@@ -52,9 +47,6 @@ cdef class Table(object):
         self.record_dict = pycedar.dict(str)
         #self.key_record_dict    = pycedar.dict(str)
         self.src_record_dict    = pycedar.dict(str)
-        #if trg_key:
-        #    self.trg_record_dict = pycedar.dict(str)
-        #else:
         #    self.trg_record_dict = None
         self.trg_key_enabled = trg_key
         if trg_key:
@@ -62,10 +54,6 @@ cdef class Table(object):
             self.trg_field_record_dicts = []
         self.__load()
 
-    #cdef add_key_and_node(self, str key, object record_node):
-    #    cdef str key_track, pair_tracks
-    #    key_track = get_track_str(self.field_dict.get_node(key))
-    #    pair_tracks = "%s | %s" % (key_track, get_track_str(record_node))
     #    self.key_record_dict.update(pair_tracks, 1)
 
     cdef add_key_and_node(self, object key_record_dict, str key, object record_node):
@@ -115,9 +103,7 @@ cdef class Table(object):
         return str.join(' | ', track_list)
 
     cpdef str tracks2line(self, str tracks):
-    #cpdef str tracks2line(self, str tracks):
         cdef list field_list = []
-        #cdef (int,int) numbers
         cdef list numbers
         cdef size_t node_id, length
         for track in tracks.split('|'):
@@ -125,8 +111,6 @@ cdef class Table(object):
             if track:
                 #field is form of "(id,length)")
                 #numbers = ( field[1:-1].split(',') )
-                #node_id = int(numbers[0])
-                #length  = int(numbers[1])
                 #field_list.append( self.field_dict.trie.suffix(node_id,length) )
                 field_list.append( track2key(self.field_dict, track) )
             else:
@@ -136,16 +120,13 @@ cdef class Table(object):
     cdef __load(self):
         cdef long i
         cdef str line
-        #cdef object rec
         cdef str src, trg
         cdef str srcKey
-        #print(self.table_file)
         cdef str line_tracks
         cdef str src_tracks
         cdef str trg_tracks
         cdef str str_track_pair
         cdef str pair_tracks
-        #cdef list rec_tracks
         cdef object node
         cdef str field
 
@@ -228,40 +209,26 @@ cdef class Table(object):
             yield self.RecordClass(line)
 
     #def find(self, str key):
-    #    cdef str line
     #    #cdef str str_tracks
-    #    cdef str key_track
-    #    cdef str pair_tracks
-    #    cdef str record_track
-    #    cdef str line_tracks
 
     #    if key:
     #        #str_tracks = self.line2tracks(key)
-    #        key_track = self.line2tracks(key)
-    #        if key_track.find('(-1,-1)') >= 0:
-    #            return
     #        #for line in self.record_dict.find_keys(str_tracks, force=True):
     #        #    main_tracks = line.split('|||', 1)[1]
     #        #    yield self.RecordClass( self.tracks2line(main_tracks) )
     #        #for pair_tracks in self.key_record_dict.find_keys(key_track, force=True):
     #        for pair_tracks in self.src_record_dict.find_keys(key_track, force=True):
-    #            record_track = pair_tracks.split('|',1)[1].strip()
     #            line_tracks  = track2key(self.record_dict, record_track)
-    #            line = self.tracks2line(line_tracks)
     #            yield self.RecordClass( line )
-    #    else:
     #        # empty key, find all records (without key)
     #        for line_tracks in self.record_dict.find_keys('', force=True):
-    #            line = self.tracks2line(line_tracks)
     #            yield self.RecordClass( line )
 
-    #cpdef find_src(self, str src):
         #return self.find(self.format_src_key(src))
 
     cpdef find_src(self, str src, force=True):
         return self.__find_key(self.src_record_dict, self.format_src_key(src), force=force)
 
-    #cpdef find_trg(self, str trg):
     #    if not trg:
     #        raise KeyError("trg should not be empty")
     #    return self.find(trg)
@@ -276,12 +243,9 @@ cdef class Table(object):
     #def find_trg(self, str trg):
     #    if self.trg_record_dict is None:
     #        raise LookupError('target key is not enabled, please init with Table(..., trg_key=True)')
-    #    cdef str line
-    #    cdef str str_tracks
     #    str_tracks = self.line2tracks(trg)
 
     #    if str_tracks == '(-1,-1)':
-    #        return
     #    for line in self.trg_record_dict.find_keys(str_tracks, force=True):
     #        main_tracks = line.split('|||', 1)[1]
     #        yield self.RecordClass( self.tracks2line(main_tracks) )

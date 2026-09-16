@@ -2,7 +2,6 @@
 from libcpp.string cimport string
 from libcpp.deque cimport deque
 
-#ctypedef string& ref_string
 
 cdef class IDMap(object):
     # members

@@ -40,7 +40,6 @@ cdef class Model1Trainer:
     cdef void init_trans_dist(self) except *:
         cdef int len_src = len(self.model.vocab.src)
         cdef int len_trg = len(self.model.vocab.trg)
-        #cdef np.ndarray uniform_dist
         cdef ndarray[float64_t, ndim=2] uniform_dist
         logger.info("initializing word translation probabilities as uniform distribution")
         uniform_dist = np.ones([len_src, len_trg], np.float64) / len_trg

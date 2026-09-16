@@ -12,11 +12,7 @@ from lpu.common import logging
 
 logger = logging.getColorLogger(__name__)
 
-#cpdef object toNumber(anyNum, float margin = 0):
 def toNumber(num_any, margin=0):
-    #cdef float floatNum
-    #cdef int intNum
-    #cdef long intNum
     #floatNum = float(anyNum)
     num_float = float(num_any)
     #intNum   = int(round(floatNum))
@@ -26,7 +22,6 @@ def toNumber(num_any, margin=0):
     else:
         return num_float
 
-#cpdef bytes __py2__intToBytes(n, int length, str byteorder='big'):
 def __py2__intToBytes(n, length, byteorder='big'):
     assert n >= 0
     strHex = '%x' % n
@@ -34,17 +29,14 @@ def __py2__intToBytes(n, length, byteorder='big'):
         raise OverflowError('int too big to convert')
     strDecoded = strHex.zfill(length*2).decode('hex')
     return strDecoded if byteorder == 'big' else strDecoded[::-1]
-#cpdef bytes __py3__intToBytes(n, int length, str byteorder='big'):
 def __py3__intToBytes(n, length, byteorder='big'):
     return int.to_bytes(n, length, byteorder)
 
-#cpdef __py2__intFromBytes(bytes b, str byteorder='big'):
 def __py2__intFromBytes(b, byteorder='big'):
     if byteorder == 'big':
         return int(b.encode('hex'), 16)
     else:
         return int(b[::-1].encode('hex'), 16)
-#cpdef __py3__intFromBytes(bytes b, str byteorder='big'):
 def __py3__intFromBytes(b, byteorder='big'):
     return int.from_bytes(b, byteorder)
 

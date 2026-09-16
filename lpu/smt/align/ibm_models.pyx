@@ -55,11 +55,8 @@ cdef ndarray normalize(ndarray tensor, int axis, ndarray target):
     return target
 
 cdef class Vocab:
-    # imported from "ibm_model1.pxd"
-    #cdef StringEnumerator src
-    #cdef StringEnumerator trg
-    #cdef int max_len_src
-    #cdef int max_len_trg
+    # Attributes and cdef methods are declared in ibm_models.pxd
+    # 属性と cdef メソッドは ibm_models.pxd で宣言されている
 
     def __cinit__(self):
         self.init()
@@ -106,9 +103,8 @@ cdef class Vocab:
         return sent_pairs
 
 cdef class Model:
-    # imported from "ibm_model1.pxd"
-    #cdef np.ndarray trans_dist
-    #cdef Vocab vocab
+    # Attributes and cdef methods are declared in ibm_models.pxd
+    # 属性と cdef メソッドは ibm_models.pxd で宣言されている
 
     def __cinit__(self):
         dprint("base model cinit")
@@ -161,13 +157,11 @@ cdef class Model:
                 align = []
                 #indices = np.where(align_trans_matrix > 0)
                 #for index_src, index_trg in zip(*indices):
-                #    prob = align_trans_matrix[index_src, index_trg]
                 #    if prob > 0.01:
                 #        align.append('{}-{}'.format(index_src,index_trg+1))
                 for index_trg in range(len_trg):
                     index_src = np.argpartition(-align_trans_matrix[:,index_trg], 1)[0]
                     prob = align_trans_matrix[index_src, index_trg]
-                    #dprint([index_src, index_trg, prob])
                     #if prob > 0.01:
                     #    align.append('{}-{}'.format(index_src,index_trg+1))
                     align.append('{}-{}'.format(index_trg+1,index_src))
@@ -193,7 +187,6 @@ cdef class Model:
                     fobj.write(record)
 
     cdef void save_trans_dist(self, out_path, threshold, nbest):
-        #cdef tuple indices
         cdef int src, trg
         cdef float prob
         cdef str record
@@ -214,12 +207,8 @@ cdef class Model:
                         fobj.write(record)
 
 cdef class Trainer:
-    # imported from "ibm_model1.pxd"
-    #cdef Model1 model
-    #cdef str src_path
-    #cdef str trg_path
-    #cdef list sent_pairs
-    #cdef np.ndarray cooc_src_trg
+    # Attributes and cdef methods are declared in ibm_models.pxd
+    # 属性と cdef メソッドは ibm_models.pxd で宣言されている
 
     def __init__(self, conf, **others):
         dprint("base trainer __init__")
@@ -310,12 +299,10 @@ cdef class Trainer:
 
 def check_train_config(conf):
     logger.debug("conf => %r"%(conf,))
-    #logger.debug(conf)
     #save_trans_path = conf.get('save_trans_path', None)
     #save_align_path = conf.get('save_align_path', None)
     #if not any [save_trans_path, save_align_path]:
     #    logger.error("At least one of arguments is necessary: --save-trans-path/--save_align_path")
-    #    return False
     return True
 
 def check_test_config(conf):
@@ -459,15 +446,8 @@ def train_model(parser, train_func):
     args = parser.parse_args()
     conf = Config(vars(args))
     #with logging.using_config(logger) as c:
-    #with logging.using_config(['lpu', '__main__']) as c:
     loggers = [__name__, '__main__']
     with logging.using_config(loggers, debug=args.debug, quiet=args.quiet):
-        #if conf.data.debug:
-        #    c.set_debug(True)
-        #    c.set_quiet(False)
-        #if conf.data.quiet:
-        #    c.set_quiet(True)
-        #    c.set_debug(False)
         dprint(args)
         dprint(conf)
         train_func(conf)

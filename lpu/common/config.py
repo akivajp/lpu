@@ -16,7 +16,6 @@ dprint = logger.debug_print
 
 class ConfigData(object):
     '''Configuration data holder'''
-    #@cython.locals(base = object, main = object) # error in python 3.x
     def __init__(self, _base=None, **args):
         base = None
         main = None
@@ -47,12 +46,7 @@ class ConfigData(object):
         if args:
             self.__main.update(args)
 
-    #@cython.locals(first_key = str, remain_keys = str) # error in cython 3.x
-    #@cython.locals(main = object, base = object) # error in cython 3.x
     def __contains__(self, key):
-        #cdef str first_key, remain_keys
-        #cdef object main = self.__main
-        #cdef object base = self.__base
         main = self.__main
         base = self.__base
         if isinstance(key, str) and key.find('.') >= 0:
@@ -75,9 +69,7 @@ class ConfigData(object):
             name = self.__class__.__name__
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    #@cython.locals(name = str) # error in python 3.x
     def __getattr__(self, key):
-        #cdef str name
         try:
             return self.__getitem__(key)
         except:
@@ -86,9 +78,6 @@ class ConfigData(object):
             dprint(key)
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    #@cython.locals(msg = str) # error in python 3.x
-    #@cython.locals(main = object, base = object, value = object) # error in python 3.x
-    #@cython.locals(first_key = str, remain_keys = str) # error in python 3.x
     def __getitem__(self, key):
         main = self.__main
         if isinstance(key, str):
@@ -108,7 +97,6 @@ class ConfigData(object):
                     # derive, instead of copying
                     value = ConfigData(value)
                     main[key] = value
-                #main[key] = value
                 return value
                 #return base[key]
             raise KeyError(key)
@@ -122,10 +110,6 @@ class ConfigData(object):
             msg = 'Invalid type of key object is given: {} (expected str or Iterable, but expected: {})'
             raise TypeError(msg.format(repr(key), type(key).__name__))
 
-    #@cython.locals(s = set) # error in python 3.x
-    #@cython.locals(l = list) # error in python 3.x
-    #@cython.locals(key = str) # error in python 3.x
-    #@cython.locals(main = object, base = object) # error in python 3.x
     def __iter__(self):
         base = self.__base
         main = self.__main
@@ -150,16 +134,11 @@ class ConfigData(object):
         #return len(set(self))
         return sum(1 for _ in self)
 
-    #@cython.locals(str_params = str) # error in python 3.x
-    #@cython.locals(name = str) # error in python 3.x
-    #@cython.locals(main = object, base = object) # error in python 3.x
     def __repr__(self):
         name = self.__class__.__name__
         main = self.__main
         base = self.__base
-        #if base:
         #    str_base = repr(base)
-        #else:
         #    str_base = ""
         str_params = get_key_val_str(main, False)
         if base:
@@ -172,23 +151,17 @@ class ConfigData(object):
                 return "{}({})".format(name, str_params)
             else:
                 return "{}()".format(name)
-        #if str_params:
         #    return "%s(%r, %s)" % (name,self.__base,str_params)
-        #else:
         #    return "%s(%s)" % (name,self.__base)
 
     def __setattr__(self, key, val):
         self.__setitem__(key, val)
         #if key.startswith('_'):
         #    raise KeyError('Key should not start with "_": %s' % key)
-        #else:
         #    #self.__dict__.__setitem__(key, val)
         #    self.__main.__setitem__(key, val)
 
-    #@cython.locals(msg = str) # error in python 3.x
-    #@cython.locals(retrieved = object) # error in python 3.x
     ##@cython.locals(conf = ConfigData) # error in python 3.x
-    #@cython.locals(main = object, base = object) # error in python 3.x
     def __setitem__(self, key, val):
         main = self.__main
         base = self.__base
@@ -228,7 +201,6 @@ class ConfigData(object):
                 val = ConfigData(val)
             main.__setitem__(key, val)
 
-#cdef class Config:
 class Config(object):
     '''Configuration maintenance class'''
 
@@ -317,11 +289,7 @@ class Config(object):
             return self[key]
 
     def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, purge=False, flat=False):
-        #cdef type dtype
-        #cdef ConfigData data = self.data
         data = self.data
-        #cdef object dic
-        #cdef object dic
         if ordered:
             dtype = OrderedDict
         else:
@@ -340,23 +308,15 @@ class Config(object):
 
     #def to_json(self, key=None, upstream=False, purge=None, **options):
     def to_json(self, key=None, upstream=True, purge=None, **options):
-        #cdef object d
         d = self.to_dict(key, True, upstream, True, purge, False)
         return json.dumps(d, **options)
 
     def update(self, _conf = None, _override=True, _override_none=False, **args):
         #if _conf:
-        #    if _override:
-        #        for key, val in _conf.items():
         #            if val != None:
         #                #dprint(key)
         #                #dprint(val)
-        #                self[key] = val
-        #    else:
-        #        for key in _conf:
-        #            if key not in self:
         #                self[key] = _conf[key]
-        #if args:
         #    self.update(args, _override)
         #update_data(self.data, _conf, _override, **args)
         update_data(self.data, _conf, _override, _override_none, **args)
@@ -374,11 +334,7 @@ class Config(object):
     def __len__(self):
         return self.data.__len__()
 
-    #@cython.locals(cls = type) # error in python 3.x
-    #@cython.locals(name = str) # error in python 3.x
     def __repr__(self):
-        #cdef type cls
-        #cdef str name
         cls = self.__class__
         name = cls.__name__
         #strParams = get_key_val_str(vars(self.data), False)
@@ -394,7 +350,6 @@ def get_items(data, purge):
         if should_take(val, purge):
             yield key, val
 
-#cdef bool should_take(object val, bool purge):
 def should_take(val, purge):
     if not purge:
         return True
@@ -409,17 +364,7 @@ def should_take(val, purge):
     return True
 
 # type object is problematic in python 3.6?
-#cdef object data2dict(object data, type dtype, bool upstream, bool recursive):
-#cdef object data2dict(object data, object dtype, bool upstream, bool recursive):
-#cdef object data2dict(object data, object dtype, bool upstream, bool recursive, bool purge):
 def data2dict(data, dtype, upstream, recursive, purge):
-    #dprint("--")
-    #dprint(data)
-    #dprint(dtype)
-    #dprint(upstream)
-    #dprint(recursive)
-    #cdef ConfigData cdata
-    #cdef object items
     #data = data
     if not isinstance(data, ConfigData):
         # as-is
@@ -442,7 +387,6 @@ def data2dict(data, dtype, upstream, recursive, purge):
             #items = ((key, data2dict(val, dtype, upstream, recursive, purge)) for key, val in cdata)
             pass
         else:
-            #dprint(cdata.__main)
             #return dtype((key,data2dict(data[key],dtype,upstream,recursive)) for key in cdata.__main)
             #return dtype((key,data2dict(data[key], dtype, upstream, recursive, purge)) for key in cdata.__main)
             #return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata.__main, purge))
@@ -454,10 +398,7 @@ def data2dict(data, dtype, upstream, recursive, purge):
             items = [(key, val) for key, val in items if should_take(val, purge)]
         return dtype(items)
 
-#cdef object dict2data(object obj):
 def dict2data(obj):
-    #cdef object key, value
-    #cdef ConfigData conf
     if not isinstance(obj, dict):
         # as-is
         return obj
@@ -466,7 +407,6 @@ def dict2data(obj):
         conf[key] = dict2data(value)
     return conf
 
-#cdef get_key_val_str(object d, bool verbose):
 def get_key_val_str(d, verbose):
     if verbose:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items()]
@@ -474,11 +414,7 @@ def get_key_val_str(d, verbose):
         items = ["%s=%r" % (t[0],t[1]) for t in d.items() if not t[0].startswith('_')]
     return str.join(', ', items)
 
-#cdef list flat_items(object items, str prefix, bool chain_key):
 def flat_items(items, prefix, chain_key):
-    #cdef object flatten = []
-    #cdef str str_prefix
-    #cdef str full_key
     flatten = []
     if chain_key:
         if prefix:
@@ -494,9 +430,7 @@ def flat_items(items, prefix, chain_key):
         else:
             flatten.append( (full_key,val) )
     return flatten
-#cdef object flat_dict(object d, type dtype, bool chain_key):
 def flat_dict(d, dtype, chain_key):
-    #cdef object flatten = dtype()
     flatten = dtype()
     for key, val in flat_items(d.items(), None, chain_key):
         if key not in flatten:

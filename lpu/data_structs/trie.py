@@ -31,12 +31,8 @@ except ImportError as exc:
         "(e.g. $ pip install 'lpu[smt]' or $ pip install pycedar)"
     ) from exc
 
-#cdef class IDMap:
 class IDMap(object):
     '''auto mapping class from string to unique int'''
-    #cdef object dict
-    #cdef list unusedIDs
-    #cdef int numEmpty
 
     #def __cinit__(self):
     def __init__(self):
@@ -45,10 +41,8 @@ class IDMap(object):
         self.unusedIDs = list()
         self.numEmpty   = 0
 
-    #cpdef long append(self, str key):
     @cython.locals(n = long)
     def append(self, key):
-        #cdef long n = self.str2id(key)
         n = self.str2id(key)
         if not key:
             self.numEmpty = 1
@@ -85,10 +79,8 @@ class IDMap(object):
         for key in self.dict.keys():
             yield key
 
-    #cpdef long remove(self, str key):
     @cython.locals(n = long)
     def remove(self, key):
-        #cdef long n = self.str2id(key)
         n = self.str2id(key)
         if n == 0:
             self.numEmpty = 0
@@ -100,7 +92,6 @@ class IDMap(object):
         else:
             raise KeyError(key)
 
-    #cpdef long str2id(self, str key):
     def str2id(self, key):
         if not key:
             if self.numEmpty > 0:
@@ -126,11 +117,8 @@ class IDMap(object):
     def __len__(self):
         return len(self.dict) + self.numEmpty
 
-#cdef class TwoWayIDMap(IDMap):
 class TwoWayIDMap(IDMap):
     '''auto mapping class from string to unique int and vice versa'''
-    #cdef list keyList
-    #cdef deque[string] keyList
 
     #def __cinit__(self):
     def __init__(self):
@@ -138,7 +126,6 @@ class TwoWayIDMap(IDMap):
         self.keyList.clear()
         self.keyList.push_back(b'')
 
-    #cpdef long append(self, str key):
     @cython.locals(n = cython.size_t)
     def append(self, key):
         n = IDMap.append(self, key)
@@ -149,11 +136,8 @@ class TwoWayIDMap(IDMap):
             self.keyList[n] = text.to_bytes(key)
         return n
 
-    #cpdef str id2str(self, long num):
     @cython.locals(key = string)
     def id2str(self, num):
-        #cdef object key = self.keyList[num]
-        #cdef string key
         if num == 0 and self.numEmpty > 0:
             return ''
         key = self.keyList[num]
@@ -168,54 +152,50 @@ class TwoWayIDMap(IDMap):
     @cython.locals(i = cython.size_t)
     @cython.locals(k = string)
     def ids(self):
-        #cdef long i
-        #cdef size_t i
-        #cdef string k
-        #cdef object k
-        #for i, k in enumerate(self.keyList):
-        #    if k is not None:
-        #        yield i
-        if self.numEmpty == 1:
+        '''iterate over the registered IDs
+
+        登録済みの ID を列挙する。
+        '''
+        if self.numEmpty > 0:
             yield 0
         for i in range(1, self.keyList.size()):
             k = self.keyList[i]
-            #k = cython.address(self.keyList[i])
             if not k.empty():
-            #if k:
-                #yield k
                 yield i
 
     @cython.locals(i = cython.size_t)
     @cython.locals(k = string)
     def items(self):
-        #cdef long i
-        #cdef size_t i
-        #cdef object k
-        #for i, k in enumerate(self.keyList):
-        #    if k is not None:
-        #        yield (k, i)
+        '''iterate over the registered (key, ID) pairs
+
+        Note: up to 0.2.x this yielded (ID, key), which was the reverse of
+        IDMap.items() in the parent class. The order was unified in 0.3.0.
+
+        登録済みの (キー, ID) の組を列挙する。
+        注意: 0.2.x までは親クラス IDMap.items() とは逆の (ID, キー) を
+        返していた。0.3.0 で順序を統一した。
+        '''
+        if self.numEmpty > 0:
+            yield ('', 0)
         for i in range(1, self.keyList.size()):
             k = self.keyList[i]
             if not k.empty():
-                #yield (i, k)
-                yield (i, text.to_str(k))
+                yield (text.to_str(k), i)
 
     @cython.locals(i = cython.size_t)
     @cython.locals(k = string)
     def keys(self):
-        #cdef long i
-        #cdef size_t i
-        #cdef object k
-        #for k in self.keyList:
-        #    if k is not None:
-        #        yield k
+        '''iterate over the registered keys
+
+        登録済みのキーを列挙する。
+        '''
+        if self.numEmpty > 0:
+            yield ''
         for i in range(1, self.keyList.size()):
             k = self.keyList[i]
             if not k.empty():
-                #yield k
                 yield text.to_str(k)
 
-    #cpdef void purge(self):
     def purge(self):
         while True:
             #if len(self.keyList) <= 1:
@@ -228,10 +208,8 @@ class TwoWayIDMap(IDMap):
             else:
                 break
 
-    #cpdef long remove(self, str key):
     @cython.locals(n = long)
     def remove(self, key):
-        #cdef long n = IDMap.remove(self, key)
         n = IDMap.remove(self, key)
         if n >= 0:
             #self.keyList[n] = None
@@ -248,33 +226,25 @@ class TwoWayIDMap(IDMap):
     def __iter__(self):
         return self.keys()
 
-#cdef class Dict:
 class Dict(object):
     '''mapping class from string to any object'''
-    #cdef IDMap idmap
-    #cdef list objectList
 
     #def __cinit__(self):
     def __init__(self):
         self.idmap = IDMap()
         self.objectList = [None]
 
-    #cpdef object get(self, str key, object default=None):
     @cython.locals(n = long)
     def get(self, key, default=None):
-        #cdef long n = self.idmap.str2id(key)
         n = self.idmap.str2id(key)
         if n >= 0:
             return self.objectList[n]
         else:
             return default
 
-    #cpdef object remove(self, str key):
     @cython.locals(n = long)
     @cython.locals(value = object)
     def remove(self, key):
-        #cdef long n
-        #cdef object value
         n = self.idmap.remove(key)
         if n >= 0:
             value = self.objectList[n]
@@ -283,16 +253,13 @@ class Dict(object):
         else:
             raise KeyError(key)
 
-    #cpdef object setdefault(self, str key, object value):
     def setdefault(self, key, value):
         if key in self:
             return self[key]
         else:
             return self.__set(key, value)
-    #cdef object __set(self, str key, object value):
     @cython.locals(n = long)
     def __set(self, key, value):
-        #cdef long n = self.idmap.append(key)
         n = self.idmap.append(key)
         if n >= len(self.objectList):
             self.objectList.append(value)

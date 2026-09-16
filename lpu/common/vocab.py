@@ -41,25 +41,17 @@ def __getattr__(name):
         return _get_phrase_map()
     raise AttributeError("module {!r} has no attribute {!r}".format(__name__, name))
 
-#cdef class StringEnumerator:
 class StringEnumerator(object):
-    # defined in vocab.pxd
-    # cdef dict dict_str2id
-    # cdef list list_id2str
-
     #def __cinit__(self):
     def __init__(self):
         self.dict_str2id = {}
         self.list_id2str = []
 
-    #cpdef bool append(self, str string):
     def append(self, string):
         self.str2id(string)
         return True
 
-    #cpdef long str2id(self, str string):
     def str2id(self, string):
-        #cdef long new_id
         if string in self.dict_str2id:
             return self.dict_str2id[string]
         else:
@@ -68,7 +60,6 @@ class StringEnumerator(object):
             self.dict_str2id[string] = new_id
             return new_id
 
-    #cpdef str id2str(self, long number):
     def id2str(self, number):
         if 0 <= number and number < len(self.list_id2str):
             return self.list_id2str[number]
@@ -76,7 +67,6 @@ class StringEnumerator(object):
             raise IndexError("id %s is not registered in vocabulary set" % (number,))
 
     def ids(self):
-        #cdef long i = 0, length = len(self.list_id2str)
         i = 0
         length = len(self.list_id2str)
         while i < length:
@@ -84,7 +74,6 @@ class StringEnumerator(object):
             i += 1
 
     def strings(self):
-        #cdef str string
         for string in self.list_id2str:
             yield string
 
@@ -94,22 +83,17 @@ class StringEnumerator(object):
     def __len__(self):
         return len(self.list_id2str)
 
-#cdef StringEnumerator word_enum   = StringEnumerator()
-#cdef StringEnumerator phrase_enum = StringEnumerator()
 word_enum   = StringEnumerator()
 phrase_enum = StringEnumerator()
 
-#cpdef long word2id(str word):
 def word2id(word):
     return word_enum.str2id(word)
     #return wordMap[word]
 
-#cpdef str id2word(long number):
 def id2word(number):
     return word_enum.id2str(number)
     #return wordMap.id2str(number)
 
-#cpdef str phrase2idvec(str phrase):
 def phrase2idvec(phrase):
     if not phrase:
         return ''
@@ -117,20 +101,15 @@ def phrase2idvec(phrase):
     #return str.join(',', map(str, map(word2id, phrase.split())))
     return str.join(',', map(str, map(word2id, phrase.strip().split(' '))))
 
-#cpdef str idvec2phrase(str idvec):
 def idvec2phrase(idvec):
     if not idvec:
         return ''
     return str.join(' ', map(id2word, map(int, idvec.split(','))))
 
-#cpdef long phrase2id(str phrase):
 def phrase2id(phrase):
-    #cdef str idvec = str.join(',', map(str, map(word2id, phrase.split(' '))))
     idvec = str.join(',', map(str, map(word2id, phrase.split(' '))))
     return _get_phrase_map()[idvec]
 
-#cpdef str id2phrase(long number):
 def id2phrase(number):
-    #cdef str idvec = phraseMap.id2str(number)
     idvec = _get_phrase_map().id2str(number)
     return str.join(' ', map(id2word, map(int, idvec.split(','))))

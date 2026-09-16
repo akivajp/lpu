@@ -161,11 +161,8 @@ def load(filepath_or_buffer, out_buffer, progress = True, bs = DEFAULT_BUFFER_SI
             c = SpeedCounter(header=header)
     #data = io.BytesIO()
     #f_in = _open(filename, 'rb')
-    #if progress:
-    #    from lpu.common.progress import SpeedCounter
     #    header = "loading file '%(filename)s'" % locals()
     #    max_count = os.path.getsize(filename)
-    #    c = SpeedCounter(max_count=max_count, header=header)
     while True:
         #buf = f_in.read(bs)
         data = buf.read(bs)
@@ -177,7 +174,6 @@ def load(filepath_or_buffer, out_buffer, progress = True, bs = DEFAULT_BUFFER_SI
             if progress:
                 #c.set_count(data.tell(), True)
                 c.set_count(out_buffer.tell(), True)
-    #f_in.close()
     buf.close()
     #data.seek(0)
     out_buffer.seek(0)
@@ -235,7 +231,6 @@ def rawfile(f):
         # for archive files such as gzip
         return f.myfileobj
 #    if isinstance(f, gzip.GzipFile):
-#        return f.myfileobj
     elif hasattr(f, 'buffer'):
         # for buffered files such as utf-8 mode
         #return f.buffer

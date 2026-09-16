@@ -6,7 +6,6 @@
 # Standard libraries
 from collections.abc import Iterable
 from datetime import datetime
-#import io
 import sys
 import time
 
@@ -184,7 +183,6 @@ class FileReader(object):
     def __init__(self, source, header="", refresh=DEFAULT_REFRESH_INTERVAL, force=False):
         if isinstance(source, str):
             #self.source = files.open(source, 'r')
-            #self.source = files.open(source, 'rb')
             if not header:
                 header = "reading file '%s'" % source
             #self.source = files.open(source, 'rt')
@@ -198,9 +196,6 @@ class FileReader(object):
         #self.counter = ProgressCounter(header=header, refresh=refresh, force=force, max_count=size)
         self.counter = SpeedCounter(header=header, max_count=size, refresh=refresh, force=force)
 
-    #def __del__(self):
-    #    print("DEL")
-    #    self.close()
 
     def __dealloc__(self):
         self.close()
@@ -221,13 +216,11 @@ class FileReader(object):
                 #self.counter.set_position(files.rawtell(self.source))
                 self.counter.set_position(self.tell())
             except Exception as e:
-                #logger.debug(e)
                 pass
             self.counter.view()
             return buf
 
     def read_byte_chunks(self, bs = DEFAULT_BUFFER_SIZE):
-        #cdef bytes buf
         while True:
             buf = self.read(bs)
             if not buf:
@@ -235,12 +228,9 @@ class FileReader(object):
             yield buf
         self.close()
 
-    #cpdef bytes read_byte_line(self):
     def read_byte_line(self):
         return self._read_byte_line(True)
-    #cdef bytes _read_byte_line(self, bool countup=False):
     def _read_byte_line(self, countup=False):
-        #cdef bytes line
         if self.source:
             line = self.source.readline()
             if countup:
@@ -272,7 +262,6 @@ class FileReader(object):
         return files.rawtell(self.source)
 
     def __iter__(self):
-        #cdef str line
         while True:
             line = self.readline()
             if not line:
@@ -369,7 +358,6 @@ def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTE
         refresh = DEFAULT_REFRESH_INTERVAL
     infiles = [files.open(fpath, 'rb') for fpath in filepaths]
     if infiles:
-        #if mode == 'bytes':
         try:
             max_count = sum(map(files.rawsize, infiles))
         except Exception as e:

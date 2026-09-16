@@ -29,7 +29,6 @@ def calc_ngram_precision(ref, hyp, n, smooth=False):
         correct += min(count, ref_ngram_count[ngram])
     if total == 0:
         return 0.0
-        #return 1.0
     if smooth and n >= 2:
         return (correct + 1) / float(total + 1)
     else:
