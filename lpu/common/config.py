@@ -452,11 +452,18 @@ def _update_data(cdata, _conf = None, _override=True, _override_none=False):
         return cdata
     if isinstance(_conf, (dict,ConfigData)):
         if isinstance(_conf, ConfigData):
-            # ConfigData has no items(), so take out the inner dict directly.
-            # __main is held via __dict__ to avoid name mangling.
-            # ConfigData は items() を持たないため、内部の辞書を直接取り出す。
-            # __main は名前修飾を避けて __dict__ 経由で保持されている
-            _conf = _conf.__dict__["__main"]
+            # ConfigData has no items(), and its values are split between the
+            # base (inherited) and the main (overriding) layer. Iterating the
+            # object itself yields the merged view of the two, so build a
+            # plain dict from that.
+            # 0.2.x referred to ConfigData.__main as a class attribute here,
+            # which always failed.
+            # ConfigData は items() を持たず、値は base (継承層) と
+            # main (上書き層) に分かれて保持される。オブジェクト自身を反復
+            # すると両者をマージした一覧が得られるため、そこから辞書を作る。
+            # 0.2.x ではここで ConfigData.__main をクラス属性として参照して
+            # いたため、常に失敗していた。
+            _conf = {key: _conf[key] for key in _conf}
         if _override:
             for key, val in _conf.items():
                 if val is None:

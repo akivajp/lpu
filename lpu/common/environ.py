@@ -21,14 +21,31 @@ def _safe_debug_print(msg):
         pass
 
 def get_env(key, default=None, system=True):
+    '''look up a variable in the stack, then optionally in os.environ
+
+    Note: up to 0.2.x the `default` was returned only when system=False,
+    so a lookup that missed returned None with the default arguments.
+
+    スタックを検索し、必要なら os.environ も検索する。
+    注意: 0.2.x までは system=False のときだけ `default` を返していたため、
+    既定の引数では見つからなかった場合に None が返っていた。
+
+    Args:
+        key: Name of the variable. 変数名。
+        default: Value to return when the key is not found.
+            見つからなかった場合に返す値。
+        system: Whether to fall back to os.environ.
+            os.environ も参照するかどうか。
+
+    Returns:
+        The configured value, or `default`. 設定値、または `default`。
+    '''
     for env_dict in env_stack[::-1]:
         if key in env_dict:
             return env_dict[key]
-    if system:
-        if key in os.environ:
-            return os.environ[key]
-    else:
-        return default
+    if system and key in os.environ:
+        return os.environ[key]
+    return default
 
 class StackHolder(object):
     """Class to manage layer on the stack of environment variables
@@ -97,27 +114,37 @@ class StackHolder(object):
         del self.back_log[:]
 
     def unset(self, key):
-        if self.back_log:
-            #found = next((t[1:] for t in self.back_log if t[0] == key), None)
-            found = [t for t in self.back_log if t[0] == key]
-            #found = next(t for t in self.back_log if t[0] == key)
-            if found:
-                _, prev_exist, prev_value = found[0]
-                if prev_exist:
-                    _safe_debug_print("record back %s='%s' to env" % (key, prev_value))
+        """
+        Restore a single variable to the value it had before this layer
+
+        Note: up to 0.2.x this also emptied env_layer and back_log entirely,
+        so every other variable tracked by this layer silently lost its
+        record and was never restored by clear().
+
+        1 つの変数をこの層に入る前の値へ戻す。
+        注意: 0.2.x までは env_layer と back_log 全体も空にしていたため、
+        この層が記録していた他の変数の記録が失われ、clear() でも
+        復元されなくなっていた。
+
+        Arguments:
+            key {[str]} -- name of variable
+        """
+        found = [t for t in self.back_log if t[0] == key]
+        if found:
+            _, prev_exist, prev_value = found[0]
+            if prev_exist:
+                _safe_debug_print("record back %s='%s' to env" % (key, prev_value))
+                if os and os.environ:
+                    os.environ[key] = prev_value
+            else:
+                _safe_debug_print("unset key from env: %s" % (key,))
+                try:
                     if os and os.environ:
-                        os.environ[key] = prev_value
-                else:
-                    _safe_debug_print("unset key from env: %s" % (key,))
-                    try:
-                        if os and os.environ:
-                            os.environ.pop(key)
-                    except Exception as e:
-                        logger.exception(e)
-                self.back_log = [t for t in self.back_log if t[0] != key]
-        self.env_layer.clear()
-        # note: python2.7 does not have list.clear
-        del self.back_log[:]
+                        os.environ.pop(key)
+                except Exception as e:
+                    logger.exception(e)
+            self.back_log = [t for t in self.back_log if t[0] != key]
+        self.env_layer.pop(key, None)
 
     def __enter__(self):
         logger.debug("entering environ stack")
@@ -125,10 +152,15 @@ class StackHolder(object):
 
     def __exit__(self, exception_type, exception_value, traceback):
         _safe_debug_print("exiting from environ stack")
-        #logging.debug(exception_type)
-        #logging.debug(exception_value)
-        #logging.debug(traceback)
         self.clear()
+        # Drop this layer from the shared stack. Without this, env_stack
+        # grew monotonically for every layer ever created.
+        # 共有スタックからこの層を取り除く。これが無いと env_stack は
+        # 生成された層の分だけ単調に増え続けていた。
+        try:
+            env_stack.remove(self.env_layer)
+        except ValueError:
+            pass
 
     def __dealloc__(self):
         _safe_debug_print("deallocating environ stack")

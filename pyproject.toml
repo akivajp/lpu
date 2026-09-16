@@ -87,6 +87,15 @@ lpu-smt-make-glue-rules = "lpu.smt.trans_models.make_glue_rules:main"
 lpu-smt-normalize = "lpu.smt.trans_models.normalize:main"
 lpu-smt-triangulate = "lpu.smt.trans_models.triangulate:main"
 
+# Development dependencies, installed by `uv sync` / `uv run`
+# 開発用の依存関係。`uv sync` / `uv run` でインストールされる
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "numpy>=2.0",
+    "pycedar>=0.2.0",
+]
+
 [tool.setuptools.dynamic]
 version = { file = "lpu/VERSION" }
 

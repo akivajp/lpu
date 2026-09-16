@@ -28,20 +28,64 @@ class TreeNode(object):
         return self
 
     def checkValid(self, deep=True):
+        '''check whether this node (and optionally its subtree) is valid
+
+        A node is invalid when it has children but an empty label.
+        Note: up to 0.2.x the recursive check was commented out while its
+        "return False" was left behind, so a deep check reported any node
+        with children as invalid.
+
+        このノード (deep=True なら部分木全体) が妥当かを判定する。
+        子を持つのにラベルが空のノードは不正とみなす。
+        注意: 0.2.x までは再帰判定がコメントアウトされたまま
+        "return False" だけが残っており、子を持つノードは deep 判定で
+        常に不正と報告されていた。
+        '''
         if len(self.label) == 0 and len(self.children) > 0:
             return False
         if not deep:
             return True
         for node in self.children:
-#            if not node.checkValid(True):
+            if not node.checkValid(True):
                 return False
         return True
 
     @staticmethod
-    #def fromS(str expr):
     def fromS(expr):
-        #return t
-        return TreeNode('')
+        '''build a tree from an S-expression string
+
+        Note: up to 0.2.x this ignored its argument and always returned an
+        empty node.
+
+        S 式の文字列から木を構築する。
+        注意: 0.2.x までは引数を無視して常に空ノードを返していた。
+
+        Args:
+            expr: S-expression, e.g. "(S (NP the cat) (VP sat))".
+                S 式。例: "(S (NP the cat) (VP sat))"
+
+        Returns:
+            The root TreeNode. 根の TreeNode。
+        '''
+        parsed, _ = parseSExpression(expr)
+        return TreeNode._fromParsed(parsed)
+
+    @staticmethod
+    def _fromParsed(parsed):
+        '''convert the nested lists of parseSExpression into TreeNodes
+
+        parseSExpression が返す入れ子リストを TreeNode に変換する。
+        '''
+        if not isinstance(parsed, list):
+            return TreeNode(parsed)
+        if not parsed:
+            return TreeNode('')
+        # The head is the label and the rest are the children
+        # 先頭がラベル、残りが子ノード
+        node = TreeNode(parsed[0])
+        for sub in parsed[1:]:
+            node.append(TreeNode._fromParsed(sub))
+        return node
 
     def toStr(self):
 #        map(Tree.toStr, self.children)
@@ -164,8 +208,6 @@ def calcEditDistance(seq1, seq2):
     #pprint.pprint(memo)
     return memo[len(seq1)][len(seq2)]
 
-import pprint
-#def calcTreeEditDistance(object tree1, object tree2):
 def calcTreeEditDistance(tree1, tree2):
     memo = {}
     if isinstance(tree1, str) and tree1.strip()[0] == '(':
@@ -190,7 +232,6 @@ def calcTreeEditDistance(tree1, tree2):
     #def calcInnerDistance(int left1, int right1, int left2, int right2):
 
     def calcInnerDistance(left1, right1, left2, right2):
-        print("-----------------------")
         #pprint.pprint((left1, right1, left2, right2))
         #pprint.pprint(memo)
         if left1 < 0 or left2 < 0:

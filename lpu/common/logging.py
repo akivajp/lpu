@@ -65,7 +65,11 @@ class LoggingConfig(environ.StackHolder):
         else:
             self.set('LPU_QUIET', '0')
         self._reconfigureLogger()
-    def unset_debug(self):
+    def unset_quiet(self):
+        # Up to 0.2.x this was another def unset_debug(), which shadowed the
+        # one above and left no way to unset the quiet flag.
+        # 0.2.x までは 2 つめの unset_debug() として定義されており、
+        # 上の定義を隠したうえ quiet を解除する手段が存在しなかった。
         return self.unset('LPU_QUIET')
 
     def __enter__(self):
@@ -109,15 +113,27 @@ def get_color_status():
         return False
 
 def get_quiet_status():
-    mode = environ.get_env('QUIET')
+    '''report whether quiet mode is enabled
+
+    Note: up to 0.2.x only the QUIET variable was consulted, while
+    LoggingConfig.set_quiet() writes LPU_QUIET, so quiet mode was never
+    detected. The lookup order now mirrors get_debug_status().
+
+    quiet モードが有効かどうかを返す。
+    注意: 0.2.x までは QUIET のみを参照していたが、
+    LoggingConfig.set_quiet() が設定するのは LPU_QUIET であるため、
+    quiet モードが検出されることが無かった。
+    参照順序は get_debug_status() に合わせている。
+    '''
+    mode = environ.get_env('LPU_QUIET')
+    if not mode:
+        mode = environ.get_env('QUIET')
     if not mode:
         return False
+    elif mode.lower() in ('', 'false', 'off', '0'):
+        return False
     else:
-        if mode.lower() in ('', 'false', '0'):
-            return False
-        elif mode.lower() in ('true', '1'):
-            return True
-    return False
+        return True
 
 class FilterCondition(logging.Filter):
     def __init__(self, **rules):
@@ -600,7 +616,11 @@ def using_config(loggers, debug=None, quiet=None):
     if debug is not None:
         env_layer.set_debug(debug)
     if quiet is not None:
-        env_layer.set_quiet(debug)
+        # Up to 0.2.x this passed `debug` here, so the quiet flag was
+        # never applied.
+        # 0.2.x まではここで `debug` を渡していたため、quiet の指定が
+        # 反映されなかった。
+        env_layer.set_quiet(quiet)
     return env_layer
 
 # importing from system logging module

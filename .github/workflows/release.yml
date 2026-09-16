@@ -1,0 +1,114 @@
+# Release workflow / リリースワークフロー
+#
+# Builds the sdist and the binary wheels, and optionally publishes them.
+# Publishing is deliberately gated behind the "pypi" / "testpypi"
+# environments so that it never happens as a side effect of a push.
+#
+# sdist とバイナリ wheel をビルドし、必要に応じて公開する。
+# push の副作用で公開されないよう、公開ジョブは "pypi" / "testpypi"
+# environment による承認ゲートの背後に置いている。
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_to:
+        description: 'Where to publish the built artifacts'
+        required: true
+        default: 'none'
+        type: choice
+        options:
+          - none
+          - testpypi
+          - pypi
+
+jobs:
+  build-wheels:
+    name: wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-13, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.3
+        env:
+          # The build targets are listed explicitly on purpose. cibuildwheel's
+          # default set includes release-candidate CPython versions and, from
+          # 3.14 on, the free-threaded builds; neither is verified here, and
+          # they must not reach PyPI unnoticed.
+          # ビルド対象は意図的に明示列挙している。cibuildwheel の既定集合には
+          # RC 版の CPython と、3.14 以降のフリースレッド版が含まれるが、
+          # どちらも検証しておらず、気付かないまま PyPI に載せてはならない。
+          CIBW_BUILD: 'cp310-* cp311-* cp312-* cp313-* cp314-*'
+          CIBW_SKIP: '*-musllinux_i686 *_i686 pp*'
+          CIBW_ARCHS_MACOS: 'auto'
+          # numpy and pycedar wheels exist for these platforms, so the full
+          # test suite can run against each built wheel.
+          # これらのプラットフォームには numpy と pycedar の wheel があるため、
+          # ビルドした wheel ごとにテスト全体を実行できる。
+          CIBW_TEST_REQUIRES: 'pytest'
+          CIBW_TEST_EXTRAS: 'smt'
+          CIBW_TEST_COMMAND: 'python -m pytest {project}/tests'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: ./wheelhouse/*.whl
+
+  build-sdist:
+    name: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Build the sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist
+
+      - name: The sdist must be installable on its own
+        run: |
+          python -m pip install dist/*.tar.gz
+          cd "$RUNNER_TEMP"
+          python -c "import lpu; print('lpu', lpu.__version__)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: ./dist/*.tar.gz
+
+  publish:
+    name: publish to ${{ inputs.publish_to }}
+    needs: [build-wheels, build-sdist]
+    if: inputs.publish_to != 'none'
+    runs-on: ubuntu-latest
+    # Requires an environment of the same name to be configured in the
+    # repository settings; add a required reviewer there to keep the
+    # approval step manual.
+    # 同名の environment をリポジトリ設定側で作成しておく必要がある。
+    # 承認を手動に保つため、そこに required reviewer を設定する。
+    environment: ${{ inputs.publish_to }}
+    permissions:
+      # Trusted publishing / Trusted publishing を利用する
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: >-
+            ${{ inputs.publish_to == 'testpypi'
+                && 'https://test.pypi.org/legacy/'
+                || 'https://upload.pypi.org/legacy/' }}

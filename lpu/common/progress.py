@@ -375,8 +375,13 @@ def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTE
                 delta = buf.count(b"\n")
             if not buf:
                 break
-            #counter.add(view=True)
-            if not outfunc:
+            # Up to 0.2.x outfunc was only used as a flag to suppress the
+            # stdout write, and was never actually called.
+            # 0.2.x までは outfunc は stdout 出力を抑止するフラグとしてしか
+            # 使われておらず、実際には呼び出されていなかった。
+            if outfunc:
+                outfunc(buf)
+            else:
                 files.bin_stdout.write(buf)
             counter.add(delta)
             counter.set_position(counter.pos + len(buf))
