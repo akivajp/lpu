@@ -268,8 +268,8 @@ class TestProgress:
         '''
         path = tmp_path / 'lines.txt.gz'
         body = ''.join('line%d\n' % i for i in range(500))
-        with gzip.open(str(path), 'wt') as f:
-            f.write(body)
+        with gzip.open(str(path), 'wb') as f:
+            f.write(body.encode('utf-8'))
         reader = progress.FileReader(str(path), header='test')
         try:
             assert len(list(reader)) == 500
@@ -287,7 +287,9 @@ class TestProgress:
         なかったため、内容が無言で捨てられていた。
         '''
         path = tmp_path / 'lines.txt'
-        path.write_text('a\nb\nc\n', encoding='utf-8')
+        # Bytes, so that the comparison holds on Windows too
+        # Windows でも比較が成立するようバイトで書き出す
+        path.write_bytes(b'a\nb\nc\n')
         received = []
         progress.pipe_view([str(path)], mode='lines', header='test',
                            outfunc=received.append)

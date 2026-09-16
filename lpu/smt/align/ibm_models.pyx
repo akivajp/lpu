@@ -87,13 +87,21 @@ cdef class Vocab:
         sent_pairs = []
         for src_line, trg_line in zip(src_file, trg_file):
             if character_based:
-                src_words = list( text.to_unicode(src_line.strip("\n")) )
-                trg_words = list( text.to_unicode(trg_line.strip("\n")) )
+                # Strip CR as well as LF. progress.FileReader reads bytes and
+                # decodes them itself, so it performs no newline translation,
+                # while files.open() in text mode does; a CRLF corpus therefore
+                # left a stray CR in the last word of every source line.
+                # LF だけでなく CR も除去する。progress.FileReader はバイトで
+                # 読んで自前でデコードするため改行変換を行わないが、
+                # files.open() のテキストモードは行うため、CRLF のコーパスでは
+                # 原言語側の各行末の語に CR が残っていた。
+                src_words = list( text.to_unicode(src_line.strip("\r\n")) )
+                trg_words = list( text.to_unicode(trg_line.strip("\r\n")) )
                 src_words = list( map(text.to_str, src_words) )
                 trg_words = list( map(text.to_str, trg_words) )
             else:
-                src_words = src_line.strip("\n").split(' ')
-                trg_words = trg_line.strip("\n").split(' ')
+                src_words = src_line.strip("\r\n").split(' ')
+                trg_words = trg_line.strip("\r\n").split(' ')
             src_words = [NULL_SYMBOL] + src_words
             src_ids = [self.src.str2id(word) for word in src_words]
             trg_ids = [self.trg.str2id(word) for word in trg_words]

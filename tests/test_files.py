@@ -24,16 +24,20 @@ def corpus_text():
 
 @pytest.fixture
 def gz_path(tmp_path, corpus_text):
+    # Written as bytes so that the content is identical on every platform
+    # (text mode would translate "\n" into "\r\n" on Windows).
+    # どのプラットフォームでも内容が同一になるようバイトで書き出す
+    # (テキストモードでは Windows で "\n" が "\r\n" に変換される)。
     path = tmp_path / 'corpus.txt.gz'
-    with gzip.open(str(path), 'wt') as f:
-        f.write(corpus_text)
+    with gzip.open(str(path), 'wb') as f:
+        f.write(corpus_text.encode('utf-8'))
     return path
 
 
 @pytest.fixture
 def plain_path(tmp_path, corpus_text):
     path = tmp_path / 'corpus.txt'
-    path.write_text(corpus_text, encoding='utf-8')
+    path.write_bytes(corpus_text.encode('utf-8'))
     return path
 
 
@@ -54,6 +58,10 @@ class TestOpen:
     def test_reads_gzip_transparently(self, gz_path, corpus_text):
         with files.open(str(gz_path), 'rt') as f:
             assert f.read() == corpus_text
+
+    def test_reads_gzip_as_bytes(self, gz_path, corpus_text):
+        with files.open(str(gz_path), 'rb') as f:
+            assert f.read() == corpus_text.encode('utf-8')
 
     def test_reads_plain_text(self, plain_path, corpus_text):
         with files.open(str(plain_path), 'rt') as f:

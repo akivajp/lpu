@@ -110,3 +110,25 @@ lpu = ["VERSION"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.cibuildwheel]
+# Only the interpreters that the test matrix actually covers.
+# Free-threaded builds (cp3XXt-*) are deliberately excluded: they do not match
+# these patterns, and the extensions have not been validated without the GIL.
+# (テスト済みのインタプリタのみを対象にする。
+#  フリースレッド版はGIL無しでの検証が済んでいないため意図的に対象外)
+build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
+build-frontend = "build"
+test-requires = "pytest"
+# The smt extra brings numpy and pycedar, so the compiled modules are
+# actually exercised by the test run of each built wheel.
+# (smt エクストラにより numpy と pycedar が入るため、ビルドした wheel ごとの
+#  テストでコンパイル済みモジュールも実際に検証される)
+test-extras = "smt"
+test-command = "pytest {project}/tests"
+
+[tool.cibuildwheel.macos]
+# Cross-compile the Intel wheels from the Apple silicon runner.
+# cibuildwheel skips the test step for wheels it cannot run natively.
+# (arm64ランナーからx86_64をクロスビルドする。実行できないwheelのテストは自動でスキップされる)
+archs = ["x86_64", "arm64"]

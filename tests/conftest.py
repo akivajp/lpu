@@ -52,9 +52,25 @@ def parallel_corpus(tmp_path):
     '''
     src_path = tmp_path / 'src.txt'
     trg_path = tmp_path / 'trg.txt'
-    src_path.write_text(
-        'the cat sat\nthe dog ran\nthe cat ran\na dog sat\n', encoding='utf-8')
-    trg_path.write_text(
-        'le chat assis\nle chien couru\nle chat couru\nun chien assis\n',
-        encoding='utf-8')
+    # Written as bytes to keep LF line endings on every platform
+    # どのプラットフォームでも LF 改行を保つためバイトで書き出す
+    src_path.write_bytes(b'the cat sat\nthe dog ran\nthe cat ran\na dog sat\n')
+    trg_path.write_bytes(
+        b'le chat assis\nle chien couru\nle chat couru\nun chien assis\n')
+    return src_path, trg_path
+
+
+@pytest.fixture
+def crlf_parallel_corpus(tmp_path):
+    '''The same corpus with CRLF line endings
+
+    CRLF 改行の同じコーパス。
+    '''
+    src_path = tmp_path / 'src_crlf.txt'
+    trg_path = tmp_path / 'trg_crlf.txt'
+    src_path.write_bytes(
+        b'the cat sat\r\nthe dog ran\r\nthe cat ran\r\na dog sat\r\n')
+    trg_path.write_bytes(
+        b'le chat assis\r\nle chien couru\r\nle chat couru\r\n'
+        b'un chien assis\r\n')
     return src_path, trg_path

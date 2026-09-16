@@ -6,6 +6,7 @@ import argparse
 import math
 import multiprocessing
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -21,9 +22,15 @@ logger = logging.getColorLogger(__name__)
 numCPUs = multiprocessing.cpu_count()
 SLEEP_DURATION = 1.0
 
-#def getHostProcID():
 def getCurrentWorkerID():
-    return "%s:%s" % (os.uname()[1],os.getpid())
+    '''return an identifier unique to this host and process
+
+    0.2.x used os.uname(), which does not exist on Windows.
+
+    ホストとプロセスに対して一意な識別子を返す。
+    0.2.x は Windows に存在しない os.uname() を使っていた。
+    '''
+    return "%s:%s" % (platform.node(), os.getpid())
 
 def report(filepath, message):
     if os.path.exists(filepath):

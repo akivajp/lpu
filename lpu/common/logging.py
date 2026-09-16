@@ -10,6 +10,7 @@ import inspect
 import os
 import re
 import sys
+import tokenize
 import traceback
 
 import logging
@@ -441,7 +442,17 @@ def _get_cached_line(path, lineno, fallback=None, frame=None):
     try:
         if path not in _cached_lines:
             if os.path.exists(path):
-                _cached_lines[path] = open(path).readlines()
+                # tokenize.open() honours the PEP 263 coding declaration and
+                # defaults to UTF-8. 0.2.x used a bare open(), so on a system
+                # whose locale encoding is not UTF-8 any source file with a
+                # non-ASCII character failed to be read, and the expression
+                # name could not be recovered.
+                # tokenize.open() は PEP 263 のコーディング宣言を尊重し、
+                # 既定を UTF-8 とする。0.2.x は素の open() を使っていたため、
+                # ロケール encoding が UTF-8 でない環境では非 ASCII を含む
+                # ソースファイルの読み取りに失敗し、式名を復元できなかった。
+                with tokenize.open(path) as f:
+                    _cached_lines[path] = f.readlines()
             elif frame is not None:
                 # falling back for iPython
                 _cached_lines[path], _ = inspect.getsourcelines(frame)
@@ -457,7 +468,10 @@ _cached_calls = {}
 def _get_cached_calls(path, lineno, fallback=None, frame=None):
     if path not in _cached_calls:
         if os.path.exists(path):
-            tree = ast.parse(open(path).read())
+            # See the note in _get_cached_line() about tokenize.open()
+            # tokenize.open() については _get_cached_line() の注記を参照
+            with tokenize.open(path) as f:
+                tree = ast.parse(f.read())
         elif frame is not None:
             # falling back for iPython
             tree = ast.parse(inspect.getsource(frame))

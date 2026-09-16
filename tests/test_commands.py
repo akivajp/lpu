@@ -152,6 +152,25 @@ class TestExecParallel:
         assert output.read_text(encoding='utf-8') == 'ALPHA\nBETA\nGAMMA\nDELTA\n'
 
 
+class TestExecParallelWorkerID:
+    def test_worker_id_is_available_on_every_platform(self):
+        '''getCurrentWorkerID must not depend on os.uname()
+
+        0.2.x used os.uname(), which does not exist on Windows, so
+        lpu-exec-parallel raised AttributeError there.
+
+        getCurrentWorkerID が os.uname() に依存しないこと。
+        0.2.x は Windows に存在しない os.uname() を使っていたため、
+        lpu-exec-parallel がその環境で AttributeError になっていた。
+        '''
+        from lpu.commands.exec_parallel import getCurrentWorkerID
+        worker_id = getCurrentWorkerID()
+        assert ':' in worker_id
+        host, pid = worker_id.rsplit(':', 1)
+        assert host
+        assert int(pid) == os.getpid()
+
+
 class TestRandomSplit:
     def test_keeps_parallel_lines_aligned(self, tmp_path):
         '''Splitting a parallel corpus must preserve line correspondence
@@ -230,19 +249,25 @@ class TestWordAlign:
     IBM モデルの学習とスコアリングの end-to-end テスト。
     '''
 
-    def test_train_learns_the_expected_alignment(self, tmp_path,
-                                                 parallel_corpus):
-        src_path, trg_path = parallel_corpus
-        trans_path = tmp_path / 'trans.txt'
-        align_path = tmp_path / 'align.txt'
+    EXPECTED_ALIGNMENT = {
+        'the': 'le', 'cat': 'chat', 'dog': 'chien',
+        'sat': 'assis', 'ran': 'couru', 'a': 'un',
+    }
+
+    def _train_and_read_best(self, tmp_path, corpus, tag):
+        '''Train on the corpus and return the best translation of each word
+
+        コーパスで学習し、各語の最も確率の高い訳語を返す。
+        '''
+        src_path, trg_path = corpus
+        trans_path = tmp_path / ('trans_%s.txt' % tag)
+        align_path = tmp_path / ('align_%s.txt' % tag)
         result = run_command('lpu.smt.align.ibm_models', [
             '--iteration-limit', '10', '--quiet',
             str(src_path), str(trg_path), str(trans_path), str(align_path),
         ], cwd=str(tmp_path), entry='main_train')
         assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
 
-        # Collect the most probable translation of each source word
-        # 各原言語単語について最も確率の高い訳語を取り出す
         best = {}
         for line in trans_path.read_text(encoding='utf-8').splitlines():
             fields = line.split('\t')
@@ -251,12 +276,32 @@ class TestWordAlign:
             source, target, probability = fields[0], fields[1], float(fields[2])
             if source not in best or probability > best[source][1]:
                 best[source] = (target, probability)
+        return best
 
-        expected = {
-            'the': 'le', 'cat': 'chat', 'dog': 'chien',
-            'sat': 'assis', 'ran': 'couru', 'a': 'un',
-        }
-        for source, target in expected.items():
+    def test_train_learns_the_expected_alignment(self, tmp_path,
+                                                 parallel_corpus):
+        best = self._train_and_read_best(tmp_path, parallel_corpus, 'lf')
+        for source, target in self.EXPECTED_ALIGNMENT.items():
+            assert source in best, 'missing source word: %s' % source
+            assert best[source][0] == target, (
+                'expected %s -> %s, got %s' % (source, target, best[source][0]))
+
+    def test_train_handles_a_crlf_corpus(self, tmp_path, crlf_parallel_corpus):
+        '''A CRLF corpus must give the same alignment as an LF one
+
+        progress.FileReader reads bytes and decodes them itself, so it
+        applies no newline translation. 0.2.x stripped only LF, which left a
+        stray CR in the last word of every source line and produced a
+        corrupted vocabulary.
+
+        CRLF のコーパスでも LF と同じアライメントが得られること。
+        progress.FileReader はバイトで読んで自前でデコードするため改行変換を
+        行わない。0.2.x は LF のみを除去していたため、原言語側の各行末の語に
+        CR が残り、語彙が壊れていた。
+        '''
+        best = self._train_and_read_best(tmp_path, crlf_parallel_corpus, 'crlf')
+        assert '' not in best, 'an empty source word was registered'
+        for source, target in self.EXPECTED_ALIGNMENT.items():
             assert source in best, 'missing source word: %s' % source
             assert best[source][0] == target, (
                 'expected %s -> %s, got %s' % (source, target, best[source][0]))

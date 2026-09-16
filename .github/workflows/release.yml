@@ -1,114 +1,126 @@
-# Release workflow / リリースワークフロー
-#
-# Builds the sdist and the binary wheels, and optionally publishes them.
-# Publishing is deliberately gated behind the "pypi" / "testpypi"
-# environments so that it never happens as a side effect of a push.
-#
-# sdist とバイナリ wheel をビルドし、必要に応じて公開する。
-# push の副作用で公開されないよう、公開ジョブは "pypi" / "testpypi"
-# environment による承認ゲートの背後に置いている。
 name: release
 
+# Pushing a tag such as v0.3.0 builds the distributions and publishes them.
+# (v0.3.0 のようなタグを push すると配布物をビルドして公開する)
 on:
+  push:
+    tags:
+      - 'v*'
+  # Allows a dry run that builds everything without publishing.
+  # (公開せずにビルドだけ試すための手動実行)
   workflow_dispatch:
-    inputs:
-      publish_to:
-        description: 'Where to publish the built artifacts'
-        required: true
-        default: 'none'
-        type: choice
-        options:
-          - none
-          - testpypi
-          - pypi
+
+permissions:
+  contents: read
 
 jobs:
-  build-wheels:
-    name: wheels on ${{ matrix.os }}
+  check-version:
+    name: Check the tag against lpu/VERSION
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare the tag with lpu/VERSION
+        run: |
+          set -eu
+          version="$(cat lpu/VERSION)"
+          echo "lpu/VERSION: ${version}"
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "Not a tag build; skipping the comparison."
+            exit 0
+          fi
+          echo "tag: ${GITHUB_REF_NAME}"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match lpu/VERSION (${version})"
+            exit 1
+          fi
+
+  sdist:
+    name: Build the source distribution
+    needs: check-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Build
+        run: |
+          python -m pip install --upgrade build
+          python -m build --sdist
+      - name: Verify that the sdist installs and passes the tests
+        run: |
+          set -eu
+          python -m venv "${RUNNER_TEMP}/sdist-check"
+          "${RUNNER_TEMP}/sdist-check/bin/python" -m pip install \
+            "$(echo dist/*.tar.gz)[smt]" pytest
+          "${RUNNER_TEMP}/sdist-check/bin/python" -m pytest tests
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+  wheels:
+    name: Build wheels on ${{ matrix.os }}
+    needs: check-version
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-13, macos-latest]
+        # macos-latest is Apple silicon; cibuildwheel cross-compiles the
+        # x86_64 wheels from there (see [tool.cibuildwheel.macos]).
+        # Windows is left out because pycedar, required by the smt extra,
+        # publishes no wheel for it.
+        # (macos-latest は arm64。x86_64 は同ランナーからクロスビルドする。
+        #  Windows は smt エクストラが要求する pycedar の wheel が無いため除外)
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
-        env:
-          # The build targets are listed explicitly on purpose. cibuildwheel's
-          # default set includes release-candidate CPython versions and, from
-          # 3.14 on, the free-threaded builds; neither is verified here, and
-          # they must not reach PyPI unnoticed.
-          # ビルド対象は意図的に明示列挙している。cibuildwheel の既定集合には
-          # RC 版の CPython と、3.14 以降のフリースレッド版が含まれるが、
-          # どちらも検証しておらず、気付かないまま PyPI に載せてはならない。
-          CIBW_BUILD: 'cp310-* cp311-* cp312-* cp313-* cp314-*'
-          CIBW_SKIP: '*-musllinux_i686 *_i686 pp*'
-          CIBW_ARCHS_MACOS: 'auto'
-          # numpy and pycedar wheels exist for these platforms, so the full
-          # test suite can run against each built wheel.
-          # これらのプラットフォームには numpy と pycedar の wheel があるため、
-          # ビルドした wheel ごとにテスト全体を実行できる。
-          CIBW_TEST_REQUIRES: 'pytest'
-          CIBW_TEST_EXTRAS: 'smt'
-          CIBW_TEST_COMMAND: 'python -m pytest {project}/tests'
-
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: pypa/cibuildwheel@v4.2.1
+      - uses: actions/upload-artifact@v7
         with:
-          name: wheels-${{ matrix.os }}
-          path: ./wheelhouse/*.whl
-
-  build-sdist:
-    name: sdist
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Build the sdist
-        run: |
-          python -m pip install --upgrade pip build
-          python -m build --sdist
-
-      - name: The sdist must be installable on its own
-        run: |
-          python -m pip install dist/*.tar.gz
-          cd "$RUNNER_TEMP"
-          python -c "import lpu; print('lpu', lpu.__version__)"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sdist
-          path: ./dist/*.tar.gz
+          name: dist-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
 
   publish:
-    name: publish to ${{ inputs.publish_to }}
-    needs: [build-wheels, build-sdist]
-    if: inputs.publish_to != 'none'
+    name: Publish to PyPI
+    needs: [sdist, wheels]
+    # Never publish from a manual dry run. (手動実行では公開しない)
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    # Requires an environment of the same name to be configured in the
-    # repository settings; add a required reviewer there to keep the
-    # approval step manual.
-    # 同名の environment をリポジトリ設定側で作成しておく必要がある。
-    # 承認を手動に保つため、そこに required reviewer を設定する。
-    environment: ${{ inputs.publish_to }}
+    environment:
+      name: pypi
+      url: https://pypi.org/p/lpu
     permissions:
-      # Trusted publishing / Trusted publishing を利用する
+      # Required for Trusted Publishing. (Trusted Publishing に必要)
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
-          path: dist
+          pattern: dist-*
           merge-multiple: true
+          path: dist
+      - name: List the distributions
+        run: ls -l dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Publish
-        uses: pypa/gh-action-pypi-publish@release/v1
+  github-release:
+    name: Create the GitHub release
+    needs: publish
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
-          repository-url: >-
-            ${{ inputs.publish_to == 'testpypi'
-                && 'https://test.pypi.org/legacy/'
-                || 'https://upload.pypi.org/legacy/' }}
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/CHANGELOG.md) for the details of this release."
