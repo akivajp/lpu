@@ -5,11 +5,8 @@
 
 # Standard libraries
 import argparse
-import os
-import pprint
 import re
 import sys
-import subprocess
 
 # Local libraries
 from lpu.common import files

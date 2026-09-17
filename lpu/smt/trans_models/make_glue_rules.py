@@ -5,8 +5,6 @@
 
 # Standard libraries
 import argparse
-import sys
-import subprocess
 
 # Local libraries
 from lpu.common import files

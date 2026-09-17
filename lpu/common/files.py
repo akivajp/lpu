@@ -91,7 +91,7 @@ def getContentSize(path):
             pos = f_in.tell()
             f_in.close()
             return pos
-    except Exception as e:
+    except Exception:
         return -1
 
 

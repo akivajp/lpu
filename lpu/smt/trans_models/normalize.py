@@ -5,14 +5,12 @@
 
 # Standarde libraries
 import argparse
-import math
-import sys
 
 # Local libraries
 from lpu.common import files
 from lpu.common import logging
 from lpu.common import progress
-from lpu.smt.trans_models.records import MosesRecord, TravatarRecord
+from lpu.smt.trans_models.records import TravatarRecord
 from lpu.smt.trans_models.tables import Table
 
 logger = logging.getColorLogger(__name__)
@@ -80,7 +78,6 @@ def normalize_table(table_path, save_path):
                     for i, field in enumerate(rec.trg.split('|COL|')):
                         targets.append(field.strip())
                         target_numbers.append(i)
-                old = rec.to_str()
                 if last_src != rec.src:
                     for num in target_numbers:
                         src_total[num] = calc_src_factor(table, rec.src, num)

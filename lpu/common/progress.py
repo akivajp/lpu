@@ -215,7 +215,7 @@ class FileReader(object):
             try:
                 #self.counter.set_position(files.rawtell(self.source))
                 self.counter.set_position(self.tell())
-            except Exception as e:
+            except Exception:
                 pass
             self.counter.view()
             return buf
@@ -238,7 +238,7 @@ class FileReader(object):
             try:
                 #self.counter.set_position(files.rawtell(self.source))
                 self.counter.set_position(self.tell())
-            except Exception as e:
+            except Exception:
                 pass
             self.counter.view()
             return line

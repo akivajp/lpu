@@ -6,7 +6,6 @@ lpu.common の残りのモジュールのテスト。
 '''
 
 import gzip
-import io
 import os
 
 import pytest

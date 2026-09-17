@@ -15,7 +15,6 @@ test_commands.py と同じくサブプロセスで CLI を起動する end-to-en
 
 import gzip
 
-import pytest
 
 from conftest import requires_trans_models
 

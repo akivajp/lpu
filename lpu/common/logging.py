@@ -8,7 +8,6 @@ import ast
 import codecs
 import inspect
 import os
-import re
 import sys
 import tokenize
 import traceback
@@ -255,7 +254,6 @@ class ColorizingFormatter(logging.Formatter):
             self.setColor(key, color)
 
     def setLevelFormat(self, level, fmt):
-        level_name = getLevelString(level)
         level_rule = FilterCondition(level = level)
         self.addFormatRule(level_rule, fmt)
 

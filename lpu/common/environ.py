@@ -17,7 +17,7 @@ def _safe_debug_print(msg):
     try:
         #logger.debug(msg, stack_info=True)
         logger.debug(msg)
-    except Exception as e:
+    except Exception:
         pass
 
 def get_env(key, default=None, system=True):
@@ -105,10 +105,10 @@ class StackHolder(object):
                     try:
                         if os and os.environ:
                             os.environ.pop(key)
-                    except Exception as e:
-                        #logging.log(e)
-                        #logger.debug(e)
-                        logger.exception(e)
+                    except Exception:
+                        # the current exception is logged with its traceback
+                        # (発生中の例外がトレースバック込みでログされる)
+                        logger.exception("failed to unset a variable from os.environ")
         self.env_layer.clear()
         # note: python2.7 does not have list.clear
         del self.back_log[:]

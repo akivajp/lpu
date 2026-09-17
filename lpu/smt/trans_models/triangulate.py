@@ -56,7 +56,6 @@ NOPREFILTER = False
 class WorkSet:
     '''data set for multi-processing'''
     def __init__(self, savefile, workdir, method, **options):
-        prefix = options.get('prefix', 'phrase')
         self.multi_target = options.get('multi_target', False)
         self.Record = options.get('RecordClass', MosesRecord)
         self.method = method
@@ -284,7 +283,6 @@ def calcPhraseTransProbsByCounts(records):
 
 def calcPhraseTransProbsOnTable(table_path, savePath, **options):
     '''calculate phrase trans probs on the table in which co-occurrence counts are estimated'''
-    method = options.get('method', METHOD)
     RecordClass = options.get('RecordClass', MosesRecord)
 
     table_file = files.open(table_path, "r")
@@ -580,7 +578,6 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
         lexMethod = options.get('lexmethod', LEX_METHOD)
         jointMethod = options.get('jointmethod', JOINT_METHOD)
         matchMethod = options.get('matchmethod', MATCH_METHOD)
-        numNulls  = options.get('nulls', NULLS)
         multi_target = options.get('multitarget', False)
         logFile = options.get('log', '')
         showProgress = options.get('progress', True)

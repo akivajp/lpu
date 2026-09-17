@@ -115,7 +115,15 @@ dev = [
 select = [
     "E722", # bare except
     "E9",   # runtime / syntax errors
+    "F",    # pyflakes: unused imports / variables, undefined names
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# trie.py is a Cython source: `long` / `string` inside @cython.locals are
+# Cython type names, not Python names, so F821 misfires on them.
+# (trie.py は Cython ソース。@cython.locals 内の long / string は
+#  Cython の型名であり Python の名前ではないため F821 が誤検出する)
+"lpu/data_structs/trie.py" = ["F821"]
 
 [tool.mypy]
 # Gradual adoption: only the modules annotated so far are type-checked.

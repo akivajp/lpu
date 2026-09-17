@@ -5,7 +5,6 @@
 
 # Standard libraries
 import argparse
-import subprocess
 
 # Local libraries
 from lpu.common import files
@@ -28,7 +27,6 @@ def convertTravatarExtract(srcFile, saveFile, sync=None, flatten=None, reverse=F
         if len(fields) >= 4:
             srcSymbols = fields[0].strip().split(' ')
             trgSymbols = fields[1].strip().split(' ')
-            count = fields[2].strip()
             if sync:
                 srcSymbols, trgSymbols = records.syncTags(srcSymbols, trgSymbols, sync)
                 trgSymbols, srcSymbols = records.syncTags(trgSymbols, srcSymbols, sync)

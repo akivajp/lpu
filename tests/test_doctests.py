@@ -14,7 +14,6 @@ doctest を含むモジュールは純 Python のものだけを選んでいる�
 import doctest
 from importlib import import_module
 
-import pytest
 
 # Modules whose docstring examples are executed as tests
 # (docstring 例を実際に実行して検証するモジュール)

@@ -7,9 +7,7 @@ import random
 
 # Local libraries
 from lpu.common import files
-from lpu.common import environ
 from lpu.common import logging
-from lpu.common import numbers
 from lpu.common import progress
 from lpu.common import text
 from lpu.common.config import Config
@@ -144,7 +142,7 @@ def check_config(conf):
             try:
                 n = float(size)
                 conf.data.split_sizes[i] = n
-            except Exception as e:
+            except Exception:
                 msg = "string '%s' cannnot be converted to number (given invalid split sizes: %s)"
                 logger.warning(msg % (size, conf.data.split_sizes))
             if n <= 0:

@@ -5,8 +5,7 @@
 
 from __future__ import annotations
 
-import copy
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from lpu.common import logging
