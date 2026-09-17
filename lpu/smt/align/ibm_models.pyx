@@ -39,7 +39,15 @@ NULL_SYMBOL = '__NULL__'
 
 cdef tuple grid_indices(list x_indices, list y_indices):
     cdef ndarray[int64_t,ndim=2] indices1, indices2
-    indices1, indices2 = np.meshgrid(x_indices, y_indices, sparse=True)
+    # np.meshgrid of plain ints uses np.int_, which follows C `long` and is
+    # only 32 bits on Win64; the typed buffer access above requires int64.
+    # (素の int の np.meshgrid は C long に追従する np.int_ を使うため
+    #  Win64 では 32 ビットになり、上記の型付きバッファアクセスと不整合
+    #  を起こす。明示的に int64 へキャストする)
+    indices1, indices2 = np.meshgrid(
+        np.asarray(x_indices, dtype=np.int64),
+        np.asarray(y_indices, dtype=np.int64),
+        sparse=True)
     return indices1.T, indices2.T
 
 cdef ndarray[float64_t,ndim=2] sub_matrix(ndarray[float64_t,ndim=2] matrix, list x_indices, list y_indices):
