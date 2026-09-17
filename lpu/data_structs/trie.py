@@ -100,7 +100,7 @@ class IDMap(object):
                 return -1
         try:
             return self.dict[key]
-        except:
+        except Exception:
             return -1
 
     #def __delitem__(self, str key):

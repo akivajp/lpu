@@ -208,7 +208,7 @@ def safeMakeDirs(dirpath, **options):
         logger.debug('making directory: "%s"' % dirpath)
         try:
             os.makedirs(dirpath, **options)
-        except:
+        except OSError:
             logger.debug('cannot make directory: "%s"' % dirpath)
 
 def open(filename, mode = 'r'):

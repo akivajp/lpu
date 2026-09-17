@@ -38,9 +38,8 @@ def report(filepath, message):
         return False
     else:
         logger.info('Reporting into file: %s' % filepath)
-        fobj = open(filepath, 'w')
-        fobj.write(message)
-        fobj.close()
+        with open(filepath, 'w', encoding='utf-8') as fobj:
+            fobj.write(message)
         return True
 
 def remove(f):
@@ -78,7 +77,8 @@ def getPhaseCharge(conf, phase):
     #path = '%(tmpdir)s/__INIT__.%(stage)s.%(basename)s' % locals()
     path = '%(tmpdir)s/report.%(phase)s.begin' % locals()
     #return open(path, 'r').read()
-    chargeID = open(path, 'r').read()
+    with open(path, 'r', encoding='utf-8') as fobj_charge:
+        chargeID = fobj_charge.read()
     return chargeID
 
 def checkPhaseCharge(conf, phase):
@@ -117,8 +117,8 @@ def getInBuffer(conf):
     #bufname = '%(tmpdir)s/__BUFFER__%(hostproc)s' % conf
     bufname = '%(tmpdir)s/tmp.buffer' % conf
     #progCounter = progress.ProgressCounter(1, "buffering", force=True)
-    with open(conf.data.inPath, 'r') as inFile:
-        inbuf = open(bufname, 'w+')
+    with open(conf.data.inPath, 'r', encoding='utf-8') as inFile:
+        inbuf = open(bufname, 'w+', encoding='utf-8')
         logger.info("Buffering into file: \"%s\"" % inbuf.name)
         lineCount = 0
         with progress.view(inFile, 'buffering') as p:

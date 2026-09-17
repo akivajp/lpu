@@ -54,7 +54,7 @@ class ConfigData(object):
             try:
                 first_key, remain_keys = key.split('.', 1)
                 return self.__getitem__(first_key).__contains__(remain_keys)
-            except:
+            except Exception:
                 return False
         elif main.__contains__(key):
             return True
@@ -72,7 +72,7 @@ class ConfigData(object):
     def __getattr__(self, key):
         try:
             return self.__getitem__(key)
-        except:
+        except Exception:
             name = self.__class__.__name__
             dprint(name)
             dprint(key)

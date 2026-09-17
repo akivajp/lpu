@@ -460,7 +460,7 @@ def _get_cached_line(path, lineno, fallback=None, frame=None):
         if lineno in range(1, len(lines)+1):
             return lines[lineno-1]
         #return _cached_lines.get(path).get(lineno-1, fallback)
-    except:
+    except Exception:
         pass
     return fallback
 

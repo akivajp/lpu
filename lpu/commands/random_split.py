@@ -154,7 +154,10 @@ def check_config(conf):
     return True
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description='Split a parallel corpus at random into several parts, '
+                    'keeping the line correspondence between the sides.'
+    )
     parser.add_argument('--input', '-I', help='input files', type=str, required=True, nargs='+')
     parser.add_argument('--prefixes', '-P', help='prefixes of splitted files (should be same number with INPUT)', type=str, default=[], nargs='+')
     parser.add_argument('--suffixes', '-S', help='suffixes of splittted files (should be same number with INPUT)', type=str, default=[], nargs='+')

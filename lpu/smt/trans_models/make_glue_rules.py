@@ -20,7 +20,7 @@ def makeGlueRules(srcRuleTable, saveRules, progress = False):
       #srcRuleTable = files.open(srcRuleTable)
       srcRuleTable = files.open(srcRuleTable, 'rt')
     if type(saveRules) == str:
-        saveRules = open(saveRules, 'wt')
+        saveRules = open(saveRules, 'wt', encoding='utf-8')
     if progress:
         srcRuleTable = view(srcRuleTable)
     for line in srcRuleTable:

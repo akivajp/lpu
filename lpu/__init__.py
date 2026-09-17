@@ -15,7 +15,10 @@ import os.path
 from . common import logging
 
 version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
-__version__ = open(version_file).read().strip()
+# encoding を明示し、ハンドルを確実にクローズする
+# (旧実装は encoding 未指定かつハンドル未クローズで ResourceWarning の元凶だった)
+with open(version_file, encoding='utf-8') as _version_fp:
+    __version__ = _version_fp.read().strip()
 
 logger = logging.getColorLogger(__name__)
 
