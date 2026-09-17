@@ -9,6 +9,18 @@ def to_type_names_string(
     types: type | list[type] | tuple[type, ...],
     conjunction: str = 'or',
 ) -> str:
+    '''Render type(s) as a human readable string
+
+    型 (またはその列) を人間可読な文字列に整形する。
+
+    Examples:
+        >>> to_type_names_string(int)
+        'int'
+        >>> to_type_names_string([str, bytes])
+        'str or bytes'
+        >>> to_type_names_string((int, float, str))
+        'int, float or str'
+    '''
     if isinstance(types, (list, tuple)):
         length = len(types)
         if length == 0:

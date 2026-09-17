@@ -124,6 +124,12 @@ def calc_normalized_kendalls_tau(orders: Sequence[int]) -> float:
 
     Returns:
         The normalized Kendall's tau. 正規化 Kendall's tau。
+
+    Examples:
+        >>> calc_normalized_kendalls_tau([1, 2, 3])
+        1.0
+        >>> calc_normalized_kendalls_tau([3, 2, 1])
+        0.0
     '''
     n = len(orders)
     if n == 0:
@@ -199,6 +205,10 @@ def eval_ribes(
 
     Returns:
         The RIBES score in [0, 1]. [0, 1] の範囲の RIBES スコア。
+
+    Examples:
+        >>> eval_ribes(list('abcd'), list('abcd'))
+        1.0
     '''
     if not hyp or not ref:
         return 0.0

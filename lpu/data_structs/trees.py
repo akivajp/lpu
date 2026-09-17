@@ -69,6 +69,15 @@ class TreeNode(object):
 
         Returns:
             The root TreeNode. 根の TreeNode。
+
+        Examples:
+            >>> tree = TreeNode.fromS('(S (NP the cat) (VP sat))')
+            >>> tree.label
+            'S'
+            >>> [child.label for child in tree.children]
+            ['NP', 'VP']
+            >>> str(tree)
+            '(S (NP (the) (cat)) (VP (sat)))'
         '''
         parsed, _ = parseSExpression(expr)
         return TreeNode._fromParsed(parsed)

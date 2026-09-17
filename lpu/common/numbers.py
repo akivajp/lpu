@@ -24,6 +24,12 @@ def toNumber(num_any: float | int | str, margin: float = 0) -> int | float:
     Returns:
         An int when within the margin, otherwise a float.
             許容誤差内なら int、そうでなければ float。
+
+    Examples:
+        >>> toNumber('3.0000001', 0.001)
+        3
+        >>> toNumber(3.5)
+        3.5
     '''
     num_float = float(num_any)
     num_int = int(round(num_float))
@@ -37,6 +43,12 @@ def intToBytes(n: int, length: int, byteorder: Literal['big', 'little'] = 'big')
     '''convert a non-negative int into a byte string of the given length
 
     非負の int を指定した長さのバイト列に変換する。
+
+    Examples:
+        >>> intToBytes(300, 4)
+        b'\\x00\\x00\\x01,'
+        >>> intFromBytes(intToBytes(300, 4))
+        300
     '''
     return int.to_bytes(n, length, byteorder)
 
@@ -45,5 +57,9 @@ def intFromBytes(b: bytes | bytearray, byteorder: Literal['big', 'little'] = 'bi
     '''convert a byte string back into an int
 
     バイト列を int に戻す。
+
+    Examples:
+        >>> intFromBytes(b'\\x00\\x00\\x01,')
+        300
     '''
     return int.from_bytes(b, byteorder)

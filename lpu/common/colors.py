@@ -23,6 +23,19 @@ COLOR_MAP = {
 }
 
 def put_color(content: str, color: str | None = None, eachline: bool = True) -> str:
+    r'''colorize a string with the given ANSI color name
+
+    An unknown color name (or None) returns the content unchanged.
+
+    文字列を指定した ANSI 色名で色付けする。色名が None や未知の場合は
+    文字列をそのまま返す。
+
+    Examples:
+        >>> put_color('hi', 'red')
+        '\x1b[31mhi\x1b[0m'
+        >>> put_color('hi', 'unknown')
+        'hi'
+    '''
     # `color` が None や未知の色名の場合はコード無し (元の文字列をそのまま返す)
     code = COLOR_MAP.get(color) if color is not None else None
     #code = colors[color]

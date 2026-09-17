@@ -52,6 +52,24 @@ def eval_bleu(
     order: int = 4,
     smooth: bool = False,
 ) -> float:
+    '''Evaluate the BLEU score of a hypothesis against a reference
+
+    仮説文の BLEU スコアを参照文に対して評価する。
+
+    Args:
+        ref: Reference word sequence. 参照文の語列。
+        hyp: Hypothesis word sequence. 仮説文の語列。
+        order: Highest n-gram order considered. 考慮する n-gram の最大次数。
+        smooth: Add-one smoothing for unseen n-grams.
+            未出現 n-gram への加算スムージング。
+
+    Returns:
+        The BLEU score in [0, 1]. [0, 1] の範囲の BLEU スコア。
+
+    Examples:
+        >>> round(eval_bleu(list('abcdef'), list('abcd')), 4)
+        0.6065
+    '''
     precisions = []
     for i in range(1, order+1):
         precisions.append( calc_ngram_precision(ref, hyp, i, smooth) )
