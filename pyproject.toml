@@ -132,6 +132,8 @@ select = [
 # 新規モジュールは注釈を付けてここに追加していく。
 files = [
     "lpu/common/colors.py",
+    "lpu/common/config.py",
+    "lpu/common/files.py",
     "lpu/common/numbers.py",
     "lpu/common/text.py",
     "lpu/common/validation.py",

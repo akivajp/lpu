@@ -3,10 +3,13 @@
 
 '''Configuration utility class for function settings'''
 
+from __future__ import annotations
+
 # Standard libraries
 import json
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator, Mapping
+from typing import Any
 
 # Local libraries
 from lpu.common import logging
@@ -15,9 +18,18 @@ dprint = logger.debug_print
 
 class ConfigData(object):
     '''Configuration data holder'''
-    def __init__(self, _base=None, **args):
-        base = None
-        main = None
+
+    # The actual storage is written into __dict__ under mangled aliases in
+    # __init__ (see the comment there). These declarations only let the type
+    # checker see the attributes.
+    # (実体は __init__ 内で __dict__ に名前修飾付きの別名として書き込まれる。
+    #  ここでの宣言は型チェッカーが属性を認識するためのもの)
+    __base: "OrderedDict[str, Any] | ConfigData | None"
+    __main: "OrderedDict[str, Any]"
+
+    def __init__(self, _base: Any = None, **args: Any) -> None:
+        base: "OrderedDict[str, Any] | ConfigData | None" = None
+        main: OrderedDict[str, Any]
         if isinstance(_base, Config):
             base = _base.data
         elif isinstance(_base, ConfigData):
@@ -45,7 +57,7 @@ class ConfigData(object):
         if args:
             self.__main.update(args)
 
-    def __contains__(self, key):
+    def __contains__(self, key: Any) -> bool:
         main = self.__main
         base = self.__base
         if isinstance(key, str) and key.find('.') >= 0:
@@ -61,14 +73,14 @@ class ConfigData(object):
             return True
         return False
 
-    def __delattr__(self, key):
+    def __delattr__(self, key: str) -> None:
         if key in self.__main:
             del self.__main[key]
         else:
             name = self.__class__.__name__
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    def __getattr__(self, key):
+    def __getattr__(self, key: str) -> Any:
         try:
             return self.__getitem__(key)
         except Exception:
@@ -77,7 +89,7 @@ class ConfigData(object):
             dprint(key)
             raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         main = self.__main
         if isinstance(key, str):
             if key.find('.') >= 0:
@@ -109,7 +121,7 @@ class ConfigData(object):
             msg = 'Invalid type of key object is given: {} (expected str or Iterable, but expected: {})'
             raise TypeError(msg.format(repr(key), type(key).__name__))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         base = self.__base
         main = self.__main
         l = list()
@@ -129,11 +141,11 @@ class ConfigData(object):
             if not key.startswith('_'):
                 yield(key)
 
-    def __len__(self):
+    def __len__(self) -> int:
         #return len(set(self))
         return sum(1 for _ in self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         name = self.__class__.__name__
         main = self.__main
         base = self.__base
@@ -153,7 +165,7 @@ class ConfigData(object):
         #    return "%s(%r, %s)" % (name,self.__base,str_params)
         #    return "%s(%s)" % (name,self.__base)
 
-    def __setattr__(self, key, val):
+    def __setattr__(self, key: str, val: Any) -> None:
         self.__setitem__(key, val)
         #if key.startswith('_'):
         #    raise KeyError('Key should not start with "_": %s' % key)
@@ -161,7 +173,7 @@ class ConfigData(object):
         #    self.__main.__setitem__(key, val)
 
     ##@cython.locals(conf = ConfigData) # error in python 3.x
-    def __setitem__(self, key, val):
+    def __setitem__(self, key: str, val: Any) -> None:
         main = self.__main
         base = self.__base
         # check the key validity
@@ -181,7 +193,11 @@ class ConfigData(object):
                     msg = "retrieved object with key '{}': {}, does not allow chained access with key '{}'"
                     raise KeyError(msg.format(first_key, repr(retrieved), remain_keys))
             elif base and base.__contains__(first_key):
-                retrieved = self.__base.__getitem__(first_key)
+                # use the narrowed local alias (base) rather than re-reading
+                # self.__base, whose Optional type the checker cannot narrow
+                # (真偽判定済みのローカル変数 base を使う。self.__base を
+                #  再読み込みすると None 含みの型のままで絞り込めないため)
+                retrieved = base.__getitem__(first_key)
                 if isinstance(retrieved, ConfigData):
                     # deriving as base data
                     conf = ConfigData(retrieved)
@@ -204,14 +220,14 @@ class Config(object):
     '''Configuration maintenance class'''
 
     #def __cinit__(self, _base = None, **args):
-    def __init__(self, _base = None, **args):
+    def __init__(self, _base: Any = None, **args: Any) -> None:
         #self.data = ConfigData(_base)
         self.data = ConfigData(_base=_base)
         self.base = self.data.__base
         if args:
             self.update(args)
 
-    def cast(self, name, typeof):
+    def cast(self, name: str, typeof: type) -> Any:
         val = self.require_any(name)
         if type(val) == typeof:
             return val
@@ -221,7 +237,7 @@ class Config(object):
             self.data[name] = casted
             return casted
 
-    def has(self, key):
+    def has(self, key: str | Iterable[str]) -> bool:
         if type(key) is str:
             return key in self
         elif isinstance(key, Iterable):
@@ -229,7 +245,7 @@ class Config(object):
         else:
             raise TypeError("Expected str or iterable type, but given: %s" % type(key).__name__)
 
-    def get(self, key, default = None):
+    def get(self, key: "str | Iterable[str]", default: Any = None) -> Any:
         if type(key) is str:
             if key in self:
                 return self[key]
@@ -240,12 +256,12 @@ class Config(object):
         else:
             raise TypeError("Expected str or iterable type, but given: %s" % type(key).__name__)
 
-    def items(self):
+    def items(self) -> Iterator[tuple[str, Any]]:
         for key in self:
             yield key, self[key]
 
     #def load_json(self, str str_json, bool override=True):
-    def load_json(self, str_json, override=True):
+    def load_json(self, str_json: str | bytes, override: bool = True) -> Config:
         #self.update(json.loads(compat.to_str(strJSON)))
         #uniDict = json.loads(strJSON)
         d = json.loads(str_json, object_pairs_hook=OrderedDict)
@@ -254,13 +270,18 @@ class Config(object):
         self.update(d, override)
         return self
 
-    def require(self, name, desc = None, typeOf = None):
+    def require(
+        self,
+        name: str,
+        desc: str | None = None,
+        typeOf: type | None = None,
+    ) -> Any:
         val = self.require_any(name, desc)
         if typeOf:
             self.require_type(name, typeOf)
         return val
 
-    def require_any(self, name, desc = None):
+    def require_any(self, name: str, desc: str | None = None) -> Any:
         if name not in self.data:
             if desc:
                 raise KeyError('Configuration "%s" (%s) is not defined' % (name, desc))
@@ -268,18 +289,22 @@ class Config(object):
                 raise KeyError('Configuration "%s" is not defined' % (name))
         return self.data.__getitem__(name)
 
-    def require_type(self, name, typeOf):
+    def require_type(self, name: str, typeOf: type) -> Any:
         val = self.require_any(name)
         if type(val) != typeOf:
             msg = 'Configuration "%s" should be type of %s, but given %s'
-            logging.alert(msg % (name, typeOf, type(val)))
+            # lpu.common.logging has no alert(); the original call would have
+            # crashed with AttributeError instead of reporting the mismatch.
+            # (lpu.common.logging には alert() が存在せず、元の呼び出しは
+            #  型不一致の報告ではなく AttributeError で落ちていた)
+            logger.error(msg % (name, typeOf, type(val)))
         return val
 
-    def set(self, key, val):
+    def set(self, key: str, val: Any) -> Any:
         self[key] = val
         return self[key]
 
-    def setdefault(self, key, val):
+    def setdefault(self, key: str, val: Any) -> Any:
         if key not in self:
             return self.set(key, val)
         elif self[key] == None:
@@ -287,15 +312,26 @@ class Config(object):
         else:
             return self[key]
 
-    def to_dict(self, key=None, ordered=False, upstream=False, recursive=True, purge=False, flat=False):
+    def to_dict(
+        self,
+        key: str | None = None,
+        ordered: bool = False,
+        upstream: bool = False,
+        recursive: bool = True,
+        purge: bool | None = False,
+        flat: bool = False,
+    ) -> dict[str, Any]:
         data = self.data
+        dtype: type
         if ordered:
             dtype = OrderedDict
         else:
             dtype = dict
         if key:
             data = data[key]
-        dic = data2dict(data, dtype, upstream, recursive, purge)
+        # purge is only used truthily, so a None purge is normalized to False
+        # (purge は真偽値としてのみ使われるため、None は False に正規化する)
+        dic = data2dict(data, dtype, upstream, recursive, bool(purge))
         if flat:
             #return flat_dict(data2dict(data, dtype, upstream, recursive), dtype, False)
             #return flat_dict(data2dict(data, dtype, upstream, recursive, purge), dtype, False)
@@ -306,11 +342,25 @@ class Config(object):
             return dic
 
     #def to_json(self, key=None, upstream=False, purge=None, **options):
-    def to_json(self, key=None, upstream=True, purge=None, **options):
-        d = self.to_dict(key, True, upstream, True, purge, False)
+    def to_json(
+        self,
+        key: str | None = None,
+        upstream: bool = True,
+        purge: bool | None = None,
+        **options: Any,
+    ) -> str:
+        # purge is only used truthily, so a None purge is normalized to False
+        # (purge は真偽値としてのみ使われるため、None は False に正規化する)
+        d = self.to_dict(key, True, upstream, True, bool(purge), False)
         return json.dumps(d, **options)
 
-    def update(self, _conf = None, _override=True, _override_none=False, **args):
+    def update(
+        self,
+        _conf: Any = None,
+        _override: bool = True,
+        _override_none: bool = False,
+        **args: Any,
+    ) -> Config:
         #if _conf:
         #            if val != None:
         #                #dprint(key)
@@ -321,35 +371,35 @@ class Config(object):
         update_data(self.data, _conf, _override, _override_none, **args)
         return self
 
-    def __contains__(self, key):
+    def __contains__(self, key: Any) -> bool:
         return self.data.__contains__(key)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         return self.data.__getitem__(key)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return self.data.__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.data.__len__()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         cls = self.__class__
         name = cls.__name__
         #strParams = get_key_val_str(vars(self.data), False)
         return "%s(%r)" % (name, self.data)
 
-    def __setitem__(self, key, val):
+    def __setitem__(self, key: str, val: Any) -> None:
         self.data.__setitem__(key, val)
 
 #def get_items(object data, bool purge):
-def get_items(data, purge):
+def get_items(data: Any, purge: bool) -> Iterator[tuple[str, Any]]:
     for key in data:
         val = data[key]
         if should_take(val, purge):
             yield key, val
 
-def should_take(val, purge):
+def should_take(val: Any, purge: bool) -> bool:
     if not purge:
         return True
     if val is None:
@@ -363,7 +413,13 @@ def should_take(val, purge):
     return True
 
 # type object is problematic in python 3.6?
-def data2dict(data, dtype, upstream, recursive, purge):
+def data2dict(
+    data: Any,
+    dtype: type,
+    upstream: bool,
+    recursive: bool,
+    purge: bool,
+) -> Any:
     #data = data
     if not isinstance(data, ConfigData):
         # as-is
@@ -373,7 +429,7 @@ def data2dict(data, dtype, upstream, recursive, purge):
         if upstream:
             #return dtype((key,data[key]) for key in data)
             #return dtype(get_items(data))
-            items = get_items(cdata, purge)
+            items: Iterable[tuple[str, Any]] = get_items(cdata, purge)
         else:
             #return dtype((key,data[key]) for key in cdata.__main)
             items = get_items(cdata.__main, purge)
@@ -391,13 +447,16 @@ def data2dict(data, dtype, upstream, recursive, purge):
             #return dtype((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(cdata.__main, purge))
             data = cdata.__main
         #items = ((key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(data, purge))
-        items = [(key,data2dict(val, dtype, upstream, recursive, purge)) for key, val in get_items(data, purge)]
+        items = [
+            (key, data2dict(val, dtype, upstream, recursive, purge))
+            for key, val in get_items(data, purge)
+        ]
         if purge:
             #items = ((key, val) for key, val in items if should_take(val, purge))
             items = [(key, val) for key, val in items if should_take(val, purge)]
         return dtype(items)
 
-def dict2data(obj):
+def dict2data(obj: Any) -> Any:
     if not isinstance(obj, dict):
         # as-is
         return obj
@@ -406,14 +465,18 @@ def dict2data(obj):
         conf[key] = dict2data(value)
     return conf
 
-def get_key_val_str(d, verbose):
+def get_key_val_str(d: Mapping[str, Any], verbose: bool) -> str:
     if verbose:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items()]
     else:
         items = ["%s=%r" % (t[0],t[1]) for t in d.items() if not t[0].startswith('_')]
     return str.join(', ', items)
 
-def flat_items(items, prefix, chain_key):
+def flat_items(
+    items: Iterable[tuple[str, Any]],
+    prefix: str | None,
+    chain_key: bool,
+) -> list[tuple[str, Any]]:
     flatten = []
     if chain_key:
         if prefix:
@@ -429,19 +492,34 @@ def flat_items(items, prefix, chain_key):
         else:
             flatten.append( (full_key,val) )
     return flatten
-def flat_dict(d, dtype, chain_key):
+def flat_dict(
+    d: Mapping[str, Any],
+    dtype: type,
+    chain_key: bool,
+) -> dict[str, Any]:
     flatten = dtype()
     for key, val in flat_items(d.items(), None, chain_key):
         if key not in flatten:
             flatten[key] = val
     return flatten
 
-def update_data(cdata, _conf = None, _override=True, _override_none=False, **args):
+def update_data(
+    cdata: Any,
+    _conf: Any = None,
+    _override: bool = True,
+    _override_none: bool = False,
+    **args: Any,
+) -> Any:
     cdata = _update_data(cdata, _conf, _override, _override_none)
     if args:
         cdata = _update_data(cdata, args, _override, _override_none)
     return cdata
-def _update_data(cdata, _conf = None, _override=True, _override_none=False):
+def _update_data(
+    cdata: Any,
+    _conf: Any = None,
+    _override: bool = True,
+    _override_none: bool = False,
+) -> Any:
     if _conf is None:
         # Nothing to do when no source is given. This branch is taken when
         # called with keyword arguments only, as in Config.update(key=value).

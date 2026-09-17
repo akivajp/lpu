@@ -3,6 +3,8 @@
 
 '''Auxiliary functions for file I/O'''
 
+from __future__ import annotations
+
 # Standard libraries
 import gzip
 import io
@@ -10,6 +12,8 @@ import os.path
 import sys
 import tempfile
 import time
+from collections.abc import Iterable
+from typing import Any
 
 # Local libraries
 from lpu.common import logging
@@ -23,25 +27,27 @@ DEFAULT_BUFFER_SIZE = 10 * (1024 ** 2) # 10MB
 
 _open = open
 
-if sys.version_info.major >= 3:
-    bin_stdin  = sys.stdin.buffer
-    bin_stdout = sys.stdout.buffer
-    bin_stderr = sys.stderr.buffer
-    file = io.IOBase
-    FileType = io.IOBase
-else:
-    bin_stdin  = sys.stdin
-    bin_stdout = sys.stdout
-    bin_stderr = sys.stderr
-    FileType = file
-    FileNotFoundError = IOError
+# Python 2 compatibility shims were removed: the package requires Python
+# 3.10+ (requires-python), so the sys.version_info check below always takes
+# the Python 3 branch.
+# (Python 2 互換の代替定義は削除。requires-python により 3.10 以上が前提で、
+#  下記のバージョン分岐は常に Python 3 側を通るため)
+bin_stdin  = sys.stdin.buffer
+bin_stdout = sys.stdout.buffer
+bin_stderr = sys.stderr.buffer
+FileType: type[io.IOBase] = io.IOBase
 
 #def autoCat(filenames, target):
-def concat_into(filenames, target, progress=True):
+def concat_into(
+    filenames: "str | list[str]",
+    target: str,
+    progress: bool = True,
+) -> None:
     '''
         concatenate and copy files into target file (expanding for compressed ones)
     '''
-    if type(filenames) != list:
+    if not isinstance(filenames, list):
+        # a single path is accepted as well
         filenames = [filenames]
     f_out = open(target, 'wb')
     if progress:
@@ -60,7 +66,7 @@ def concat_into(filenames, target, progress=True):
             f_in.close()
     f_out.close()
 
-def castFile(anyFile):
+def castFile(anyFile: Any) -> io.IOBase:
     '''try to convert any argument to file like object
     * if given file like object, then return itself
     * otherwise (e.g. given file path string), try to open it and return file object'''
@@ -69,7 +75,7 @@ def castFile(anyFile):
     else:
         return open(anyFile)
 
-def getContentSize(path):
+def getContentSize(path: str) -> int:
     '''get the file content size (expanded size for compressed one)'''
     try:
         f_in = _open(path, 'rb')
@@ -95,7 +101,7 @@ def getContentSize(path):
         return -1
 
 
-def get_ext(filename):
+def get_ext(filename: str) -> str:
     '''get the extension of given file'''
     (name, ext) = os.path.splitext(filename)
     return ext
@@ -104,7 +110,7 @@ def get_ext(filename):
 #    #return isinstance(obj, (io.IOBase,file))
 #    return isinstance(obj, FileType)
 
-def is_gzipped(filename):
+def is_gzipped(filename: str) -> bool:
     '''check whether the given file is compressed by gzip or not
 
     Only the 2-byte magic number (0x1f 0x8b) at the head is checked.
@@ -121,7 +127,7 @@ def is_gzipped(filename):
     except Exception:
         return False
 
-def is_mode(fobj, mode):
+def is_mode(fobj: Any, mode: str) -> bool | None:
     if mode in ('r', 'read'):
         return fobj.mode.find('r') >= 0
     elif mode in ('w', 'write'):
@@ -140,8 +146,14 @@ def is_mode(fobj, mode):
             return False
         else:
             return sys.version_info.major >= 3
+    return None
 
-def load(filepath_or_buffer, out_buffer, progress = True, bs = DEFAULT_BUFFER_SIZE):
+def load(
+    filepath_or_buffer: str | Any,
+    out_buffer: io.IOBase,
+    progress: bool = True,
+    bs: int = DEFAULT_BUFFER_SIZE,
+) -> io.IOBase:
     '''load all the content of given file (expand if compressed)'''
     if isinstance(filepath_or_buffer, str):
         # file path
@@ -183,26 +195,45 @@ def load(filepath_or_buffer, out_buffer, progress = True, bs = DEFAULT_BUFFER_SI
         #f_in = gzip.GzipFile(fileobj = data)
         #f_in.myfileobj = data
         fobj = gzip.GzipFile(fileobj = out_buffer)
-        fobj.myfileobj = out_buffer
+        # typeshed declares myfileobj as FileIO | None; non-FileIO buffers
+        # such as BytesIO work fine at runtime.
+        # (typeshed 上の myfileobj は FileIO | None だが、BytesIO のような
+        #  非 FileIO のバッファも実行時には問題なく動作する)
+        fobj.myfileobj = out_buffer  # type: ignore[assignment]
         return fobj
     else:
         return out_buffer
 
-def load_to_buffer(filepath_or_buffer, progress=True, bs=DEFAULT_BUFFER_SIZE):
+def load_to_buffer(
+    filepath_or_buffer: str | Any,
+    progress: bool = True,
+    bs: int = DEFAULT_BUFFER_SIZE,
+) -> io.IOBase:
     #data = io.BytesIO()
     return load(filepath_or_buffer, io.BytesIO(), progress, bs)
 
-def load_to_temp(filepath_or_buffer, progress=True, bs=DEFAULT_BUFFER_SIZE, named = True):
+def load_to_temp(
+    filepath_or_buffer: str | Any,
+    progress: bool = True,
+    bs: int = DEFAULT_BUFFER_SIZE,
+    named: bool = True,
+) -> Any:
+    # NamedTemporaryFile exposes the real file object as `.file`, while
+    # TemporaryFile is the file object itself; typeshed's IO[bytes] return
+    # types hide both, so they are treated as Any here.
+    # (NamedTemporaryFile は実際のファイルを .file に持ち、TemporaryFile は
+    #  自身がファイルオブジェクト。typeshed の IO[bytes] ではどちらも
+    #  見えないため Any として扱う)
+    temp: Any
     if named:
         temp = tempfile.NamedTemporaryFile()
         load(filepath_or_buffer, temp.file, progress, bs)
-        return temp
     else:
         temp = tempfile.TemporaryFile()
         load(filepath_or_buffer, temp, progress, bs)
-        return temp
+    return temp
 
-def safeMakeDirs(dirpath, **options):
+def safeMakeDirs(dirpath: str, **options: Any) -> None:
     '''make directories recursively for given path, don't throw exception if directory exists but if file exists'''
     if not os.path.isdir(dirpath):
         logger.debug('making directory: "%s"' % dirpath)
@@ -211,8 +242,12 @@ def safeMakeDirs(dirpath, **options):
         except OSError:
             logger.debug('cannot make directory: "%s"' % dirpath)
 
-def open(filename, mode = 'r'):
+def open(filename: str, mode: str = 'r') -> io.IOBase:
     '''open the plain/compressed file transparently'''
+    # gzip.open / io.open have unrelated typeshed classes, so the holder is
+    # typed as Any.
+    # (gzip.open と _open の typeshed 上の型が異なるため Any で受ける)
+    file_obj: Any
     if get_ext(filename) == '.gz':
         file_obj = gzip.open(filename, mode)
     elif mode.find('r') >= 0 and is_gzipped(filename):
@@ -226,7 +261,7 @@ def open(filename, mode = 'r'):
             file_obj = _open(filename, mode)
     return file_obj
 
-def rawfile(f):
+def rawfile(f: Any) -> io.IOBase:
     if hasattr(f, 'myfileobj'):
         # for archive files such as gzip
         return f.myfileobj
@@ -245,7 +280,7 @@ def rawfile(f):
         #logging.debug(dir(f))
         assert False
 
-def rawsize(f):
+def rawsize(f: Any) -> int:
     try:
         raw = rawfile(f)
         pos = raw.tell()
@@ -261,21 +296,27 @@ def rawsize(f):
         logger.debug(repr(e))
         return -1
 
-def rawremain(f):
+def rawremain(f: Any) -> int:
     return rawsize(f) - rawtell(f)
 
-def rawtell(fileobj):
+def rawtell(fileobj: Any) -> int:
     '''get the current position of the opend file, return raw (not expanded) position for compressed'''
     return rawfile(fileobj).tell()
 
-def testFile(path):
+def testFile(path: str) -> bool:
     '''test file existence'''
     if os.path.isfile(path):
         return True
     #logger.debug("file does not exist: '%s'" % path)
     raise FileNotFoundError("file does not exist: '%s'" % path)
 
-def wait_file(filepath, interval=1, timeout=0, delay=0, quiet=False):
+def wait_file(
+    filepath: str,
+    interval: float = 1,
+    timeout: float = 0,
+    delay: float = 0,
+    quiet: bool = False,
+) -> bool:
     if interval < 0:
         interval = 1
     if delay > 0:
@@ -295,7 +336,13 @@ def wait_file(filepath, interval=1, timeout=0, delay=0, quiet=False):
         logger.info("file exists: %s" % filepath)
     return True
 
-def wait_files(filepaths, interval=1, timeout=0, delay=0, quiet=False):
+def wait_files(
+    filepaths: str | Iterable[str],
+    interval: float = 1,
+    timeout: float = 0,
+    delay: float = 0,
+    quiet: bool = False,
+) -> None:
     if isinstance(filepaths, str):
         filepaths = [filepaths]
     for path in filepaths:
