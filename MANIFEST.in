@@ -11,6 +11,10 @@ include CHANGELOG.ja.md
 # sdist から拡張モジュールを再ビルドするために Cython のソースが必要
 recursive-include lpu *.pxd *.pyx
 
+# The PEP 561 marker, so that type checkers recognize the annotations
+# 型チェッカーが注釈を認識できるよう PEP 561 のマーカーファイルを含める
+include lpu/py.typed
+
 # The test suite, so that downstream packagers can run it
 # 再配布者がテストを実行できるようにテストスイートも含める
 recursive-include tests *.py

@@ -16,6 +16,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Lint with ruff. Only correctness-oriented rules are enabled for now
+  # (see [tool.ruff.lint] in pyproject.toml), because the codebase mixes
+  # legacy naming styles that style rules would flood us with.
+  # (ruff による lint。スタイル系ルールは現状無効のため、実害系のみ)
+  lint:
+    name: lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - run: python -m pip install ruff mypy
+      - run: ruff check .
+      # mypy checks only the annotated modules listed in [tool.mypy]
+      # (mypy は [tool.mypy] の files に列挙した注釈済みモジュールのみ検査する)
+      - run: mypy
+
   test:
     name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}

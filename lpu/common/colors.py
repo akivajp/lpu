@@ -22,8 +22,9 @@ COLOR_MAP = {
     'white' : '\033[37m'
 }
 
-def put_color(content, color=None, eachline=True):
-    code = COLOR_MAP.get(color, None)
+def put_color(content: str, color: str | None = None, eachline: bool = True) -> str:
+    # `color` が None や未知の色名の場合はコード無し (元の文字列をそのまま返す)
+    code = COLOR_MAP.get(color) if color is not None else None
     #code = colors[color]
     if code:
         if eachline:

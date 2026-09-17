@@ -3,8 +3,11 @@
 
 '''tree expression and operations'''
 
+from __future__ import annotations
+
 import copy
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 from lpu.common import logging
 logger = logging.getColorLogger(__name__)
@@ -14,12 +17,12 @@ class TreeNode(object):
 
     #def __cinit__(self, object label):
     #def __cinit__(self, str label):
-    def __init__(self, label):
-        self.children = []
+    def __init__(self, label: str):
+        self.children: list[TreeNode] = []
         #self.children = Forest()
         self.label = label
 
-    def append(self, node):
+    def append(self, node: "TreeNode | str") -> "TreeNode":
         if isinstance(node, TreeNode):
             self.children.append(node)
         elif isinstance(node, str):
@@ -27,7 +30,7 @@ class TreeNode(object):
         #    raise TypeError('expected TreeNode or str, given %s' % type(node))
         return self
 
-    def checkValid(self, deep=True):
+    def checkValid(self, deep: bool = True) -> bool:
         '''check whether this node (and optionally its subtree) is valid
 
         A node is invalid when it has children but an empty label.
@@ -51,7 +54,7 @@ class TreeNode(object):
         return True
 
     @staticmethod
-    def fromS(expr):
+    def fromS(expr: str) -> "TreeNode":
         '''build a tree from an S-expression string
 
         Note: up to 0.2.x this ignored its argument and always returned an
@@ -71,7 +74,7 @@ class TreeNode(object):
         return TreeNode._fromParsed(parsed)
 
     @staticmethod
-    def _fromParsed(parsed):
+    def _fromParsed(parsed: "str | list") -> "TreeNode":
         '''convert the nested lists of parseSExpression into TreeNodes
 
         parseSExpression が返す入れ子リストを TreeNode に変換する。
@@ -87,7 +90,7 @@ class TreeNode(object):
             node.append(TreeNode._fromParsed(sub))
         return node
 
-    def toStr(self):
+    def toStr(self) -> str:
 #        map(Tree.toStr, self.children)
         strChildren = ''
         if not self.checkValid(False):
@@ -101,13 +104,13 @@ class TreeNode(object):
         else:
             return '(' + self.label + ')'
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.toStr()
-    def __repr__(self):
+    def __repr__(self) -> str:
         mod = str(self.__class__.__module__)
         try:
             return "%s.fromS(%r)" % (mod,self.toStr())
-        except:
+        except Exception:
             return "%s.fromS(__invalid__)" % (mod,)
 
 Tree = TreeNode
@@ -122,8 +125,12 @@ Tree = TreeNode
 #                minFound = min(minFound, found)
 #        return minFound
 
-def parseSExpression(expr, i=0):
-    cont = ''
+def parseSExpression(expr: str, i: int = 0) -> "tuple[str | list, int]":
+    # `cont` holds a str while scanning a token and a list inside parens;
+    # the two shapes are mutually exclusive per path, so it is typed as Any.
+    # cont はトークン走査中は str、'(' 内では list になり、経路ごとに
+    # 排他であるため Any として型付けする。
+    cont: Any = ''
     while i < len(expr):
         if expr[i] == '(':
             cont = []
@@ -144,7 +151,7 @@ def parseSExpression(expr, i=0):
     return cont, i
 
 #def indexTree(list tree):
-def indexTree(tree):
+def indexTree(tree: "str | list") -> "tuple[list, list[int]]":
     indexToLabel = []
     indexToLeftRange = []
     #def appendNodePostOrder(object node):
@@ -178,7 +185,7 @@ def indexTree(tree):
     return indexToLabel, indexToLeftRange
 
 #def countElements(list tree):
-def countElements(tree):
+def countElements(tree: "str | list") -> int:
     #def innerCount(object node):
     def innerCount(node):
         numElems = 0
@@ -192,8 +199,12 @@ def countElements(tree):
             return 1
     return innerCount(tree)
 
-def calcEditDistance(seq1, seq2):
-    memo = [[None]*(len(seq2)+1) for _ in range(0,len(seq1)+1)]
+def calcEditDistance(seq1: "Sequence[str]", seq2: "Sequence[str]") -> int:
+    # Every cell below is written before it is ever read (row 0 and column 0
+    # explicitly, the rest in the loop), so the initial value is irrelevant.
+    # 全てのセルは参照前に必ず書き込まれる (0 行目・0 列目は初期化ループ、
+    # 残りは本ループ) ため、初期値自体には意味が無い。
+    memo: "list[list[int]]" = [[0]*(len(seq2)+1) for _ in range(0,len(seq1)+1)]
     for i in range(0, len(seq1)+1):
         memo[i][0] = i
     for j in range(0, len(seq2)+1):
@@ -208,8 +219,8 @@ def calcEditDistance(seq1, seq2):
     #pprint.pprint(memo)
     return memo[len(seq1)][len(seq2)]
 
-def calcTreeEditDistance(tree1, tree2):
-    memo = {}
+def calcTreeEditDistance(tree1: "str | list", tree2: "str | list") -> int:
+    memo: "dict[tuple[int, int, int, int], int]" = {}
     if isinstance(tree1, str) and tree1.strip()[0] == '(':
         # S-expression
         tree1 = parseSExpression(tree1)[0]

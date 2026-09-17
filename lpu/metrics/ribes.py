@@ -23,6 +23,7 @@ itself could not be computed. `eval_ribes` was added in 0.3.0.
 `eval_ribes` は 0.3.0 で追加された。
 '''
 
+from collections.abc import Sequence
 from itertools import combinations
 import math
 
@@ -31,7 +32,10 @@ DEFAULT_ALPHA = 0.25
 DEFAULT_BETA = 0.10
 
 
-def find_context(context, target_words):
+def find_context(
+    context: Sequence[str],
+    target_words: Sequence[str],
+) -> list[int]:
     '''Find every position where the context appears in target_words
 
     context が target_words 中に連続して現れる位置をすべて返す。
@@ -51,7 +55,10 @@ def find_context(context, target_words):
     return indices
 
 
-def calc_word_orders(hyp, ref):
+def calc_word_orders(
+    hyp: Sequence[str],
+    ref: Sequence[str],
+) -> list[int]:
     '''Align each hypothesis word to its rank in the reference
 
     A word that occurs exactly once in both sentences is aligned directly.
@@ -103,7 +110,7 @@ def calc_word_orders(hyp, ref):
     return orders
 
 
-def calc_normalized_kendalls_tau(orders):
+def calc_normalized_kendalls_tau(orders: Sequence[int]) -> float:
     '''Compute the normalized Kendall's tau of a rank sequence
 
     The value equals ``(tau + 1) / 2``, i.e. the ratio of ascending pairs,
@@ -130,7 +137,10 @@ def calc_normalized_kendalls_tau(orders):
     return ascending / (n * (n - 1) / 2.0)
 
 
-def calc_kendalls_tau(hyp, ref):
+def calc_kendalls_tau(
+    hyp: Sequence[str],
+    ref: Sequence[str],
+) -> float:
     '''Compute the normalized Kendall's tau between a hypothesis and reference
 
     Note that the argument order is (hyp, ref), kept for backward
@@ -151,7 +161,10 @@ def calc_kendalls_tau(hyp, ref):
     return calc_normalized_kendalls_tau(calc_word_orders(hyp, ref))
 
 
-def calc_brevity_penalty(ref, hyp):
+def calc_brevity_penalty(
+    ref: Sequence[str],
+    hyp: Sequence[str],
+) -> float:
     '''Compute the brevity penalty for a short hypothesis
 
     仮説文が短い場合の短さペナルティを計算する。
@@ -168,7 +181,12 @@ def calc_brevity_penalty(ref, hyp):
     return min(1.0, math.exp(1.0 - len(ref) / len(hyp)))
 
 
-def eval_ribes(ref, hyp, alpha=DEFAULT_ALPHA, beta=DEFAULT_BETA):
+def eval_ribes(
+    ref: Sequence[str],
+    hyp: Sequence[str],
+    alpha: float = DEFAULT_ALPHA,
+    beta: float = DEFAULT_BETA,
+) -> float:
     '''Evaluate the RIBES score of a hypothesis against a reference
 
     仮説文の RIBES スコアを参照文に対して評価する。

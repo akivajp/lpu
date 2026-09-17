@@ -3,13 +3,15 @@
 
 '''functions for numbers'''
 
+from typing import Literal
+
 # Local libraries
 from lpu.common import logging
 
 logger = logging.getColorLogger(__name__)
 
 
-def toNumber(num_any, margin=0):
+def toNumber(num_any: float | int | str, margin: float = 0) -> int | float:
     '''convert into int when the value is close enough to an integer
 
     整数に十分近い値であれば int に変換する。
@@ -31,7 +33,7 @@ def toNumber(num_any, margin=0):
         return num_float
 
 
-def intToBytes(n, length, byteorder='big'):
+def intToBytes(n: int, length: int, byteorder: Literal['big', 'little'] = 'big') -> bytes:
     '''convert a non-negative int into a byte string of the given length
 
     非負の int を指定した長さのバイト列に変換する。
@@ -39,7 +41,7 @@ def intToBytes(n, length, byteorder='big'):
     return int.to_bytes(n, length, byteorder)
 
 
-def intFromBytes(b, byteorder='big'):
+def intFromBytes(b: bytes | bytearray, byteorder: Literal['big', 'little'] = 'big') -> int:
     '''convert a byte string back into an int
 
     バイト列を int に戻す。

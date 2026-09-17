@@ -5,7 +5,10 @@
     Utility functions for validation
 '''
 
-def to_type_names_string(types, conjunction='or'):
+def to_type_names_string(
+    types: type | list[type] | tuple[type, ...],
+    conjunction: str = 'or',
+) -> str:
     if isinstance(types, (list, tuple)):
         length = len(types)
         if length == 0:
@@ -27,7 +30,11 @@ def to_type_names_string(types, conjunction='or'):
         else:
             raise TypeError("Expected type object, but given non-type object: {}".format(elem))
 
-def check_argument_type(val, name, expected_types):
+def check_argument_type(
+    val: object,
+    name: str,
+    expected_types: type | list[type] | tuple[type, ...],
+) -> bool:
     if isinstance(expected_types, list):
         expected_types = tuple(expected_types)
     if isinstance(val, expected_types):

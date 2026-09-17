@@ -5,21 +5,27 @@
 '''
 
 from collections import defaultdict
+from collections.abc import Sequence
 from functools import reduce
 import math
 
 from lpu.common import logging
 from lpu.common.logging import debug_print as dprint
 
-def get_ngram_count(words, n):
-    ngram_count = defaultdict(int)
+def get_ngram_count(words: Sequence[str], n: int) -> defaultdict[tuple[str, ...], int]:
+    ngram_count: defaultdict[tuple[str, ...], int] = defaultdict(int)
     for left in range(0, len(words)-n+1):
         #ngram = str.join(' ', words[left:left+n])
         ngram = tuple(words[left:left+n])
         ngram_count[ngram] += 1
     return ngram_count
 
-def calc_ngram_precision(ref, hyp, n, smooth=False):
+def calc_ngram_precision(
+    ref: Sequence[str],
+    hyp: Sequence[str],
+    n: int,
+    smooth: bool = False,
+) -> float:
     ref_ngram_count = get_ngram_count(ref, n)
     hyp_ngram_count = get_ngram_count(hyp, n)
     total = 0
@@ -34,13 +40,18 @@ def calc_ngram_precision(ref, hyp, n, smooth=False):
     else:
         return correct / float(total)
 
-def calc_breavity_penalty(ref, hyp):
+def calc_breavity_penalty(ref: Sequence[str], hyp: Sequence[str]) -> float:
     if len(hyp) >= len(ref):
         return 1.0
     else:
         return math.exp(1 - len(ref) / float(len(hyp)))
 
-def eval_bleu(ref, hyp, order=4, smooth=False):
+def eval_bleu(
+    ref: Sequence[str],
+    hyp: Sequence[str],
+    order: int = 4,
+    smooth: bool = False,
+) -> float:
     precisions = []
     for i in range(1, order+1):
         precisions.append( calc_ngram_precision(ref, hyp, i, smooth) )

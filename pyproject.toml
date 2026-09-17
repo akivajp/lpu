@@ -94,7 +94,39 @@ dev = [
     "pytest>=8",
     "numpy>=2.0",
     "pycedar>=0.2.0",
+    "ruff>=0.13",
+    "mypy>=1.11",
 ]
+
+[tool.ruff.lint]
+# Only rules that catch real defects are enabled for now. The codebase
+# mixes camelCase / snake_case legacy naming, so style rules stay off.
+# 今のところ実害を捉えるルールのみ有効化。レガシー命名が混在しているため
+# スタイル系のルールは対象外とする。
+select = [
+    "E722", # bare except
+    "E9",   # runtime / syntax errors
+]
+
+[tool.mypy]
+# Gradual adoption: only the modules annotated so far are type-checked.
+# New modules should be added here as their annotations land.
+# 段階的導入のため、型注釈済みのモジュールのみを検査対象とする。
+# 新規モジュールは注釈を付けてここに追加していく。
+files = [
+    "lpu/common/colors.py",
+    "lpu/common/numbers.py",
+    "lpu/common/text.py",
+    "lpu/common/validation.py",
+    "lpu/common/vocab.py",
+    "lpu/data_structs/trees.py",
+    "lpu/metrics/bleu.py",
+    "lpu/metrics/ribes.py",
+]
+# Follow imports (e.g. lpu.common.logging) without reporting the errors
+# of the not-yet-annotated imported modules.
+# import 先 (未注釈モジュール) のエラーは報告せず、解決のみを行う
+follow_imports = "silent"
 
 [tool.setuptools.dynamic]
 version = { file = "lpu/VERSION" }
@@ -104,8 +136,10 @@ include = ["lpu*"]
 
 [tool.setuptools.package-data]
 # VERSION is read at runtime; .pxd / .pyx are needed to rebuild from the sdist.
-# VERSION は実行時に読み込まれる。.pxd / .pyx は sdist からの再ビルドに必要
-lpu = ["VERSION"]
+# py.typed marks the package as typed (PEP 561) for downstream type checkers.
+# VERSION は実行時に読み込まれる。.pxd / .pyx は sdist からの再ビルドに必要。
+# py.typed は PEP 561 により、下流の型チェッカーへ型注釈を公開する印。
+lpu = ["VERSION", "py.typed"]
 "*" = ["*.pxd", "*.pyx"]
 
 [tool.pytest.ini_options]
