@@ -13,6 +13,8 @@ from lpu.common import logging
 from lpu.common import progress
 from lpu.smt.trans_models import records
 
+logger = logging.getColorLogger(__name__)
+
 key_types = ['src', 'src_hiero', 'src_symbols', 'src_tree']
 
 #    return str(trie.get_node(key)).replace(' ', '')
@@ -71,8 +73,8 @@ cdef class Table(object):
                 try:
                     self.field_dict.update(field, 1)
                 except Exception as e:
-                    logging.debug(e)
-                    logging.debug(field)
+                    logger.debug(e)
+                    logger.debug(field)
 
     cpdef str format_src_key(self, str src):
         if self.key_type == 'src':
@@ -144,8 +146,8 @@ cdef class Table(object):
                         for field in trg.split('|COL|'):
                             self.add_fields(field.strip())
             except Exception as e:
-                logging.warn("file: %s, line: %s" % (self.table_path, i+1))
-                logging.warn(e)
+                logger.warning("file: %s, line: %s" % (self.table_path, i+1))
+                logger.warning(e)
                 raise e
 
         for i, line in enumerate(progress.view(self.table_path, 'building trie of all records')):
@@ -153,8 +155,8 @@ cdef class Table(object):
                 line_tracks = self.line2tracks(line.strip())
                 self.record_dict.update(line_tracks, 1)
             except Exception as e:
-                logging.warn("file: %s, line: %s" % (self.table_path, i+1))
-                logging.warn(e)
+                logger.warning("file: %s, line: %s" % (self.table_path, i+1))
+                logger.warning(e)
                 raise e
 
         for node in progress.view(self.record_dict.nodes(), 'registering pair of (key,record)', max_count=len(self.record_dict)):
@@ -176,10 +178,10 @@ cdef class Table(object):
                             #self.add_key_and_node(field.strip(), node)
                             self.add_key_and_node(self.trg_field_record_dicts[i], field.strip(), node)
             except Exception as e:
-                logging.warn("line_tracks: %s" % line_tracks)
-                logging.warn("line: %s" % line)
+                logger.warning("line_tracks: %s" % line_tracks)
+                logger.warning("line: %s" % line)
                 #logging.warn("src_key: %s" % src_key)
-                logging.warn(e)
+                logger.warning(e)
                 raise e
 
     def __find_key(self, object key_record_dict, str key, bool force=True):
@@ -192,7 +194,14 @@ cdef class Table(object):
         key_track = self.line2tracks(key)
         if key_track.find('(-1,-1)') >= 0:
             return
-        for pair_tracks in key_record_dict.find_keys(key_track,force=force):
+        # The `force` parameter is kept in this class's signature for API
+        # compatibility, but is no longer forwarded: no released pycedar
+        # version (0.2.0 - 0.4.0) accepts a `force` kwarg on find_keys(),
+        # so passing it always raised TypeError.
+        # force 引数は API 互換のためシグネチャには残すが、pycedar 側には
+        # 転送しない (リリース済みの pycedar 0.2.0 - 0.4.0 の find_keys() は
+        # force を受け付けず、渡すと常に TypeError になっていた)。
+        for pair_tracks in key_record_dict.find_keys(key_track):
             record_track = pair_tracks.split('|',1)[1].strip()
             line_tracks = track2key(self.record_dict, record_track)
             line = self.tracks2line(line_tracks)
@@ -204,7 +213,7 @@ cdef class Table(object):
         cdef str line
 
         prefix_tracks = self.line2tracks(prefix)
-        for line_tracks in self.record_dict.find_keys(prefix_tracks, force=force):
+        for line_tracks in self.record_dict.find_keys(prefix_tracks):
             line = self.tracks2line(line_tracks)
             yield self.RecordClass(line)
 

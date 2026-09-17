@@ -15,6 +15,8 @@ from lpu.common import progress
 from lpu.smt.trans_models.records import MosesRecord, TravatarRecord
 from lpu.smt.trans_models.tables import Table
 
+logger = logging.getColorLogger(__name__)
+
 
 def get_target_field(rec, target_number=None):
     if isinstance(target_number,int):
@@ -104,11 +106,11 @@ def normalize_table(table_path, save_path):
                 fobj_out.write(rec.to_str())
                 fobj_out.write("\n")
             except Exception as e:
-                logging.warn("source: %s" % rec.src)
-                logging.warn("target: %s" % rec.trg)
-                logging.warn("num: %s" % num)
-                logging.warn("target: %s" % target)
-                logging.warn(e)
+                logger.warning("source: %s" % rec.src)
+                logger.warning("target: %s" % rec.trg)
+                logger.warning("num: %s" % num)
+                logger.warning("target: %s" % target)
+                logger.warning(e)
                 raise Exception()
 
 def main():

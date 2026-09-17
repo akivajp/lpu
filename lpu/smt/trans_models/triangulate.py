@@ -16,6 +16,8 @@ from lpu.common import progress
 from lpu.smt.trans_models.records import MosesRecord, TravatarRecord
 from lpu.smt.trans_models.tables import Table
 
+logger = logging.getColorLogger(__name__)
+
 from lpu.data_structs import trees
 
 # lower threshold of trans probs to abort
@@ -585,17 +587,17 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
 
         if lexMethod not in ('prodweight', 'table'):
             if alignLexPath == None:
-                logging.debug(lexMethod)
+                logger.debug(lexMethod)
                 assert False, "aligned lexfile is not given"
 
         if matchMethod == 'hiero':
             key_type = 'src_hiero'
         else:
             key_type = 'src_symbols'
-        logging.log("loading: %s" % table1)
+        logger.info("loading: %s" % table1)
         #tableSrcPvt = Table(table1, RecordClass, key_type=key_type, showProgress=showProgress)
         tableSrcPvt = Table(table1, RecordClass, showProgress=showProgress)
-        logging.log("loading: %s" % table2)
+        logger.info("loading: %s" % table2)
         tablePvtTrg = Table(table2, RecordClass, key_type=key_type, showProgress=showProgress)
 
         workOptions = {}
@@ -610,7 +612,7 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
 
         rows = []
         lastSrc = ''
-        logging.log("beginning pivot\n")
+        logger.info("beginning pivot")
         #for recSrcPvt in progress.view(tableSrcPvt.find(''),maxCount=len(tableSrcPvt)):
         for recSrcPvt in progress.view(tableSrcPvt.find(''),'processing',max_count=len(tableSrcPvt)):
             src = recSrcPvt.src
@@ -641,7 +643,7 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
             pivotRecPairs(rows, workset)
             rows = []
         if logFile:
-            with open(logFile, 'w') as fobj:
+            with open(logFile, 'w', encoding='utf-8') as fobj:
                 fobj.write("%s = %s\n" % ('numRecSrcPvt', workset.numRecSrcPvt))
                 fobj.write("%s = %s\n" % ('uniqPhrasesSrcPvt', len(workset.setPhrasesSrcPvt)))
                 fobj.write("%s = %s\n" % ('uniqWordsSrcPvt', len(workset.setWordsSrcPvt)))

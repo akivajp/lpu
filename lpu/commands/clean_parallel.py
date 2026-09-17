@@ -87,7 +87,7 @@ def cleanParallel(**args):
     out_dir    = args.get('target_directory')
 
     if not os.path.isdir(out_dir):
-        logging.log("Making directory: %s" % out_dir)
+        logger.info("Making directory: %s" % out_dir)
         os.makedirs(out_dir)
 
     srcBaseNames = list( map(os.path.basename, srcFilePaths) )
@@ -110,7 +110,7 @@ def cleanParallel(**args):
     # Read as binary and decode each line strictly as UTF-8.
     # バイナリで読み込み、行ごとに UTF-8 として厳密にデコードする
     infiles  = [open(path,'rb') for path in srcFilePaths]
-    outfiles = [open(path,'w') for path in outPaths]
+    outfiles = [open(path, 'w', encoding='utf-8') for path in outPaths]
     infiles[0] = progress.view(infiles[0], header='processing')
     for i, lines in enumerate(zip(*infiles)):
         try:
@@ -125,7 +125,7 @@ def cleanParallel(**args):
                     outfiles[i].write("\n")
         except Exception as e:
             #sys.stdout.write("\n")
-            logging.warn("%s (Line %s)" % (e, i))
+            logger.warning("%s (Line %s)" % (e, i))
 
 def main():
     DEFAULT_MIN_LENGTH = 1

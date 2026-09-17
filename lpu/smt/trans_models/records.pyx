@@ -11,6 +11,8 @@ from lpu.common import logging
 from lpu.common import numbers
 from lpu.common import text
 
+logger = logging.getColorLogger(__name__)
+
 # Matching Method
 #   tree:    Full Match (Tree Match)
 #   tag:     Tag Match (Phrase Structure Match)
@@ -482,8 +484,8 @@ cpdef str getStrTravatarFeatures(dict dict_features):
             try:
                 #val = math.log(val)
                 val = round(math.log(val), 6)
-            except:
-                logging.warn( (key,val) )
+            except Exception:
+                logger.warning( (key,val) )
         featureList.append( "%s=%s" % (key, val) )
     return str.join(' ', sorted(featureList))
 
