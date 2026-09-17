@@ -6,6 +6,7 @@ lpu.common.files のテスト。
 '''
 
 import gzip
+import io
 import os
 
 import pytest
@@ -74,6 +75,19 @@ class TestOpen:
         # The result must be readable as gzip / gzip として読めること
         with gzip.open(str(path), 'rt') as f:
             assert f.read() == 'hello\n'
+
+    def test_detects_gzip_by_magic_number(self, tmp_path, gz_path,
+                                          corpus_text):
+        # a gzip file whose name does not end with .gz is still opened
+        # transparently by checking the magic number
+        # (拡張子が .gz でなくてもマジックナンバーにより
+        #  透過的に gzip として開かれる)
+        renamed = tmp_path / 'corpus.bin'
+        renamed.write_bytes(gz_path.read_bytes())
+        with files.open(str(renamed)) as f_in:
+            # without a text mode flag the transparent open returns bytes
+            # (テキストモード指定が無い場合、透過オープンはバイト列を返す)
+            assert f_in.read() == corpus_text.encode('utf-8')
 
 
 class TestGetContentSize:
@@ -154,3 +168,160 @@ class TestMisc:
     def test_wait_file_times_out(self, tmp_path):
         missing = str(tmp_path / 'missing')
         assert not files.wait_file(missing, interval=1, timeout=1, quiet=True)
+
+
+class TestConcatInto:
+    def test_accepts_a_single_path_string(self, tmp_path, plain_path,
+                                          corpus_text):
+        out = tmp_path / 'single.txt'
+        files.concat_into(str(plain_path), str(out), progress=False)
+        assert out.read_text(encoding='utf-8') == corpus_text
+
+    def test_shows_progress(self, tmp_path, gz_path, plain_path,
+                            corpus_text):
+        out = tmp_path / 'merged_progress.txt'
+        files.concat_into([str(gz_path), str(plain_path)], str(out),
+                          progress=True)
+        assert out.read_text(encoding='utf-8') == corpus_text * 2
+
+
+class TestCastFile:
+    def test_returns_the_given_file_object_itself(self, plain_path):
+        with open(str(plain_path), encoding='utf-8') as f_in:
+            assert files.castFile(f_in) is f_in
+
+    def test_opens_a_path_string(self, plain_path, corpus_text):
+        f_in = files.castFile(str(plain_path))
+        try:
+            assert f_in.read() == corpus_text
+        finally:
+            f_in.close()
+
+
+class TestIsMode:
+    def test_text_file_modes(self, plain_path):
+        with open(str(plain_path), encoding='utf-8') as f_in:
+            assert files.is_mode(f_in, 'r')
+            assert files.is_mode(f_in, 'read')
+            assert not files.is_mode(f_in, 'w')
+            assert not files.is_mode(f_in, 'b')
+            assert files.is_mode(f_in, 't')
+
+    def test_binary_file_modes(self, gz_path):
+        with files.open(str(gz_path)) as f_in:
+            # GzipFile keeps a .mode attribute ('rb')
+            # (GzipFile は .mode 属性に 'rb' を持つ)
+            assert files.is_mode(f_in, 'b')
+            assert not files.is_mode(f_in, 't')
+
+    def test_unknown_mode_returns_none(self, plain_path):
+        with open(str(plain_path), encoding='utf-8') as f_in:
+            assert files.is_mode(f_in, 'x') is None
+
+
+class TestLoad:
+    def test_loads_a_plain_file_into_a_buffer(self, plain_path, corpus_text):
+        out = io.BytesIO()
+        result = files.load(str(plain_path), out, progress=False)
+        assert result is out
+        assert out.tell() == 0
+        assert out.read() == corpus_text.encode('utf-8')
+
+    def test_loads_from_a_file_object(self, plain_path, corpus_text):
+        with open(str(plain_path), 'rb') as f_in:
+            out = files.load(f_in, io.BytesIO(), progress=False)
+        assert out.read() == corpus_text.encode('utf-8')
+
+    def test_expands_a_gzip_file(self, gz_path, corpus_text):
+        out = io.BytesIO()
+        result = files.load(str(gz_path), out, progress=False)
+        assert isinstance(result, gzip.GzipFile)
+        assert result.myfileobj is out
+        assert result.read() == corpus_text.encode('utf-8')
+
+    def test_load_to_buffer(self, plain_path, corpus_text, gz_path):
+        buf = files.load_to_buffer(str(plain_path), progress=False)
+        assert buf.read() == corpus_text.encode('utf-8')
+        buf = files.load_to_buffer(str(gz_path), progress=False)
+        assert isinstance(buf, gzip.GzipFile)
+        assert buf.read() == corpus_text.encode('utf-8')
+
+    def test_load_to_temp_named(self, plain_path, corpus_text):
+        temp = files.load_to_temp(str(plain_path), progress=False)
+        try:
+            assert temp.read() == corpus_text.encode('utf-8')
+        finally:
+            temp.close()
+
+    def test_load_to_temp_unnamed(self, plain_path, corpus_text):
+        temp = files.load_to_temp(str(plain_path), progress=False,
+                                  named=False)
+        try:
+            assert temp.read() == corpus_text.encode('utf-8')
+        finally:
+            temp.close()
+
+    def test_load_with_progress(self, plain_path, corpus_text):
+        out = io.BytesIO()
+        files.load(str(plain_path), out, progress=True)
+        assert out.read() == corpus_text.encode('utf-8')
+
+
+class TestRawPosition:
+    def test_rawfile_of_gzip_returns_the_underlying_file(self, gz_path):
+        with files.open(str(gz_path)) as f_in:
+            raw = files.rawfile(f_in)
+            # gzip.open() opens the file through the builtins, so the raw
+            # stream of a GzipFile is its BufferedReader
+            # (gzip.open() は組み込みの open 経由で開くため、GzipFile の
+            #  raw ストリームは BufferedReader になる)
+            assert raw is f_in.myfileobj
+            assert isinstance(raw, io.BufferedReader)
+
+    def test_rawfile_of_a_text_file_returns_the_binary_stream(
+            self, plain_path):
+        with open(str(plain_path), encoding='utf-8') as f_in:
+            raw = files.rawfile(f_in)
+            # the .buffer chain of a TextIOWrapper ends at its BufferedReader
+            # (TextIOWrapper の .buffer 辿りの終点は BufferedReader)
+            assert isinstance(raw, io.BufferedReader)
+
+    def test_rawsize_returns_minus_one_for_unsupported_objects(self):
+        # a plain object without a .buffer chain and no IOBase interface
+        # raises inside rawfile, which is caught and reported as -1
+        # (myfileobj / buffer / IOBase のいずれでも無いオブジェクトは
+        #  rawfile 内で例外となり、rawsize は -1 を返す)
+        assert files.rawsize(object()) == -1
+
+    def test_rawtell_tracks_the_raw_position(self, plain_path):
+        size = os.path.getsize(str(plain_path))
+        with files.open(str(plain_path), 'rb') as f_in:
+            assert files.rawtell(f_in) == 0
+            assert files.rawremain(f_in) == size
+            f_in.read(10)
+            assert files.rawtell(f_in) == 10
+            assert files.rawremain(f_in) == size - 10
+
+
+class TestSafeMakeDirs:
+    def test_does_not_raise_when_a_file_exists(self, tmp_path):
+        conflict = tmp_path / 'conflict'
+        conflict.write_text('x')
+        files.safeMakeDirs(str(conflict))
+        assert conflict.is_file()
+
+
+class TestWaitFiles:
+    def test_treats_a_negative_interval_as_one(self, plain_path):
+        assert files.wait_file(str(plain_path), interval=-1, quiet=True)
+
+    def test_accepts_a_single_path_string(self, plain_path):
+        files.wait_files(str(plain_path), interval=1, quiet=True)
+
+    def test_accepts_a_list_of_paths(self, tmp_path):
+        paths = []
+        for i in range(2):
+            path = tmp_path / ('file%d' % i)
+            path.write_text('x')
+            paths.append(str(path))
+        files.wait_files(paths, interval=1, quiet=True)

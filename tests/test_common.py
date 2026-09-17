@@ -6,12 +6,15 @@ lpu.common の残りのモジュールのテスト。
 '''
 
 import gzip
+import io
+import logging as std_logging
 import os
 
 import pytest
 
 from lpu.common import colors
 from lpu.common import environ
+from lpu.common import files
 from lpu.common import logging
 from lpu.common import numbers
 from lpu.common import progress
@@ -217,6 +220,72 @@ class TestLogging:
         errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
         assert not errors, [r.getMessage() for r in errors]
 
+    def test_get_quiet_status_reads_the_stack(self):
+        with environ.push(LPU_QUIET='1'):
+            assert logging.get_quiet_status() is True
+        with environ.push(LPU_QUIET='0'):
+            assert logging.get_quiet_status() is False
+        with environ.push(QUIET='1'):
+            assert logging.get_quiet_status() is True
+
+    def test_formatter_colorizes_by_level_format(self):
+        formatter = logging.ColorizingFormatter('%(message)s')
+        formatter.setLevelFormat(logging.DEBUG, 'D| %(message)s')
+        formatter.setLevelColor('debug', 'green')
+        record = std_logging.LogRecord('lpu.test', logging.DEBUG,
+                                   'path', 1, 'hello', None, None)
+        text = formatter.format(record)
+        assert 'D| hello' in text
+
+    def test_formatter_formats_exception_and_stack(self):
+        import sys
+        formatter = logging.ColorizingFormatter('%(message)s')
+        try:
+            raise ValueError('boom')
+        except ValueError:
+            exc_text = formatter.formatException(sys.exc_info())
+        assert 'ValueError' in exc_text
+        assert 'boom' in exc_text
+        stack_text = formatter.formatStack('frame1\nframe2')
+        assert 'frame1' in stack_text
+        assert 'frame2' in stack_text
+
+    def test_set_color_and_unset(self):
+        formatter = logging.ColorizingFormatter('%(message)s')
+        formatter.setColor('debug', 'green')
+        assert formatter._colors['debug'] == 'green'
+        formatter.setColor('DEBUG', None)
+        assert 'debug' not in formatter._colors
+
+    def test_set_colors_in_bulk(self):
+        formatter = logging.ColorizingFormatter('%(message)s')
+        formatter.setColors(debug='green', info='red')
+        assert formatter._colors['debug'] == 'green'
+        assert formatter._colors['info'] == 'red'
+
+    def test_set_color_rejects_non_string_keywords(self):
+        formatter = logging.ColorizingFormatter('%(message)s')
+        with pytest.raises(TypeError):
+            formatter.setColor(42, 'green')
+
+    def test_set_color_rejects_non_string_colors(self):
+        formatter = logging.ColorizingFormatter('%(message)s')
+        with pytest.raises(TypeError):
+            formatter.setColor('debug', 42)
+
+    def test_filter_condition_checks_the_level(self):
+        rule = logging.FilterCondition(level='DEBUG')
+        debug_record = std_logging.LogRecord('lpu.test', logging.DEBUG,
+                                        'path', 1, 'm', None, None)
+        info_record = std_logging.LogRecord('lpu.test', logging.INFO,
+                                       'path', 1, 'm', None, None)
+        assert rule.filter(debug_record) is True
+        assert rule.filter(info_record) is False
+
+    def test_level_string_rejects_other_types(self):
+        with pytest.raises(TypeError):
+            logging.getLevelString(1.5)
+
 
 class TestProgress:
     def test_format_time(self):
@@ -293,6 +362,124 @@ class TestProgress:
         progress.pipe_view([str(path)], mode='lines', header='test',
                            outfunc=received.append)
         assert b''.join(received) == b'a\nb\nc\n'
+
+    def test_speed_counter_set_count_and_set_position(self):
+        counter = progress.SpeedCounter(header='test')
+        counter.set_count(7, view=True)
+        assert counter.count == 7
+        counter.set_position(7, view=True)
+        assert counter.pos == 7
+        counter.reset()
+
+    def test_speed_counter_view_throttles_and_flushes(self):
+        counter = progress.SpeedCounter(header='test', force=True)
+        counter.set_count(5)
+        assert counter.view(flush=True) is True
+        # an immediate view without flush is suppressed by the interval
+        # (flush 無しの直後の view はリフレッシュ間隔により抑制される)
+        assert counter.view() is False
+        counter.reset()
+
+    def test_speed_counter_reset_after_activity_flushes_a_newline(
+            self, capsys):
+        counter = progress.SpeedCounter(header='test', force=True)
+        counter.set_count(3)
+        counter.view(flush=True)
+        counter.reset()
+        assert '\n' in capsys.readouterr().err
+
+    def test_speed_counter_reset_accepts_new_settings(self):
+        counter = progress.SpeedCounter(header='old', force=True)
+        counter.reset(refresh=2, header='new', force=False, color='red')
+        assert counter.refresh == 2
+        assert counter.header == 'new'
+        assert counter.force is False
+        assert counter.color == 'red'
+
+    def test_speed_counter_reports_percentage(self):
+        counter = progress.SpeedCounter(header='test', max_count=10,
+                                        force=True)
+        counter.set_count(4)
+        counter.set_position(4)
+        assert counter.view(flush=True) is True
+        counter.reset()
+
+    def test_file_reader_read_byte_chunks(self, tmp_path):
+        path = tmp_path / 'chunks.bin'
+        path.write_bytes(b'0123456789' * 10)
+        reader = progress.FileReader(str(path), header='test')
+        chunks = list(reader.read_byte_chunks(7))
+        assert b''.join(chunks) == path.read_bytes()
+        # the reader closes itself after the last chunk
+        # (最後のチャンクの後、リーダー自身がクローズされる)
+        assert reader.source is None
+
+    def test_file_reader_read_byte_lines(self, tmp_path):
+        path = tmp_path / 'lines.bin'
+        path.write_bytes(b'a\nb\nc\n')
+        reader = progress.FileReader(str(path), header='test')
+        assert list(reader.read_byte_lines()) == [b'a\n', b'b\n', b'c\n']
+        assert reader.source is None
+
+    def test_file_reader_rejects_unsupported_sources(self):
+        with pytest.raises(TypeError):
+            progress.FileReader(42)
+
+    def test_iterator_rejects_non_iterable_sources(self):
+        with pytest.raises(TypeError):
+            progress.Iterator(42)
+
+    def test_open_returns_a_file_reader(self, tmp_path):
+        path = tmp_path / 'f.txt'
+        path.write_bytes(b'x')
+        reader = progress.open(str(path), header='test')
+        assert isinstance(reader, progress.FileReader)
+        reader.close()
+
+    def test_view_passes_through_wrappers(self):
+        source = [1, 2]
+        wrapped = progress.view(iter(source), header='test')
+        assert isinstance(wrapped, progress.Iterator)
+        assert progress.view(wrapped) is wrapped
+
+    def test_view_wraps_a_path_into_a_file_reader(self, tmp_path):
+        path = tmp_path / 'f.txt'
+        path.write_bytes(b'x')
+        reader = progress.view(str(path))
+        assert isinstance(reader, progress.FileReader)
+        reader.close()
+
+    def test_view_rejects_unsupported_types(self):
+        with pytest.raises(TypeError):
+            progress.view(42)
+
+    def test_pipe_view_writes_bytes_to_stdout(self, tmp_path, monkeypatch):
+        # bin_stdout is bound at import time, so it is replaced directly
+        # instead of being captured through capsysbinary
+        # (bin_stdout は import 時に束縛されるため、capsysbinary ではなく
+        #  直接差し替える)
+        path = tmp_path / 'data.bin'
+        path.write_bytes(b'0123456789')
+        out = io.BytesIO()
+        monkeypatch.setattr(files, 'bin_stdout', out)
+        progress.pipe_view([str(path)], mode='bytes', header='test')
+        assert out.getvalue() == b'0123456789'
+
+    def test_pipe_view_accepts_a_negative_refresh(self, tmp_path):
+        path = tmp_path / 'data.bin'
+        path.write_bytes(b'x')
+        received = []
+        progress.pipe_view([str(path)], mode='bytes', header='test',
+                           refresh=-1, outfunc=received.append)
+        assert received == [b'x']
+
+    def test_pipe_view_reads_stdin_when_no_files_are_given(
+            self, monkeypatch):
+        monkeypatch.setattr(files, 'bin_stdin', io.BytesIO(b'streamed\n'))
+        out = io.BytesIO()
+        monkeypatch.setattr(files, 'bin_stdout', out)
+        progress.pipe_view([], mode='bytes')
+        assert out.getvalue() == b'streamed\n'
 
 
 class TestVocab:
