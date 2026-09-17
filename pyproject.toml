@@ -193,7 +193,11 @@ test-requires = "pytest"
 # are actually exercised by the test run of each built wheel.
 # (smt / trie エクストラにより numpy と pycedar が入るため、ビルドした
 #  wheel ごとのテストでコンパイル済みモジュールも実際に検証される)
-test-extras = "smt trie"
+# The list form joins the extras with commas; a space-separated string is
+# passed to pip verbatim as "[smt trie]", which is a syntax error.
+# (リスト形式はカンマで結合される。空白区切りの文字列はそのまま
+#  "[smt trie]" として pip に渡され、構文エラーになるため不可)
+test-extras = ["smt", "trie"]
 test-command = "pytest {project}/tests"
 
 [tool.cibuildwheel.macos]
@@ -208,4 +212,4 @@ archs = ["x86_64", "arm64"]
 # runs against the wheel.
 # (Windows には pycedar の wheel が無いため trie エクストラは省略する。
 #  残りのテストは wheel に対して実行される)
-test-extras = "smt"
+test-extras = ["smt"]
