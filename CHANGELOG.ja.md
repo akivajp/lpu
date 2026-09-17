@@ -2,7 +2,46 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
-## 0.3.0 (未リリース)
+## 0.4.0 (2026-09-18)
+
+### 追加
+
+- `lpu/py.typed` を追加しました (PEP 561)。これによりパッケージが型注釈を
+  公開していることが下流の型チェッカーに認識されます。
+- `lpu.common.numbers`, `lpu.common.validation`, `lpu.common.colors`,
+  `lpu.common.vocab`, `lpu.metrics.bleu`, `lpu.metrics.ribes`,
+  `lpu.data_structs.trees` に型注釈を追加しました。
+- `ruff` と `mypy` による検査を導入しました。CI に lint ジョブを追加し、
+  型注釈済みモジュールは型検査されます (`pyproject.toml` の
+  `[tool.mypy]` 参照、段階的に拡大予定)。
+- `lpu-smt-triangulate` の end-to-end テストを追加しました。従来は
+  `--help` の疎通のみでした。ルールの三角化、`prodprob` による確率の
+  乗算、pivot を経由するアライメントの連結、gzip 出力を検証します。
+
+### 修正
+
+- 例外発生時のログ出力が `AttributeError` を送出していました。
+  `lpu.common.logging` にはモジュールレベルの `warn` / `debug` / `log`
+  関数が存在しないにも関わらず、`lpu-clean-parallel`,
+  `lpu-smt-normalize`, `lpu-smt-triangulate` およびコンパイル済みの
+  `records` / `tables` の例外ハンドラから呼び出されていました。
+  モジュールごとの logger を用いる形式に置き換えました。
+- `Table.find` / `Table.find_src` が常に
+  `TypeError: find_keys() got an unexpected keyword argument 'force'`
+  となっていました。存在しない `force` 引数を pycedar に転送していたためで、
+  リリース済みの全バージョン (0.2.0〜0.4.0) で発生します。
+  `force` 引数は API 互換のためシグネチャに残していますが、
+  pycedar へは転送しなくなりました。
+- bare `except:` を明示化しました (`except Exception` へ、
+  `safeMakeDirs` は `except OSError`)。
+- テキストモードで生の `open()` を呼び出している箇所に `encoding='utf-8'`
+  を明示し、ロケール依存を解消しました。併せてファイルハンドルを確実に
+  クローズするようにしました (`lpu/__init__.py`, `lpu-clean-parallel`,
+  `lpu-exec-parallel`, `lpu-smt-triangulate`, `lpu-smt-make-glue-rules`)。
+- `lpu-random-split` の `--help` に他のコマンド同様 `description` を
+  表示するようにしました。
+
+## 0.3.0 (2026-09-17)
 
 現行の Python でパッケージを再びインストール・利用できるようにする
 リリースです。0.2.10 (2020-03) は CPython 3.5〜3.7 向けの wheel のみを

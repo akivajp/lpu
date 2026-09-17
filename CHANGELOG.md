@@ -2,7 +2,46 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
-## 0.3.0 (unreleased)
+## 0.4.0 (2026-09-18)
+
+### Added
+
+- `lpu/py.typed`, marking the package as typed (PEP 561), so downstream
+  type checkers now recognize the annotations.
+- Type annotations for `lpu.common.numbers`, `lpu.common.validation`,
+  `lpu.common.colors`, `lpu.common.vocab`, `lpu.metrics.bleu`,
+  `lpu.metrics.ribes` and `lpu.data_structs.trees`.
+- `ruff` and `mypy` checks: the CI runs a lint job, and the annotated
+  modules are type-checked (gradually; see `[tool.mypy]` in
+  `pyproject.toml`).
+- End-to-end tests for `lpu-smt-triangulate`, which previously had only
+  a `--help` smoke test: rule triangulation, the `prodprob` probability
+  multiplication, alignment merging through the pivot and the gzip
+  output.
+
+### Fixed
+
+- The error-path logging calls raised `AttributeError` instead of
+  logging: `lpu.common.logging` never had module-level `warn`, `debug`
+  or `log` functions, but the exception handlers of
+  `lpu-clean-parallel`, `lpu-smt-normalize`, `lpu-smt-triangulate` and
+  the compiled `records` / `tables` modules called them. They now use
+  per-module loggers.
+- `Table.find` / `Table.find_src` always raised
+  `TypeError: find_keys() got an unexpected keyword argument 'force'`,
+  because the nonexistent `force` kwarg was forwarded to every released
+  version of `pycedar` (0.2.0 - 0.4.0). The `force` parameter is kept in
+  the method signatures for compatibility but is no longer forwarded.
+- Bare `except:` clauses were made explicit (`except Exception`, and
+  `except OSError` in `safeMakeDirs`).
+- Raw `open()` calls now pass `encoding='utf-8'` in text mode, instead
+  of depending on the locale, and file handles are closed properly
+  (`lpu/__init__.py`, `lpu-clean-parallel`, `lpu-exec-parallel`,
+  `lpu-smt-triangulate`, `lpu-smt-make-glue-rules`).
+- `lpu-random-split` now shows a description in its `--help` output,
+  like every other command.
+
+## 0.3.0 (2026-09-17)
 
 This release makes the package installable and usable again on current
 Python versions. Version 0.2.10 (2020-03) shipped wheels for CPython
