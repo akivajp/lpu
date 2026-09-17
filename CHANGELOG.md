@@ -2,7 +2,7 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
-## 0.5.0 (unreleased)
+## 0.5.0 (2026-09-18)
 
 ### Added
 
