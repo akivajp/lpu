@@ -92,6 +92,7 @@ lpu-smt-triangulate = "lpu.smt.trans_models.triangulate:main"
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "pytest-cov>=7",
     "numpy>=2.0",
     "pycedar>=0.2.0",
     "ruff>=0.13",
@@ -144,6 +145,32 @@ lpu = ["VERSION", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["lpu"]
+# Subprocess auto-measurement (COVERAGE_PROCESS_START) creates a Coverage
+# without a data suffix, so without this flag every subprocess would
+# overwrite the same .coverage file. parallel = true makes each process
+# write .coverage.<pid>, which pytest-cov's combine step merges.
+# (サブプロセス自動計測は data suffix 無しで Coverage を作るため、
+#  この指定が無いと全子プロセスが同一 .coverage を相互上書きする。
+#  parallel = true により各プロセスが .coverage.<pid> に書き出し、
+#  pytest-cov の combine で統合される)
+parallel = true
+# The compiled Cython modules cannot be traced by coverage.py; they are
+# exercised through their Python-visible surfaces instead.
+# (コンパイル済み Cython モジュールは coverage.py で計測できないため除外)
+omit = [
+    "lpu/data_structs/trie.py",
+    "lpu/smt/align/*.pyx",
+    "lpu/smt/trans_models/*.pyx",
+    "lpu/common/compat.py",
+]
+
+[tool.coverage.report]
+# show the modules with the least coverage first
+# (カバレッジの低いモジュールから表示する)
+sort = "cover"
 
 [tool.cibuildwheel]
 # Only the interpreters that the test matrix actually covers.

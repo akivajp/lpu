@@ -14,6 +14,7 @@ source checkout.
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -42,10 +43,40 @@ def run_command(module, args, cwd=None, input_bytes=None, entry='main'):
         'from %s import %s;'
         '%s()' % (module.rsplit('.', 1)[-1], module, entry, entry)
     )
+    kwargs = {}
+    # When pytest-cov (--cov) is measuring this process, make the child
+    # measure itself too: point its auto-measurement hook at the coverage
+    # config and pin the data file to the repository root, regardless of
+    # the child's cwd. The config's parallel = true keeps the data files
+    # distinct until pytest-cov combines them.
+    # (pytest-cov (--cov) 計測中は子プロセスも自身を計測させる。自動計測
+    #  フック用の設定ファイルを指し、データファイルを子の cwd にかかわらず
+    #  リポジトリルートに固定する。設定の parallel = true により
+    #  combine まで各データファイルが分離保存される。)
+    if _cov_active():
+        repo_root = Path(__file__).resolve().parent.parent
+        kwargs['env'] = {
+            **os.environ,
+            'COVERAGE_PROCESS_START': str(repo_root / 'pyproject.toml'),
+            'COVERAGE_FILE': str(repo_root / '.coverage'),
+        }
     return subprocess.run(
         [sys.executable, '-c', code] + list(args),
-        cwd=cwd, input=input_bytes, capture_output=True,
+        cwd=cwd, input=input_bytes, capture_output=True, **kwargs,
     )
+
+
+def _cov_active():
+    '''Report whether coverage measurement is running in this process
+
+    自プロセスでカバレッジ計測が有効かどうかを返す (pytest-cov が --cov
+    付きで起動している場合のみ真)。
+    '''
+    try:
+        import coverage
+    except ImportError:
+        return False
+    return coverage.Coverage.current() is not None
 
 
 # Commands that need no compiled extension / コンパイル拡張が不要なコマンド

@@ -23,3 +23,7 @@ __pycache__/
 # uv lock file (a library pins nothing at runtime, so it is not tracked)
 # uv のロックファイル (ライブラリは実行時依存を固定しないため追跡しない)
 /uv.lock
+
+# Coverage data / カバレッジデータ
+/.coverage
+/.coverage.*
