@@ -2,6 +2,29 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
+## 0.5.0 (unreleased)
+
+### Added
+
+- Windows wheels, built by the release workflow. `pycedar` publishes no
+  Windows wheel, so the `lpu[smt]` extra no longer pulls it in.
+- Coverage measurement of the test suite: the command tests measure
+  their subprocesses too, and a CI job runs the suite with coverage and
+  uploads the combined data. Suite coverage is measured at 67%.
+- Docstring examples (doctests) in `lpu.common.numbers`, `text`,
+  `colors`, `validation`, `lpu.data_structs.trees`, `lpu.metrics.bleu`
+  and `ribes`, executed by `tests/test_doctests.py`.
+- End-to-end tests for `lpu-smt-filter`, `lpu-smt-normalize`,
+  `lpu-smt-make-glue-rules` and `lpu-smt-convert-extract`, which
+  previously had none.
+
+### Breaking changes
+
+- The `lpu[smt]` extra now installs `numpy` only. `pycedar`, which backs
+  the Double-Array Trie (`lpu.data_structs.trie`), moved to the new
+  `lpu[trie]` extra. Install `lpu[smt,trie]` for the previous set.
+  On Windows, `lpu[smt]` now installs successfully.
+
 ## 0.4.0 (2026-09-18)
 
 ### Added

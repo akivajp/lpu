@@ -54,10 +54,18 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-# Dependencies required to use the SMT modules and the Double-Array Trie.
-# 統計的機械翻訳 (SMT) 系モジュールおよび Double-Array Trie を使う場合の依存関係
+# numpy powers the EM loops of lpu.smt.align (ibm_models). numpy publishes
+# wheels for every supported platform, including Windows.
+# (lpu.smt.align の EM ループで numpy を使う。numpy は Windows を含む
+#  サポート対象の全プラットフォームで wheel が提供されている)
 smt = [
     "numpy>=1.19",
+]
+# pycedar backs the Double-Array Trie (lpu.data_structs.trie). It publishes
+# no Windows wheel, so the trie features are unavailable there.
+# (Double-Array Trie は pycedar による。Windows 向けの wheel が無いため
+#  同プラットフォームでは trie 系機能は利用できない)
+trie = [
     "pycedar>=0.2.0",
 ]
 
@@ -181,11 +189,11 @@ sort = "cover"
 build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
 build-frontend = "build"
 test-requires = "pytest"
-# The smt extra brings numpy and pycedar, so the compiled modules are
-# actually exercised by the test run of each built wheel.
-# (smt エクストラにより numpy と pycedar が入るため、ビルドした wheel ごとの
-#  テストでコンパイル済みモジュールも実際に検証される)
-test-extras = "smt"
+# The smt and trie extras bring numpy and pycedar, so the compiled modules
+# are actually exercised by the test run of each built wheel.
+# (smt / trie エクストラにより numpy と pycedar が入るため、ビルドした
+#  wheel ごとのテストでコンパイル済みモジュールも実際に検証される)
+test-extras = "smt trie"
 test-command = "pytest {project}/tests"
 
 [tool.cibuildwheel.macos]
@@ -193,3 +201,11 @@ test-command = "pytest {project}/tests"
 # cibuildwheel skips the test step for wheels it cannot run natively.
 # (arm64ランナーからx86_64をクロスビルドする。実行できないwheelのテストは自動でスキップされる)
 archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.windows]
+# pycedar has no Windows wheel, so the trie extra (and with it the
+# trie-dependent tests) is left out there; the rest of the suite still
+# runs against the wheel.
+# (Windows には pycedar の wheel が無いため trie エクストラは省略する。
+#  残りのテストは wheel に対して実行される)
+test-extras = "smt"

@@ -14,7 +14,7 @@
 
 The core features depend only on the standard library. The features listed
 under [Optional features](#optional-features) additionally require the
-`smt` extra.
+`smt` / `trie` extras.
 
 ## Installation
 
@@ -24,16 +24,22 @@ under [Optional features](#optional-features) additionally require the
 $ pip install lpu
 ```
 
-To also use the word alignment models and the Double-Array Trie:
+To also use the word alignment models:
 
 ```shell
 $ pip install 'lpu[smt]'
 ```
 
+To also use the Double-Array Trie:
+
+```shell
+$ pip install 'lpu[smt,trie]'
+```
+
 ### Installing from GitHub master
 
 ```shell
-$ pip install 'lpu[smt] @ git+https://github.com/akivajp/lpu.git'
+$ pip install 'lpu[smt,trie] @ git+https://github.com/akivajp/lpu.git'
 ```
 
 ## Modules
@@ -152,7 +158,7 @@ the expected types.
 
 `StringEnumerator` maps strings to sequential IDs and back. The
 phrase-level helpers (`phrase2id`, `id2phrase`, `phraseMap`) are backed by
-the Double-Array Trie and therefore need the `smt` extra; the enumerator
+the Double-Array Trie and therefore need the `trie` extra; the enumerator
 itself does not.
 
 ### lpu.data_structs.trees
@@ -189,7 +195,10 @@ publishable, comparable scores. `ribes` implements
 ## Optional features
 
 These require the `smt` extra (`pip install 'lpu[smt]'`), which pulls in
-`numpy` and `pycedar`, and a compiled build of the package.
+`numpy`, and a compiled build of the package. The Double-Array Trie
+additionally needs `pycedar`, installed with the `trie` extra
+(`pip install 'lpu[smt,trie]'`; `pycedar` publishes no Windows wheel,
+so the trie features are unavailable on Windows).
 
 ### lpu.data_structs.trie
 

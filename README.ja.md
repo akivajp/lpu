@@ -14,8 +14,8 @@ English documentation is available in [README.md](README.md).
 - Python 3.10 以降
 
 コア機能は標準ライブラリのみに依存します。
-[オプション機能](#オプション機能) に挙げた機能のみ `smt` エクストラを
-追加で必要とします。
+[オプション機能](#オプション機能) に挙げた機能のみ `smt` / `trie`
+エクストラを追加で必要とします。
 
 ## インストール
 
@@ -25,16 +25,22 @@ English documentation is available in [README.md](README.md).
 $ pip install lpu
 ```
 
-単語アライメントモデルと Double-Array Trie も利用する場合:
+単語アライメントモデルも利用する場合:
 
 ```shell
 $ pip install 'lpu[smt]'
 ```
 
+Double-Array Trie も利用する場合:
+
+```shell
+$ pip install 'lpu[smt,trie]'
+```
+
 ### GitHub の master から
 
 ```shell
-$ pip install 'lpu[smt] @ git+https://github.com/akivajp/lpu.git'
+$ pip install 'lpu[smt,trie] @ git+https://github.com/akivajp/lpu.git'
 ```
 
 ## モジュール
@@ -150,7 +156,7 @@ for item in progress.view(iter(range(1000)), 'processing'):
 
 `StringEnumerator` は文字列と連番 ID を相互変換します。
 フレーズ単位の補助関数 (`phrase2id`, `id2phrase`, `phraseMap`) は
-Double-Array Trie を用いるため `smt` エクストラが必要ですが、
+Double-Array Trie を用いるため `trie` エクストラが必要ですが、
 `StringEnumerator` 自体には不要です。
 
 ### lpu.data_structs.trees
@@ -188,7 +194,10 @@ ribes.eval_ribes(ref, hyp)
 ## オプション機能
 
 以下は `smt` エクストラ (`pip install 'lpu[smt]'`) と、コンパイル済み
-ビルドを必要とします。エクストラにより `numpy` と `pycedar` が入ります。
+ビルドを必要とします。エクストラにより `numpy` が入ります。
+Double-Array Trie はさらに `pycedar` を必要とし、`trie` エクストラ
+(`pip install 'lpu[smt,trie]'`) で導入されます (Windows 向けの
+`pycedar` wheel は提供されていないため、Windows では利用できません)。
 
 ### lpu.data_structs.trie
 

@@ -2,6 +2,31 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
+## 0.5.0 (unreleased)
+
+### 追加
+
+- Windows 向け wheel をリリースワークフローでビルドするようにしました。
+  `pycedar` は Windows 用 wheel を公開していないため、`lpu[smt]` エクストラ
+  は pycedar を含まなくなりました。
+- テストスイートのカバレッジ計測を導入しました。コマンドテストは
+  サブプロセス側も計測し、CI ジョブがカバレッジ付きでテストを実行して
+  統合データを成果物として残します。スイート全体のカバレッジは 67% です。
+- `lpu.common.numbers`, `text`, `colors`, `validation`,
+  `lpu.data_structs.trees`, `lpu.metrics.bleu`, `ribes` の docstring に
+  実行例 (doctest) を追加し、`tests/test_doctests.py` が実行します。
+- `lpu-smt-filter`, `lpu-smt-normalize`, `lpu-smt-make-glue-rules`,
+  `lpu-smt-convert-extract` の end-to-end テストを追加しました (従来は
+  テストがありませんでした)。
+
+### 破壊的変更
+
+- `lpu[smt]` エクストラは `numpy` のみを導入するようになりました。
+  Double-Array Trie (`lpu.data_structs.trie`) を支える `pycedar` は
+  新設の `lpu[trie]` エクストラに移りました。従来と同じ依存セットは
+  `lpu[smt,trie]` で導入できます。なお Windows では `lpu[smt]` が
+  正常にインストールできるようになりました。
+
 ## 0.4.0 (2026-09-18)
 
 ### 追加

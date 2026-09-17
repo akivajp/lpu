@@ -56,7 +56,7 @@ jobs:
           # ローカルの配布物にエクストラを指定する確実な書式を使う
           sdist="$(ls dist/*.tar.gz)"
           "${RUNNER_TEMP}/sdist-check/bin/python" -m pip install \
-            "lpu[smt] @ file://${PWD}/${sdist}" pytest
+            "lpu[smt,trie] @ file://${PWD}/${sdist}" pytest
           "${RUNNER_TEMP}/sdist-check/bin/python" -m pytest tests
       - uses: actions/upload-artifact@v7
         with:
@@ -72,11 +72,8 @@ jobs:
       matrix:
         # macos-latest is Apple silicon; cibuildwheel cross-compiles the
         # x86_64 wheels from there (see [tool.cibuildwheel.macos]).
-        # Windows is left out because pycedar, required by the smt extra,
-        # publishes no wheel for it.
-        # (macos-latest は arm64。x86_64 は同ランナーからクロスビルドする。
-        #  Windows は smt エクストラが要求する pycedar の wheel が無いため除外)
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        # (macos-latest は arm64。x86_64 は同ランナーからクロスビルドする)
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
       - uses: pypa/cibuildwheel@v4.2.1
