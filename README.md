@@ -1,5 +1,6 @@
 # LPU
 
+![test](https://github.com/akivajp/lpu/actions/workflows/test.yml/badge.svg)
 ![version](https://img.shields.io/pypi/v/lpu.svg)
 ![python](https://img.shields.io/pypi/pyversions/lpu.svg)
 ![license](https://img.shields.io/pypi/l/lpu.svg)
