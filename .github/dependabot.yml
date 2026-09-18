@@ -1,0 +1,8 @@
+# Keep the GitHub Actions versions up to date with weekly PRs.
+# GitHub Actions のバージョンを週次で自動更新 PR として提案する。
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
