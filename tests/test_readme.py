@@ -58,7 +58,9 @@ def _shell_commands(path: Path) -> "list[tuple[int, str]]":
     行末のバックスラッシュによる継続行は連結し、複数行の usage 例を
     1 つのコマンドとして扱う。
     '''
-    text = path.read_text()
+    # README.ja.md is UTF-8; the platform default would break on Windows
+    # (README.ja.md は UTF-8。プラットフォーム既定では Windows で壊れる)
+    text = path.read_text(encoding='utf-8')
     results = []
     for match in FENCE_PATTERN.finditer(text):
         start_line = text.count('\n', 0, match.start(1)) + 1
@@ -101,7 +103,8 @@ def _load_scripts() -> "dict[str, tuple[str, str]]":
     '''
     pattern = re.compile(r'^"?(lpu-[\w-]+)"?\s*=\s*"([^:"]+):(\w+)"')
     scripts = {}
-    for line in (REPO_ROOT / 'pyproject.toml').read_text().splitlines():
+    for line in (REPO_ROOT / 'pyproject.toml').read_text(
+            encoding='utf-8').splitlines():
         match = pattern.match(line.strip())
         if match:
             scripts[match.group(1)] = (match.group(2), match.group(3))
