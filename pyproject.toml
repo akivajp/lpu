@@ -135,6 +135,7 @@ select = [
 files = [
     "lpu/commands/abspath.py",
     "lpu/commands/dialog.py",
+    "lpu/commands/exec_parallel.py",
     "lpu/commands/guess_langcode.py",
     "lpu/commands/progress.py",
     "lpu/commands/wait_files.py",

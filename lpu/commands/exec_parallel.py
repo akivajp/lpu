@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 # Standard libraries
+from __future__ import annotations
+
 import argparse
+import io
 import math
 import multiprocessing
 import os
@@ -9,6 +12,7 @@ import platform
 import subprocess
 import sys
 import time
+from typing import Any
 
 # Local libraries
 from lpu.common import files
@@ -21,7 +25,7 @@ logger = logging.getColorLogger(__name__)
 numCPUs = multiprocessing.cpu_count()
 SLEEP_DURATION = 1.0
 
-def getCurrentWorkerID():
+def getCurrentWorkerID() -> str:
     '''return an identifier unique to this host and process
 
     0.2.x used os.uname(), which does not exist on Windows.
@@ -31,7 +35,7 @@ def getCurrentWorkerID():
     '''
     return f"{platform.node()}:{os.getpid()}"
 
-def report(filepath, message):
+def report(filepath: str, message: str) -> bool:
     if os.path.exists(filepath):
         logger.info(f'Exists file or directory: {filepath}')
         return False
@@ -41,7 +45,9 @@ def report(filepath, message):
             fobj.write(message)
         return True
 
-def remove(f):
+# files.FileType は type[io.IOBase] の変数エイリアスであり型注釈には
+# 使えないため、実利用時の型 (open() が返すテキストファイルオブジェクト) を使う
+def remove(f: str | io.TextIOWrapper) -> None:
     if type(f) == str:
         logger.info(f'Removing file: {f}')
         os.remove(f)
@@ -50,7 +56,7 @@ def remove(f):
         f.close()
         os.remove(f.name)
 
-def checkFile(filepath):
+def checkFile(filepath: str) -> bool:
     if os.path.exists(filepath):
         logger.info(f'File already exists: {filepath}')
         return True
@@ -59,7 +65,7 @@ def checkFile(filepath):
 
 #def checkStage(tmpdir, basename, stage):
 #def checkPhase(tmpdir, phase):
-def checkPhase(conf, phase):
+def checkPhase(conf: Config, phase: str) -> str:
     tmpdir = conf.data.tmpdir
 #    if checkFile('%s/__INIT__.%s.%s' % (tmpdir,stage,basename)):
     if checkFile(f'{tmpdir}/report.{phase}.begin'):
@@ -70,7 +76,7 @@ def checkPhase(conf, phase):
     else:
         return 'none'
 
-def getPhaseCharge(conf, phase):
+def getPhaseCharge(conf: Config, phase: str) -> str:
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #path = '%(tmpdir)s/__INIT__.%(stage)s.%(basename)s' % locals()
@@ -80,13 +86,13 @@ def getPhaseCharge(conf, phase):
         chargeID = fobj_charge.read()
     return chargeID
 
-def checkPhaseCharge(conf, phase):
+def checkPhaseCharge(conf: Config, phase: str) -> bool:
     if getPhaseCharge(conf,phase) != getCurrentWorkerID():
         logger.warning(f'Failed to confirm the responsible process of the phase: "{phase}"')
         return False
     return True
 
-def reportInit(conf, phase):
+def reportInit(conf: Config, phase: str) -> bool:
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #path = '%(tmpdir)s/__INIT__.%(stage)s.%(basename)s' % locals()
@@ -98,20 +104,20 @@ def reportInit(conf, phase):
     time.sleep(conf.data.interval)
     return checkPhaseCharge(conf, phase)
 
-def reportDone(conf, phase):
+def reportDone(conf: Config, phase: str) -> bool:
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #return report('%(tmpdir)s/__DONE__.%(stage)s.%(basename)s'%locals(), conf.data.hostproc)
     return report('{tmpdir}/report.{phase}.done'.format(**locals()), getCurrentWorkerID())
 
-def waitPhaseDone(conf, phase):
+def waitPhaseDone(conf: Config, phase: str) -> bool:
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #return waitFile('%(tmpdir)s/__DONE__.%(stage)s.%(basename)s'%locals())
     #return wait_file('%(tmpdir)s/report.%(phase)s.done' % locals())
     return files.wait_file('{tmpdir}/report.{phase}.done'.format(**locals()))
 
-def getInBuffer(conf):
+def getInBuffer(conf: Config) -> io.TextIOWrapper:
     #bufname = '%s/__BUFFER__%s' % (tmpdir,hostproc)
     #bufname = '%(tmpdir)s/__BUFFER__%(hostproc)s' % conf
     # Config は ** 展開 (keys()) を持たないため、直接参照する
@@ -131,17 +137,17 @@ def getInBuffer(conf):
     inbuf.seek(0)
     return inbuf
 
-def int2str(number, digits, suppress='0'):
+def int2str(number: int, digits: int, suppress: str = '0') -> str:
     strNumber = str(number)
     lenNumber = len(strNumber)
     return suppress*(digits-lenNumber) + strNumber
 
-def getSplitPrefix(conf):
+def getSplitPrefix(conf: Config) -> str:
     #return "%(tmpdir)s/%(basename)s" % conf
     # Config は ** 展開 (keys()) を持たないため、直接参照する
     return f"{conf['tmpdir']}/split"
 
-def splitFile(conf):
+def splitFile(conf: Config) -> bool | None:
     configFile = f"{conf.data.tmpdir}/config.json"
     if not reportInit(conf, 'split'):
         waitPhaseDone(conf, 'split')
@@ -160,7 +166,7 @@ def splitFile(conf):
         # runWorkers / concatFiles が参照するため、分割が無いことを記録する
         conf.data.numChunks = 0
         remove(inbuf)
-        return
+        return None
     #prefix = getPrefix(conf)
     #strSplitPrefix = conf.data.tmpdir + "/split"
     prefix = getSplitPrefix(conf)
@@ -206,7 +212,9 @@ def splitFile(conf):
 #            return digits
 #    logging.alert("Failed to get file number digits")
 
-def waitAvailableWorker(conf, workers, flush = False):
+def waitAvailableWorker(
+        conf: Config, workers: list[list[Any]], flush: bool = False
+) -> None:
     threads = min(conf.data.threads, numCPUs)
     if flush:
         threads = 1
@@ -230,7 +238,7 @@ def waitAvailableWorker(conf, workers, flush = False):
     strMessage = strTemplate % (processed,numChunks,ratio*100,len(workers),threads)
     logger.info(strMessage)
 
-def runWorkers(conf):
+def runWorkers(conf: Config) -> None:
     #fileNumber = 1
     #prefix = getPrefix(conf)
     prefix = getSplitPrefix(conf)
@@ -238,7 +246,7 @@ def runWorkers(conf):
     numChunks = conf.data.numChunks
     digits = conf.data.digits = len(str(numChunks))
     #threads = min(conf.data.threads,numCPUs)
-    workers = []
+    workers: list[list[Any]] = []
     conf.data.processed = 0
     for fileNumber in range(1, numChunks+1):
         strFileNumber = int2str(fileNumber, digits, '0')
@@ -262,7 +270,8 @@ def runWorkers(conf):
         fileNumber += 1
     waitAvailableWorker(conf, workers, flush=True)
 
-def concatFiles(conf):
+# reportInit が False のとき return True、正常終了時は値を返さないため
+def concatFiles(conf: Config) -> bool | None:
     if not reportInit(conf, 'concat'):
         waitPhaseDone(conf, 'concat')
         chargeID = getPhaseCharge(conf, 'concat')
@@ -294,8 +303,9 @@ def concatFiles(conf):
                     progCounter.add(1, view=True)
     progCounter.reset()
     reportDone(conf, 'concat')
+    return None
 
-def checkConfig(conf):
+def checkConfig(conf: Config) -> bool:
     conf.setdefault('inPath',  '/dev/stdin')
     conf.data.inPath = os.path.abspath(conf.data.inPath)
     conf.setdefault('outPath', '/dev/stdout')
@@ -323,7 +333,8 @@ def checkConfig(conf):
     #    conf.data.threads = numCPUs
     return True
 
-def execParallel(conf = None, **others):
+def execParallel(conf: Config | dict[str, Any] | None = None,
+                 **others: Any) -> None:
     conf = Config(conf, **others)
     if not checkConfig(conf):
         return
@@ -336,7 +347,7 @@ def execParallel(conf = None, **others):
     runWorkers(conf)
     concatFiles(conf)
 
-def cmdExecParallel(args):
+def cmdExecParallel(args: list[str]) -> None:
     parser = argparse.ArgumentParser(description='Execute command in multiple processes by splitting the target file')
     #parser.add_argument('inFile', type=str, help='input file name for execution')
     #parser.add_argument('outFile', type=str, help='output file name for execution')
@@ -359,7 +370,7 @@ def cmdExecParallel(args):
     #execParallel(**vars(parsed))
     execParallel(conf)
 
-def main():
+def main() -> None:
     cmdExecParallel(sys.argv[1:])
 
 if __name__ == '__main__':
