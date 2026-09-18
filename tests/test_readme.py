@@ -207,6 +207,13 @@ def test_usage_options_exist(command_name, command):
         #  環境によっては導入できないためスキップする)
         if not _module_available('lpu.smt.trans_models.tables'):
             pytest.skip('lpu.smt.trans_models is not available')
+    elif command_name.startswith('lpu-word-align-'):
+        # the word-align commands run the compiled EM extension, which is
+        # unavailable in environments that install numpy only
+        # (word-align 系コマンドはコンパイル済み EM 拡張を必要とするため、
+        #  numpy だけの環境ではスキップする)
+        if not _module_available('lpu.smt.align.ibm_models'):
+            pytest.skip('lpu.smt.align.ibm_models is not available')
     # the abbreviated lpu-smt-* examples ("[-h] ...") have no options
     # to check beyond the help run itself
     # (省略形の lpu-smt-* 例 ("[-h] ...") では --help の実行自体が検査)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''Build definition for the C/C++ extension modules
 
@@ -100,8 +99,8 @@ def _build_ext_modules():
         import numpy
     except ImportError as exc:
         sys.stderr.write(
-            'warning: skipping C extensions ({}). '
-            'lpu.smt.* and lpu.data_structs.trie will be unavailable.\n'.format(exc)
+            f'warning: skipping C extensions ({exc}). '
+            'lpu.smt.* and lpu.data_structs.trie will be unavailable.\n'
         )
         return []
 

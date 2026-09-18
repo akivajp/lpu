@@ -13,6 +13,8 @@ import types
 
 import pytest
 
+from conftest import _module_available
+
 from lpu.common import colors
 from lpu.common import dialog
 from lpu.common import environ
@@ -779,7 +781,14 @@ class TestVocab:
         assert vocab.idvec2phrase('') == ''
 
     def test_phrase_map_is_created_lazily(self):
-        pytest.importorskip('lpu.data_structs.trie')
+        # importorskip() re-raises the ImportError the trie module itself
+        # raises (about the missing pycedar) instead of skipping it, so the
+        # availability is checked with a plain import probe instead.
+        # (importorskip() は trie モジュール自身が投げる ImportError
+        #  (pycedar 未導入) を skip せず再送出するため、通常の import
+        #  プローブで可用性を確認する)
+        if not _module_available('lpu.data_structs.trie'):
+            pytest.skip('lpu.data_structs.trie is not available')
         phrase_map = vocab.phraseMap
         number = vocab.phrase2id('some unique phrase')
         # the trie-backed map round-trips the phrase through its id
