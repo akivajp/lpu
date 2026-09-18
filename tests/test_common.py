@@ -141,8 +141,26 @@ class TestValidation:
         assert (validation.to_type_names_string([str, int, float])
                 == 'str, int or float')
 
+    def test_type_names_string_wraps_a_single_element(self):
+        # a one-element container is unwrapped, not joined
+        # (要素 1 つのコンテナは結合されずにそのまま展開される)
+        assert validation.to_type_names_string((str,)) == 'str'
+
+    def test_type_names_string_rejects_a_non_type_object(self):
+        with pytest.raises(TypeError):
+            validation.to_type_names_string('not a type')
+
+    def test_type_names_string_rejects_an_empty_container(self):
+        with pytest.raises(ValueError, match='non-empty'):
+            validation.to_type_names_string(())
+
     def test_check_argument_type_accepts_a_valid_value(self):
         assert validation.check_argument_type('x', 'name', str)
+
+    def test_check_argument_type_accepts_a_list_of_types(self):
+        # a list of expected types behaves like the equivalent tuple
+        # (期待型のリストは同等のタプルと同じように扱われる)
+        assert validation.check_argument_type('x', 'name', [str, int])
 
     def test_check_argument_type_rejects_an_invalid_value(self):
         with pytest.raises(TypeError):
@@ -755,6 +773,20 @@ class TestVocab:
     def test_phrase_idvec_conversion(self):
         idvec = vocab.phrase2idvec('alpha beta')
         assert vocab.idvec2phrase(idvec) == 'alpha beta'
+
+    def test_empty_conversions_return_empty_strings(self):
+        # 空文字列は空文字列のまま往返すること
+        assert vocab.phrase2idvec('') == ''
+        assert vocab.idvec2phrase('') == ''
+
+    def test_phrase_map_is_created_lazily(self):
+        pytest.importorskip('lpu.data_structs.trie')
+        phrase_map = vocab.phraseMap
+        number = vocab.phrase2id('some unique phrase')
+        # the trie-backed map round-trips the phrase through its id
+        # (trie による phraseMap が ID を介してフレーズを往返すること)
+        assert vocab.id2phrase(number) == 'some unique phrase'
+        assert vocab.phraseMap is phrase_map
 
 
 class TestDialog:

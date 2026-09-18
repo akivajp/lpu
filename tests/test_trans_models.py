@@ -15,6 +15,7 @@ test_commands.py と同じくサブプロセスで CLI を起動する end-to-en
 
 import gzip
 
+import pytest
 
 from conftest import requires_trans_models
 
@@ -253,6 +254,73 @@ class TestNormalize:
         assert abs(float(records[1][2]['fgep'])) < 1e-4
         assert abs(float(records[2][2]['fgep'])
                    - math.log(0.5 / 1.0)) < 1e-4
+
+    # A multi-target record produced by lpu-smt-triangulate --multitarget:
+    # each |COL| field has its own prefixed probabilities (0* for the
+    # target side, 1* for the pivot side).
+    # (lpu-smt-triangulate --multitarget が生成するマルチターゲットの
+    #  レコード。|COL| の各フィールドに接頭辞付き確率を持つ
+    #  (0* はターゲット側、1* はピボット側))
+    MULTI_TARGET_TABLE = (
+        '"a" ||| "c |COL| x" '
+        '||| egfp=-0.693147 fgep=-0.693147 '
+        '0egfp=-0.693147 0fgep=-0.693147 '
+        '1egfp=-0.693147 1fgep=-0.693147 '
+        '||| 10 10 10 ||| 0-0\n'
+        '"a" ||| "d |COL| x" '
+        '||| egfp=-1.386294 fgep=-0.916291 '
+        '0egfp=-1.386294 0fgep=-0.916291 '
+        '1egfp=-0.693147 1fgep=-0.693147 '
+        '||| 10 10 10 ||| 0-0\n'
+    )
+
+    def test_multi_target_records_normalize_each_field(self, tmp_path):
+        '''each |COL| field is normalized with its prefixed features
+
+        |COL| の各フィールドが対応する接頭辞付き特徴量で正規化されること。
+        '''
+        import math
+        table = tmp_path / 'table.txt'
+        table.write_text(self.MULTI_TARGET_TABLE, encoding='utf-8')
+        savefile = tmp_path / 'normalized.txt'
+        _run('lpu.smt.trans_models.normalize',
+             [str(table), str(savefile)], tmp_path)
+
+        records = []
+        for line in savefile.read_text(encoding='utf-8').splitlines():
+            fields = [field.strip() for field in line.split(' ||| ')]
+            records.append((fields[0], fields[1],
+                            _parse_features(fields[2])))
+        assert [r[1] for r in records] == ['"c |COL| x"', '"d |COL| x"']
+
+        # src_total("a") = 0.5 + 0.25 = 0.75 applies to egfp and 0egfp
+        assert abs(float(records[0][2]['egfp'])
+                   - math.log(0.5 / 0.75)) < 1e-4
+        assert abs(float(records[0][2]['0egfp'])
+                   - math.log(0.5 / 0.75)) < 1e-4
+        assert abs(float(records[1][2]['0egfp'])
+                   - math.log(0.25 / 0.75)) < 1e-4
+        # the pivot side features (1*) normalize against the pivot total 1.0
+        # (ピボット側の特徴量 (1*) はピボットの合計 1.0 で正規化される)
+        assert abs(float(records[0][2]['1egfp'])) < 1e-4
+        assert abs(float(records[1][2]['1egfp'])) < 1e-4
+        # each |COL| field has a single source, so fgep / 0fgep become 0
+        # (各 |COL| フィールドのソースは 1 つなので fgep / 0fgep は 0 になる)
+        assert abs(float(records[0][2]['0fgep'])) < 1e-4
+        assert abs(float(records[1][2]['fgep'])) < 1e-4
+
+    def test_reports_a_failed_record_and_reraises(self, tmp_path):
+        '''a record missing fgep is logged and the failure is re-raised
+
+        fgep を持たないレコードは警告ログに残り、例外が再送出されること。
+        '''
+        from lpu.smt.trans_models import normalize
+        table = tmp_path / 'table.txt'
+        table.write_text(
+            '"a" ||| "x" ||| egfp=-0.693147 ||| 10 10 10 ||| 0-0\n',
+            encoding='utf-8')
+        with pytest.raises(Exception, match='failed to normalize a record'):
+            normalize.normalize_table(str(table), str(tmp_path / 'out.txt'))
 
 
 @requires_trans_models
