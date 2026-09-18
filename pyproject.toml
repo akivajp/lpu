@@ -159,6 +159,7 @@ files = [
     "lpu/smt/trans_models/filter.py",
     "lpu/smt/trans_models/make_glue_rules.py",
     "lpu/smt/trans_models/normalize.py",
+    "lpu/smt/trans_models/triangulate.py",
 ]
 # Follow imports (e.g. lpu.common.logging) without reporting the errors
 # of the not-yet-annotated imported modules.

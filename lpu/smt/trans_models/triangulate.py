@@ -4,9 +4,13 @@
 by combining source-pivot and pivot-target for common pivot phrase'''
 
 # Standarde libraries
+from __future__ import annotations
+
 import argparse
+import io
 import math
 import sys
+from typing import Any
 
 # Local libraries
 from lpu.common import files
@@ -54,7 +58,7 @@ NOPREFILTER = False
 
 class WorkSet:
     '''data set for multi-processing'''
-    def __init__(self, savefile, workdir, method, **options):
+    def __init__(self, savefile: str, workdir: str, method: str, **options: Any) -> None:
         self.multi_target = options.get('multi_target', False)
         self.Record = options.get('RecordClass', MosesRecord)
         self.method = method
@@ -67,23 +71,24 @@ class WorkSet:
         self.savePath = savefile
         self.threshold = THRESHOLD
         self.workdir = workdir
-        self.foutPivot = files.open(savefile, 'wt')
+        # close() で None を代入するため、Union 型で注釈する
+        self.foutPivot: io.IOBase | None = files.open(savefile, 'wt')
         #self.pivotProc = multiprocessing.Process( target = pivotRecPairs, args = (self,) )
         #self.recordProc = multiprocessing.Process( target = writeRecordQueue, args = (self,) )
-        self.numRecSrcPvt = 0
-        self.setPhrasesSrcPvt = set()
-        self.setWordsSrcPvt = set()
-        self.numRecPvtTrg = 0
-        self.setPhrasesPvtTrg = set()
-        self.setWordsPvtTrg = set()
-        self.numRecSrcTrg = 0
-        self.setPhrasesSrcTrg = set()
-        self.setWordsSrcTrg = set()
+        self.numRecSrcPvt: int = 0
+        self.setPhrasesSrcPvt: set[str] = set()
+        self.setWordsSrcPvt: set[str] = set()
+        self.numRecPvtTrg: int = 0
+        self.setPhrasesPvtTrg: set[str] = set()
+        self.setWordsPvtTrg: set[str] = set()
+        self.numRecSrcTrg: int = 0
+        self.setPhrasesSrcTrg: set[str] = set()
+        self.setWordsSrcTrg: set[str] = set()
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         if self.foutPivot:
             self.foutPivot.close()
             self.foutPivot = None
@@ -112,7 +117,8 @@ class WorkSet:
 
 
 #def updateFeatures(recPivot, recPair, method, multi_target = False, jointMethod = 'memoryless'):
-def updateFeatures(recPivot, recPair, workset, multi_target = False):
+def updateFeatures(recPivot: Any, recPair: tuple[Any, Any], workset: WorkSet,
+                   multi_target: bool = False) -> None:
     '''update features'''
     features = recPivot.features
     srcFeatures = recPair[0].features
@@ -185,7 +191,7 @@ def updateFeatures(recPivot, recPair, workset, multi_target = False):
             features['w'] = trgFeatures['w']
 
 
-def updateCounts(recPivot, recPair, method):
+def updateCounts(recPivot: Any, recPair: tuple[Any, Any], method: str) -> None:
     '''update occurrence counts of phrase'''
     counts = recPivot.counts
     features = recPivot.features
@@ -238,7 +244,7 @@ def updateCounts(recPivot, recPair, method):
         raise AssertionError(f"Invalid method: {method}")
 
 
-def mergeAligns(recPivot, recPair):
+def mergeAligns(recPivot: Any, recPair: tuple[Any, Any]) -> None:
     '''merge word alignments'''
 #    if recPivot.aligns:
 #      return
@@ -254,10 +260,12 @@ def mergeAligns(recPivot, recPair):
 #    recPivot.aligns = sorted(alignSet)
 
 
-def filterByCountRatioToMax(records, div = 100):
-    coMax = 0
+def filterByCountRatioToMax(records: list[Any] | dict[str, Any], div: int = 100) -> list[Any] | dict[str, Any]:
+    coMax: float = 0
     for rec in flattenRecords(records):
         coMax = max(coMax, rec.counts.cooc)
+    # list / dict のどちらの分岐でも同じ名前を使うため、union 型で前宣言する
+    newRecords: list[Any] | dict[str, Any]
     if isinstance(records, list):
         newRecords = []
         for rec in records:
@@ -273,7 +281,7 @@ def filterByCountRatioToMax(records, div = 100):
     return records
 
 
-def calcPhraseTransProbsByCounts(records):
+def calcPhraseTransProbsByCounts(records: dict[str, Any]) -> None:
     '''calculate forward phrase trans probs by occurrence counts of the phrases'''
     srcCount = calcSrcCount(records)
     for rec in records.values():
@@ -289,13 +297,13 @@ def calcPhraseTransProbsByCounts(records):
             rec.features['egfp'] = 0
 
 
-def calcPhraseTransProbsOnTable(table_path, savePath, **options):
+def calcPhraseTransProbsOnTable(table_path: str, savePath: str, **options: Any) -> None:
     '''calculate phrase trans probs on the table in which co-occurrence counts are estimated'''
     RecordClass = options.get('RecordClass', MosesRecord)
 
     table_file = files.open(table_path, "r")
     saveFile  = files.open(savePath, "w")
-    records = {}
+    records: dict[str, Any] = {}
     lastSrc = ''
     for line in table_file:
         rec = RecordClass(line)
@@ -314,14 +322,14 @@ def calcPhraseTransProbsOnTable(table_path, savePath, **options):
     table_file.close()
 
 
-def calcSrcCount(records):
+def calcSrcCount(records: Any) -> float:
     '''calculate source phrase occurrence counts by co-occurrence counts'''
     total = 0
     for rec in flattenRecords(records):
         total += rec.counts.cooc
     return total
 
-def updateWordPairCounts(lexCounts, records):
+def updateWordPairCounts(lexCounts: Any, records: dict[str, Any]) -> None:
     '''find word pairs in phrase pairs, and update the counts of word pairs'''
     if len(records) > 0:
         # dict.values() is not subscriptable in Python 3 (0.2.x code)
@@ -334,17 +342,17 @@ def updateWordPairCounts(lexCounts, records):
                    lexCounts.addPair(src_symbols[0], trgSymbols[0], rec.counts.cooc)
         lexCounts.filterNBestBySrc(srcWord = src_symbols[0])
 
-def flattenRecords(records, sort = False):
+def flattenRecords(records: list[Any] | dict[str, Any], sort: bool = False) -> Any:
     '''if records are type of dict, return them as a list'''
-    if type(records) == dict:
+    if isinstance(records, dict):
         if sort:
-            recordList = []
+            recordList: list[Any] = []
             for key in sorted(records.keys()):
               recordList.append(records[key])
             return recordList
         else:
             return records.values()
-    elif type(records) == list:
+    elif isinstance(records, list):
         if sort:
             return sorted(records)
         else:
@@ -352,7 +360,7 @@ def flattenRecords(records, sort = False):
     else:
         raise AssertionError("Invalid records")
 
-def pivotRecPairs(rows, workset):
+def pivotRecPairs(rows: list[tuple[Any, Any]], workset: WorkSet) -> None:
     '''combine the source-pivot and pivot-target records for common pivot phrases
 
     get the list of record pairs in pivotQueue and put the processed data in outQueue
@@ -363,9 +371,9 @@ def pivotRecPairs(rows, workset):
     #lexCounts = lex.PairCounter()
 
     if len(rows) > 0:
-        records = {}
+        records: dict[str, Any] = {}
         if workset.multi_target:
-            multiRecords = {}
+            multiRecords: dict[str, Any] = {}
             #jointMethod = workset.jointMethod
         for recPair in rows:
             if workset.matchMethod == 'treecomp':
@@ -426,7 +434,7 @@ def pivotRecPairs(rows, workset):
         # if threshold is set (non-zero), aborting the records having trans probs under it
         if workset.threshold < 0:
             # aborting records for extremely small trans probs
-            ignoring = []
+            ignoring: list[str] = []
             for key, rec in records.items():
                 # rec[0][...] was a leftover from when records were pairs
                 # (rec[0][...] は records がペア列だった頃の名残)
@@ -438,29 +446,29 @@ def pivotRecPairs(rows, workset):
         # if limit number of records is set (non-zero), filter the n-best records by forward trans probs
         if workset.nbest > 0:
             if len(records) > workset.nbest:
-                scores = []
+                scores: list[Any] = []
                 for key, rec in records.items():
                     scores.append( (rec.features['egfp'],key) )
                     #scores.append( (rec.features['fgep'],key) )
                 scores.sort(reverse = True)
-                bestRecords = {}
+                bestRecords: dict[str, Any] = {}
                 for _, key in scores[:workset.nbest]:
                     bestRecords[key] = records[key]
                 records = bestRecords
             if workset.multi_target:
                 if len(multiRecords) > workset.nbest:
                     # T1-filtering method
-                    bestTrgRecords = {}
+                    bestTrgRecords: dict[str, list[Any]] = {}
                     # first, filtering src-pvt-trg records including n-best src-trg records
                     for multiKey, recMulti in multiRecords.items():
                         for rec in records.values():
                             if multiKey.find(rec.trg + ' |COL|') == 0:
                                 bestTrgRecords.setdefault(rec.trg, [])
                                 bestTrgRecords[rec.trg].append(recMulti)
-                    bestMultiRecords = {}
+                    bestMultiRecords: dict[str, Any] = {}
                     # second, filtering n-best by forward joint trans probs
                     for multiList in bestTrgRecords.values():
-                        bestMultiRec = None
+                        bestMultiRec: Any = None
                         bestForwardJointTransProb = 0
                         for multiRec in multiList:
                             if multiRec.features['egfp'] > bestForwardJointTransProb:
@@ -498,28 +506,29 @@ def pivotRecPairs(rows, workset):
     #    lex.saveWordPairCounts(workset.tableLexPath, lexCounts)
 
 
-def writeRecords(fileObj, records):
+def writeRecords(fileObj: io.IOBase, records: list[Any] | dict[str, Any]) -> None:
   for rec in flattenRecords(records, sort = True):
       if rec.counts.cooc > 0:
           fileObj.write( rec.to_str() )
           fileObj.write("\n")
 
 
-def writeRecord(rec, workset):
+def writeRecord(rec: Any, workset: WorkSet) -> None:
     '''write the pivoted records in the queue into the table file'''
-    if rec:
+    fout = workset.foutPivot
+    if rec and fout is not None:
         if rec.counts.cooc > 0:
-            workset.foutPivot.write( rec.to_str() )
-            workset.foutPivot.write( "\n" )
-            workset.foutPivot.flush()
+            fout.write( rec.to_str() )
+            fout.write( "\n" )
+            fout.flush()
             workset.numRecSrcTrg += 1
             workset.setPhrasesSrcTrg.add(rec.src)
             for term in rec.srcTerms:
                 workset.setWordsSrcTrg.add(term)
 
-def calcLexWeight(rec, lexCounts, reverse = False):
+def calcLexWeight(rec: Any, lexCounts: Any, reverse: bool = False) -> float:
 #    minProb = 10 ** -2
-    lexWeight = 1
+    lexWeight: float = 1
 #    alignMapRev = rec.alignMapRev
     if not reverse:
         minProb  = 1 / float(lexCounts.trgCounts["NULL"])
@@ -560,7 +569,8 @@ def calcLexWeight(rec, lexCounts, reverse = False):
         lexWeight *= max(trgProb, minProb)
     return lexWeight
 
-def calcLexWeights(table_path, lexCounts, savePath, RecordClass = MosesRecord):
+def calcLexWeights(table_path: str, lexCounts: Any, savePath: str,
+                   RecordClass: Any = MosesRecord) -> None:
     table_file = files.open(table_path, 'r')
     saveFile  = files.open(savePath, 'w')
     for line in table_file:
@@ -577,7 +587,8 @@ def calcLexWeights(table_path, lexCounts, savePath, RecordClass = MosesRecord):
     table_file.close()
 
 
-def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
+def pivot(table1: str, table2: str, savefile: str = "phrase-table.gz",
+          workdir: str = ".", **options: Any) -> None:
     '''find pair of source-pivot and pivot-target records for common pivot phrase'''
     try:
         # initialize the options
@@ -609,7 +620,7 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
         logger.info(f"loading: {table2}")
         tablePvtTrg = Table(table2, RecordClass, key_type=key_type, showProgress=showProgress)
 
-        workOptions = {}
+        workOptions: dict[str, Any] = {}
         workOptions['RecordClass'] = RecordClass
         workOptions['prefix'] = prefix
         workOptions['multi_target'] = multi_target
@@ -619,7 +630,7 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
         workset.threshold = threshold
         workset.nbest = nbest
 
-        rows = []
+        rows: list[tuple[Any, Any]] = []
         lastSrc = ''
         logger.info("beginning pivot")
         #for recSrcPvt in progress.view(tableSrcPvt.find(''),maxCount=len(tableSrcPvt)):
@@ -735,7 +746,7 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
         workset.close()
         sys.exit(1)
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description = 'load 2 rule tables and pivot into one travatar rule table')
     parser.add_argument('table1', help = 'rule table 1')
     parser.add_argument('table2', help = 'rule table 2')
