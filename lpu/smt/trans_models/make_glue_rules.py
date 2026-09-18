@@ -3,20 +3,28 @@
 '''glue rules extracting function'''
 
 # Standard libraries
+from __future__ import annotations
+
 import argparse
+import io
+from typing import cast
 
 # Local libraries
 from lpu.common import files
 from lpu.common.progress import view
 from lpu.smt.trans_models import records
 
-def makeGlueRules(srcRuleTable, saveRules, progress = False):
+def makeGlueRules(srcRuleTable: str | io.TextIOBase,
+                  saveRules: str | io.TextIOBase,
+                  progress: bool = False) -> None:
     setTags = set()
     setPOSTags = set()
-    if type(srcRuleTable) == str:
+    # files.open の戻り型 (IOBase) は広いため、テキストモードの結果を
+    # TextIOBase に cast して狭める
+    if isinstance(srcRuleTable, str):
       #srcRuleTable = files.open(srcRuleTable)
-      srcRuleTable = files.open(srcRuleTable, 'rt')
-    if type(saveRules) == str:
+      srcRuleTable = cast(io.TextIOBase, files.open(srcRuleTable, 'rt'))
+    if isinstance(saveRules, str):
         saveRules = open(saveRules, 'w', encoding='utf-8')
     if progress:
         srcRuleTable = view(srcRuleTable)
@@ -42,7 +50,7 @@ def makeGlueRules(srcRuleTable, saveRules, progress = False):
     #saveRules.write("x0:X x1:X @ X ||| x0:X x1:X @ X ||| glue=1\n")
     saveRules.write("x0:X x1:X @ X ||| x0:X x1:X @ X ||| glue=1 unk=1\n")
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='generate glue rules from travatar rule table'
     )

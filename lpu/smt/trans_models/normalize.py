@@ -3,7 +3,10 @@
 '''functions to normalize phrase translation probabilities of given phrase/rule table'''
 
 # Standarde libraries
+from __future__ import annotations
+
 import argparse
+from typing import Any
 
 # Local libraries
 from lpu.common import files
@@ -15,13 +18,13 @@ from lpu.smt.trans_models.tables import Table
 logger = logging.getColorLogger(__name__)
 
 
-def get_target_field(rec, target_number=None):
+def get_target_field(rec: Any, target_number: int | None = None) -> str:
     if isinstance(target_number,int):
         return rec.trg.split('|COL|')[target_number].strip()
     else:
         return rec.trg
 
-def calc_src_factor(table, src, target_number=None):
+def calc_src_factor(table: Any, src: str, target_number: int | None = None) -> float:
     total = 0
     feature = 'egfp'
     targets = set()
@@ -34,7 +37,7 @@ def calc_src_factor(table, src, target_number=None):
             targets.add(target)
     return total
 
-def calc_trg_factor(table, trg, target_number=None):
+def calc_trg_factor(table: Any, trg: str, target_number: int | None = None) -> float:
     total = 0
     feature = 'fgep'
     if target_number:
@@ -57,13 +60,13 @@ def calc_trg_factor(table, trg, target_number=None):
             sources.add(rec.src)
     return total
 
-def normalize_table(table_path, save_path):
+def normalize_table(table_path: str, save_path: str) -> None:
     table = Table(table_path, TravatarRecord, trg_key=True)
 
     last_src = ""
     #src_total = 0
-    src_total = {}
-    dict_trg_total = {}
+    src_total: dict[int | None, float] = {}
+    dict_trg_total: dict[tuple[int | None, Any], float] = {}
     with files.open(save_path, 'wt') as fobj_out:
         #for i, rec in enumerate( progress.view(table, 'normalizing', max_count = len(table)) ):
         for i, line in enumerate( progress.view(table_path, 'normalizing', max_count = len(table)) ):
@@ -72,7 +75,7 @@ def normalize_table(table_path, save_path):
                 #if i > 100:
                 #    break
                 targets = [rec.trg]
-                target_numbers = [None]
+                target_numbers: list[int | None] = [None]
                 if rec.trg.find('|COL|') >= 0:
                     for i, field in enumerate(rec.trg.split('|COL|')):
                         targets.append(field.strip())
@@ -110,7 +113,7 @@ def normalize_table(table_path, save_path):
                 logger.warning(e)
                 raise Exception("failed to normalize a record") from e
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description = 'load 2 rule tables and pivot into one travatar rule table')
     parser.add_argument('table_path', type=str, help = 'path to phrase/rule table')
     parser.add_argument('save_path', help = 'path to save phrase/rule table')

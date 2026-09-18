@@ -155,11 +155,26 @@ files = [
     "lpu/data_structs/trees.py",
     "lpu/metrics/bleu.py",
     "lpu/metrics/ribes.py",
+    "lpu/smt/trans_models/convert_extract.py",
+    "lpu/smt/trans_models/filter.py",
+    "lpu/smt/trans_models/make_glue_rules.py",
+    "lpu/smt/trans_models/normalize.py",
 ]
 # Follow imports (e.g. lpu.common.logging) without reporting the errors
 # of the not-yet-annotated imported modules.
 # import 先 (未注釈モジュール) のエラーは報告せず、解決のみを行う
 follow_imports = "silent"
+
+# The compiled Cython extension modules have no stubs, so their imports
+# are treated as missing; accept them as Any.
+# (コンパイル済み Cython 拡張モジュールには stub が無いため欠落扱いになる。
+#  Any として受け入れる)
+[[tool.mypy.overrides]]
+module = [
+    "lpu.smt.trans_models.records",
+    "lpu.smt.trans_models.tables",
+]
+ignore_missing_imports = true
 
 [tool.setuptools.dynamic]
 version = { file = "lpu/VERSION" }

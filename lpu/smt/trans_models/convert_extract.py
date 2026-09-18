@@ -3,7 +3,11 @@
 '''function converting rule table'''
 
 # Standard libraries
+from __future__ import annotations
+
 import argparse
+import io
+from typing import cast
 
 # Local libraries
 from lpu.common import files
@@ -12,12 +16,22 @@ from lpu.smt.trans_models import records
 
 CONVERT_OPTIONS=["scfg", "hiero", "tag"]
 
-def convertTravatarExtract(srcFile, saveFile, sync=None, flatten=None, reverse=False, no_unary=False, progress=False):
-    if type(srcFile) == str:
+def convertTravatarExtract(
+    srcFile: str | io.TextIOBase,
+    saveFile: str | io.TextIOBase,
+    sync: str | None = None,
+    flatten: str | None = None,
+    reverse: bool = False,
+    no_unary: bool = False,
+    progress: bool = False,
+) -> None:
+    # files.open は gzip 透過のため typeshed 上の戻り型が広い (IOBase)。
+    # テキストモードでの結果は TextIOBase なので cast で狭める
+    if isinstance(srcFile, str):
         #srcFile = files.open(srcFile)
-        srcFile = files.open(srcFile, 'rt')
-    if type(saveFile) == str:
-        saveFile = files.open(saveFile, 'wt')
+        srcFile = cast(io.TextIOBase, files.open(srcFile, 'rt'))
+    if isinstance(saveFile, str):
+        saveFile = cast(io.TextIOBase, files.open(saveFile, 'wt'))
     if progress:
         srcFile = view(srcFile)
     for line in srcFile:
@@ -52,7 +66,7 @@ def convertTravatarExtract(srcFile, saveFile, sync=None, flatten=None, reverse=F
             saveFile.write(str.join(' ||| ', fields)+"\n")
     saveFile.close()
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('src_table', help = 'source rule table')
     parser.add_argument('save_table', help = 'save path')
