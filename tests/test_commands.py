@@ -272,6 +272,13 @@ class TestWaitFiles:
         # 無限に待たずに終了すること
         assert result.returncode is not None
 
+    def test_debug_flag_runs_without_quiet(self, tmp_path):
+        target = tmp_path / 'exists.txt'
+        target.write_text('x', encoding='utf-8')
+        result = run_command('lpu.commands.wait_files',
+                             ['--debug', '--interval', '1', str(target)])
+        assert result.returncode == 0
+
 
 @requires_smt
 class TestWordAlign:

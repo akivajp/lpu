@@ -9,6 +9,8 @@ import gzip
 import io
 import logging as std_logging
 import os
+import sys
+import types
 
 import pytest
 
@@ -285,6 +287,227 @@ class TestLogging:
     def test_level_string_rejects_other_types(self):
         with pytest.raises(TypeError):
             logging.getLevelString(1.5)
+
+    def test_config_unset_debug_and_quiet(self):
+        '''set_debug / set_quiet accept False, and the unset methods clear
+
+        LoggingConfig.set_debug / set_quiet に False を渡すとフラグが
+        "0" になり、unset_debug / unset_quiet で変数自体を消せること。
+        '''
+        name = 'lpu.test.unset_flags'
+        with logging.using_config(name, debug=True) as config:
+            assert logging.get_debug_status() is True
+            config.unset_debug()
+            assert logging.get_debug_status() is False
+            config.set_quiet(False)
+            assert logging.get_quiet_status() is False
+            config.set_quiet(True)
+            assert logging.get_quiet_status() is True
+            config.unset_quiet()
+            assert logging.get_quiet_status() is False
+
+    def test_config_without_loggers_reconfigures_the_lpu_logger(self):
+        '''Without explicit loggers the global lpu logger is reconfigured
+
+        ロガー指定が無い場合は lpu ルートロガーが再設定されること。
+        '''
+        with environ.push():
+            config = logging.LoggingConfig()
+            config.set_debug(True)
+            assert logging.get_debug_status() is True
+
+    def test_get_color_status_reads_the_env_modes(self):
+        '''LPU_COLOR / COLOR select forced-on, forced-off and auto mode
+
+        LPU_COLOR / COLOR の各指定値で on / off / auto が選択されること。
+        '''
+        with environ.push(LPU_COLOR='0'):
+            assert logging.get_color_status() is False
+        with environ.push(LPU_COLOR='off'):
+            assert logging.get_color_status() is False
+        with environ.push(LPU_COLOR='1'):
+            assert logging.get_color_status() is True
+        with environ.push(LPU_COLOR='auto'):
+            # auto follows the terminal capability
+            # (auto の場合はターミナルの状態に従う)
+            assert logging.get_color_status() == sys.stderr.isatty()
+        with environ.push(COLOR='false'):
+            assert logging.get_color_status() is False
+        with environ.push(LPU_COLOR='unknown-value'):
+            assert logging.get_color_status() is False
+
+    def test_formatter_uses_default_color_when_no_rule_matches(self):
+        formatter = logging.ColorizingFormatter('%(message)s')
+        formatter.setColor('default', 'green')
+        record = std_logging.LogRecord('lpu.test', logging.INFO,
+                                       'path', 1, 'hello', None, None)
+        formatted = formatter.format(record)
+        # the record went through put_color, so ANSI codes wrap the text
+        # (put_color を通るため ANSI エスケープで囲まれる)
+        assert 'hello' in formatted
+
+    def test_formatter_colors_stack_and_exception(self):
+        formatter = logging.ColorizingFormatter('%(message)s')
+        formatter.setColors(stack='green', exception='red')
+        assert 'frame1' in formatter.formatStack('frame1\nframe2')
+        try:
+            raise ValueError('boom')
+        except ValueError:
+            assert 'boom' in formatter.formatException(sys.exc_info())
+        # without a stack / exception color, the debug / error colors are
+        # used as fallbacks
+        # (stack / exception 色が無い場合は debug / error 色にフォールバック)
+        fallback_formatter = logging.ColorizingFormatter('%(message)s')
+        fallback_formatter.setColors(debug='green', error='red')
+        assert 'frame1' in fallback_formatter.formatStack('frame1\nframe2')
+        try:
+            raise ValueError('boom')
+        except ValueError:
+            assert 'boom' in fallback_formatter.formatException(
+                sys.exc_info())
+
+    def test_colorize_handler_with_explicit_mode(self):
+        handler = std_logging.StreamHandler()
+        formatter = logging.colorizeHandler(handler, mode='on')
+        assert isinstance(formatter, logging.ColorizingFormatter)
+        assert formatter._colors['debug'] == 'yellow'
+        # 'off' adds the formatter without any color
+        # (off では色なしのフォーマッタが設定される)
+        formatter = logging.colorizeHandler(std_logging.StreamHandler(),
+                                            mode='off')
+        assert formatter._colors == {}
+        # re-colorizing an already colorized handler is a no-op
+        # (色付き済みのハンドラの再設定はそのまま返される)
+        assert logging.colorizeHandler(handler, mode='auto') is handler
+
+    def test_colorize_accepts_loggers_handlers_and_names(self):
+        handler = std_logging.StreamHandler()
+        logger = logging.getColorLogger('lpu.test.colorize_obj',
+                                        add_handler=handler)
+        assert logging.colorize(logger) is logger
+        # a handler already carrying a ColorizingFormatter is returned as is
+        # (既に ColorizingFormatter を持つハンドラはそのまま返される)
+        assert logging.colorize(logger.handlers[0]) is logger.handlers[0]
+        assert logging.colorizeLogger('lpu.test.colorize_obj') is logger
+
+    def test_configure_logger_accepts_none_and_explicit_modes(self):
+        assert logging.configureLogger(None) is None
+        name = 'lpu.test.explicit_level'
+        logger = logging.getColorLogger(name, level_mode=logging.DEBUG)
+        assert logger.level == logging.DEBUG
+
+    def test_get_color_logger_does_not_duplicate_handlers(self):
+        name = 'lpu.test.duplicate_handlers'
+        handler = std_logging.StreamHandler()
+        logging.getColorLogger(name, add_handler=handler)
+        count = len(logging.getLogger(name).handlers)
+        logging.getColorLogger(name, add_handler=handler)
+        assert len(logging.getLogger(name).handlers) == count
+
+    def test_debug_print_with_limit_and_value_types(self, caplog):
+        '''debug_print handles stack limits, bytes and multi-line values
+
+        debug_print の limit 指定と、bytes や複数行の値の出力。
+        '''
+        name = 'lpu.test.debug_print_types'
+        logger = logging.getColorLogger(name)
+        with caplog.at_level(logging.DEBUG, logger=name):
+            with logging.using_config(name, debug=True):
+                int_value = 42
+                logger.debug_print(int_value, limit=2)
+                str_value = 'plain'
+                logger.debug_print(str_value)
+                bytes_value = b'bytes'
+                logger.debug_print(bytes_value)
+                multiline_value = 'line1\nline2'
+                logger.debug_print(multiline_value)
+        text = caplog.text
+        assert 'int_value' in text
+        assert '42' in text
+        assert 'str_value' in text
+        assert 'plain' in text
+        assert "b'bytes'" in text
+        assert 'line1' in text
+        assert 'line2' in text
+
+    def test_module_level_debug_print(self, caplog):
+        name = '__main__'
+        with caplog.at_level(logging.DEBUG, logger=name):
+            with logging.using_config(name, debug=True):
+                module_value = 99
+                logging.debug_print(module_value)
+        assert '99' in caplog.text
+
+    def test_seek_str_recovers_quoted_strings(self):
+        assert logging._seek_str('x = "hi" there', 4)[0] == '"hi"'
+        assert logging._seek_str("x = 'hi' there", 4)[0] == "'hi'"
+        assert logging._seek_str('"""a b""" tail', 0)[0] == '"""a b"""'
+        assert logging._seek_str("'''a b''' tail", 0)[0] == "'''a b'''"
+        # an escaped character is kept inside the quoted expression
+        # (エスケープ文字は式の中にそのまま保持される)
+        assert logging._seek_str('x = "a\\b" tail', 4)[0] == '"a\\b"'
+        # without a quote at the offset, nothing is consumed
+        # (オフセット位置に引用符が無い場合は何も読まない)
+        assert logging._seek_str('x = noquote', 4)[0] == ''
+
+    def test_parse_args_recovers_argument_expressions(self):
+        # nested parentheses, commas inside them and space collapsing
+        # (ネストした括弧と括弧内のカンマ、スペースの連続圧縮)
+        lines = ['f(1, 2 + (3),  a)\n', '  continued\n']
+        feeder = logging._get_feeder(lines, 1)
+        args, _ = logging._parse_args(next(feeder), feeder)
+        assert args == ['1', ' 2 + (3)', ' a']
+        # a nested call expression is kept as one argument
+        # (ネストした呼び出し式は 1 引数として保持される)
+        lines = ['f((a, b))\n']
+        feeder = logging._get_feeder(lines, 1)
+        args, _ = logging._parse_args(next(feeder), feeder)
+        assert args == ['(a, b)']
+        # a call spanning multiple lines continues on the next line
+        # (複数行にまたがる呼び出しは次の行に続く)
+        lines = ['log(\n', '  1)\n']
+        feeder = logging._get_feeder(lines, 1)
+        args, _ = logging._parse_args(next(feeder), feeder)
+        # the continuation keeps the leading space
+        # (継続行の先頭スペースはそのまま保持される)
+        assert args == [' 1']
+
+    def test_parse_args_rejects_unbalanced_expression(self):
+        with pytest.raises(Exception, match='parse error'):
+            logging._parse_args('abc)', logging._get_feeder(['x\n'], 1))
+
+    def test_get_cached_calls_picks_the_nearest_call(self, monkeypatch):
+        calls = [types.SimpleNamespace(lineno=10, col_offset=0),
+                 types.SimpleNamespace(lineno=20, col_offset=0)]
+        monkeypatch.setitem(logging._cached_calls, 'virtual.py', calls)
+        assert logging._get_cached_calls('virtual.py', 20) is calls[1]
+        # between two calls, the preceding one is used
+        # (2つの呼び出しの間の行では直前のものが使われる)
+        assert logging._get_cached_calls('virtual.py', 15) is calls[0]
+        # before the first call, no call matches
+        # (最初の呼び出しより前の行では見つからない)
+        assert logging._get_cached_calls('virtual.py', 5,
+                                         fallback='F') == 'F'
+
+    def test_get_cached_calls_returns_fallback_without_source(self):
+        # neither a file on disk nor a frame is available
+        # (ディスク上のファイルもフレームも無い場合)
+        assert logging._get_cached_calls('definitely_missing.py', 1,
+                                         fallback='F') == 'F'
+
+    def test_get_cached_line_fallbacks(self, tmp_path):
+        import inspect
+        frame = sys._getframe()
+        # a path that does not exist falls back to the frame's source
+        # (存在しないパスではフレームのソースへフォールバックする)
+        src_lines = inspect.getsourcelines(frame)[0]
+        line = logging._get_cached_line('definitely_missing.py', 1,
+                                        fallback='F', frame=frame)
+        assert line == src_lines[0]
+        # an unreadable path returns the fallback
+        # (読めないパスではフォールバックを返す)
+        assert logging._get_cached_line(str(tmp_path), 1,
+                                        fallback='G') == 'G'
 
 
 class TestProgress:
