@@ -34,6 +34,23 @@ jobs:
       # (mypy は [tool.mypy] の files に列挙した注釈済みモジュールのみ検査する)
       - run: mypy
 
+  # The core package has no runtime dependencies; the only runtime one is
+  # numpy via the smt extra, so a minimal environment is enough to audit.
+  # コアパッケージには実行時依存がなく、smt エクストラ経由の numpy が
+  # 唯一の依存のため、最小環境での監査で十分である。
+  security:
+    name: security audit (pip-audit)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install the runtime dependencies and the auditor
+        run: python -m pip install 'numpy>=2.0' pip-audit
+      - name: Audit the installed packages
+        run: pip-audit --desc off
+
   test:
     name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
