@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
 # Standard libraries
+from __future__ import annotations
+
 import argparse
 import random
+from typing import Any
 
 # Local libraries
 from lpu.common import files
@@ -13,16 +16,16 @@ from lpu.common.config import Config
 
 logger = logging.getColorLogger(__name__)
 
-def get_valid_indices(conf):
+def get_valid_indices(conf: Config) -> list[int]:
     #indices = set()
     indices = []
     infiles = [files.open(path,'rb') for path in conf.data.inpaths]
     infiles[0] = progress.view(infiles[0], 'loading')
     #for i, lines in enumerate(progress.view(compat.zip(*infiles), 'loading')):
     # 対訳の片側だけ行数が多い場合、従来動作どおり短い側で打ち切る
-    for i, lines in enumerate(zip(*infiles, strict=False)):
+    for i, raw_lines in enumerate(zip(*infiles, strict=False)):
         try:
-            lines = map(text.to_unicode, lines)
+            lines = map(text.to_unicode, raw_lines)
             if conf.data.ignore_empty:
                 if all([line.rstrip("\n") for line in lines]):
                         indices.append(i)
@@ -33,7 +36,7 @@ def get_valid_indices(conf):
             logger.warning(f"{e} (Line {i})")
     return indices
 
-def random_split(conf, **others):
+def random_split(conf: Config | dict[str, Any], **others: Any) -> bool:
     conf = Config(conf, **others)
     if not check_config(conf):
         return False
@@ -111,7 +114,7 @@ def random_split(conf, **others):
                 outfile.write(f"{line_index + 1}\n")
     return True
 
-def check_config(conf):
+def check_config(conf: Config) -> bool:
     numInput = len(conf.data.input)
     numTags  = len(conf.data.tags)
     conf.data.inpaths = conf.data.input
@@ -152,7 +155,7 @@ def check_config(conf):
     logger.debug(conf)
     return True
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Split a parallel corpus at random into several parts, '
                     'keeping the line correspondence between the sides.'

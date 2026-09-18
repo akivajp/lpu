@@ -139,6 +139,7 @@ files = [
     "lpu/commands/exec_parallel.py",
     "lpu/commands/guess_langcode.py",
     "lpu/commands/progress.py",
+    "lpu/commands/random_split.py",
     "lpu/commands/wait_files.py",
     "lpu/common/colors.py",
     "lpu/common/config.py",
