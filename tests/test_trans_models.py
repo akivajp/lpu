@@ -369,3 +369,57 @@ class TestConvertExtract:
         lines = savefile.read_text(encoding='utf-8').splitlines()
         assert len(lines) == 1
         assert lines[0].startswith('"cat" x0:X')
+
+    def test_flatten_flattens_a_tree_side(self, tmp_path):
+        '''--flatten turns the tree tokens into a flat symbol list
+
+        --flatten で木構造のトークン列がフラットな記号列に変換されること。
+        '''
+        src = tmp_path / 'extract.txt'
+        src.write_text('NP ( DT "the" ) ||| "le" ||| 10 ||| 0-0\n',
+                       encoding='utf-8')
+        savefile = tmp_path / 'converted.txt'
+        _run('lpu.smt.trans_models.convert_extract',
+             ['--flatten', 'scfg', str(src), str(savefile)], tmp_path)
+        lines = savefile.read_text(encoding='utf-8').splitlines()
+        assert len(lines) == 1
+        assert '"the"' in lines[0]
+        # the tree side carries the "@" separator and the root tag
+        # (木側には "@" 区切りとルートタグが付く)
+        assert lines[0] == '"the" @ NP ||| "le" ||| 10 ||| 0-0'
+
+    def test_sync_transfers_tags_to_the_other_side(self, tmp_path):
+        '''--sync scfg copies the source tags into the target variables
+
+        --sync scfg で非終端変数に元側のタグが転記され、"@ <tag>" が
+        追加されること。
+        '''
+        src = tmp_path / 'extract.txt'
+        src.write_text(
+            'NP ( S x0:X ) ||| "le" x0 ||| 10 ||| 0-1\n',
+            encoding='utf-8')
+        savefile = tmp_path / 'converted.txt'
+        _run('lpu.smt.trans_models.convert_extract',
+             ['--sync', 'scfg', str(src), str(savefile)], tmp_path)
+        lines = savefile.read_text(encoding='utf-8').splitlines()
+        assert len(lines) == 1
+        # the untagged x0 is replaced with the source tag and the
+        # "@ NP" trailer marks the target as tagged
+        # (タグなしの x0 に元タグが転記され、末尾の "@ NP" が
+        #  target がタグ付きであることを示す)
+        assert lines[0] == 'NP ( S x0:X ) ||| "le" x0:X @ NP ||| 10 ||| 0-1'
+
+    def test_progress_flag_still_converts(self, tmp_path):
+        '''--progress wraps the source in a view but keeps the output
+
+        --progress を付けても変換結果は同一であること。
+        '''
+        src = tmp_path / 'extract.txt'
+        src.write_text('"the" "cat" ||| "le" "chat" ||| 10 ||| 0-0 1-1\n',
+                       encoding='utf-8')
+        savefile = tmp_path / 'converted.txt'
+        _run('lpu.smt.trans_models.convert_extract',
+             ['--progress', str(src), str(savefile)], tmp_path)
+        assert savefile.read_text(encoding='utf-8').splitlines() == [
+            '"the" "cat" ||| "le" "chat" ||| 10 ||| 0-0 1-1',
+        ]
