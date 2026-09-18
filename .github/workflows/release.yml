@@ -16,7 +16,7 @@ permissions:
 jobs:
   check-version:
     name: Check the tag against lpu/VERSION
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Compare the tag with lpu/VERSION
@@ -37,7 +37,7 @@ jobs:
   sdist:
     name: Build the source distribution
     needs: check-version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -79,7 +79,7 @@ jobs:
         # macos-latest is Apple silicon; cibuildwheel cross-compiles the
         # x86_64 wheels from there (see [tool.cibuildwheel.macos]).
         # (macos-latest は arm64。x86_64 は同ランナーからクロスビルドする)
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
       - uses: pypa/cibuildwheel@v4.2.1
@@ -93,7 +93,7 @@ jobs:
     needs: [sdist, wheels]
     # Never publish from a manual dry run. (手動実行では公開しない)
     if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/p/lpu
@@ -114,7 +114,7 @@ jobs:
     name: Create the GitHub release
     needs: publish
     if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
