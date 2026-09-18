@@ -104,6 +104,82 @@ class TestUpdateFeatures:
                 workset.close()
             assert recPivot.features['egfp'] == pytest.approx(6.0)
 
+    def test_tree_match_methods_multiply_the_scores(self, tmp_path):
+        '''the tree match methods parse the pivot side as an S-expression
+
+        treedist / treedistexp はピボット側の表現を S 式として解釈して
+        木編集距離を計算する。MosesRecord の getTerms() はアラインメント
+        トークンも項として数えるため、レートは常に 1 に丸められ、結果は
+        素の確率の積と等しくなる。
+        '''
+        src = _moses('a', 'x 0-0', '2 1 2 1', '0 4 0')
+        trg = _moses('x 0-0', 'b', '3 1 3 1', '0 3 0')
+        for match_method in ['treedist', 'treedistexp']:
+            workset = triangulate.WorkSet(str(tmp_path / 'out.txt'),
+                                          str(tmp_path), 'prodprob',
+                                          matchMethod=match_method)
+            recPivot = _moses('a', 'b')
+            try:
+                triangulate.updateFeatures(recPivot, (src, trg), workset)
+            finally:
+                workset.close()
+            assert recPivot.features['egfp'] == pytest.approx(6.0)
+            assert recPivot.features['fgep'] == pytest.approx(6.0)
+
+    def test_multi_target_copies_the_word_weights(self, tmp_path):
+        '''the "0" prefix comes from the pivot-target side, "1" from src-pvt
+
+        "0" 接頭辞は pvt→trg 側、"1" 接頭辞は src→pvt 側の語彙重み。
+        '''
+        workset = triangulate.WorkSet(str(tmp_path / 'out.txt'),
+                                      str(tmp_path), 'prodprob',
+                                      multi_target=True)
+        src = _moses('a', 'x', '1 1 1 1', '0 4 0')
+        trg = _moses('x', 'b', '1 1 1 1', '0 3 0')
+        trg.features['w'] = 2
+        src.features['w'] = 3
+        recMulti = _moses('a', 'b |COL| x')
+        try:
+            triangulate.updateFeatures(recMulti, (src, trg), workset,
+                                       multi_target=True)
+        finally:
+            workset.close()
+        assert recMulti.features['0w'] == 2
+        assert recMulti.features['1w'] == 3
+
+    def test_target_word_probability_is_copied(self, tmp_path):
+        workset = triangulate.WorkSet(str(tmp_path / 'out.txt'),
+                                      str(tmp_path), 'prodprob')
+        src = _moses('a', 'x', '1 1 1 1', '0 4 0')
+        trg = _moses('x', 'b', '1 1 1 1', '0 3 0')
+        trg.features['p'] = 0.9
+        recPivot = _moses('a', 'b')
+        try:
+            triangulate.updateFeatures(recPivot, (src, trg), workset)
+        finally:
+            workset.close()
+        assert recPivot.features['p'] == 0.9
+
+    def test_multi_target_with_independent_joint_resets_the_forward_prob(self,
+                                                                         tmp_path):
+        workset = triangulate.WorkSet(str(tmp_path / 'out.txt'),
+                                      str(tmp_path), 'prodprob',
+                                      jointMethod='independent',
+                                      multi_target=True)
+        src = _moses('a', 'x', '1 1 1 1', '0 4 0')
+        trg = _moses('x', 'b', '1 1 1 1', '0 3 0')
+        recMulti = _moses('a', 'b |COL| x')
+        try:
+            triangulate.updateFeatures(recMulti, (src, trg), workset,
+                                       multi_target=True)
+        finally:
+            workset.close()
+        # the independent joint method fills fgep with 1 here; the real
+        # combination 1 - (1 - 0fgep)(1 - 1fgep) happens in pivotRecPairs
+        # (independent 結合ではここでは fgep を 1 にしておき、実際の
+        #  合成 1 - (1 - 0fgep)(1 - 1fgep) は pivotRecPairs で行う)
+        assert recMulti.features['fgep'] == pytest.approx(1.0)
+
     def test_invalid_match_method_raises(self, tmp_path):
         workset = triangulate.WorkSet(str(tmp_path / 'out.txt'),
                                       str(tmp_path), 'prodprob',
@@ -277,6 +353,15 @@ class TestPhraseTransProbs:
         assert recs['a'].features['egfp'] == pytest.approx(0.75)
         assert recs['b'].features['egfp'] == pytest.approx(0.25)
 
+    def test_forward_prob_is_zero_without_cooccurrences(self):
+        records = {'a': _moses('s', 'x', counts='0 0 0')}
+        triangulate.calcPhraseTransProbsByCounts(records)
+        rec = records['a']
+        # no co-occurrence means srcCount == 0 and the forward prob is 0
+        # (共起が無い場合は srcCount == 0 となり、順方向確率は 0)
+        assert rec.counts.src == 0
+        assert rec.features['egfp'] == 0
+
     def test_trans_probs_are_recalculated_per_source_group(self, tmp_path):
         table = tmp_path / 'table.txt'
         table.write_text(
@@ -342,6 +427,16 @@ class TestCalcLexWeight:
         rec = _moses('a', 'x y', aligns='0-0')
         weight = triangulate.calcLexWeight(rec, lex_counts, reverse=True)
         assert weight == pytest.approx(0.4)
+
+    def test_reverse_weight_treats_unaligned_words_as_null(self):
+        lex_counts = _FakeLexCounts()
+        # the source word 'b' has no alignment, so the reverse lookup
+        # falls back to calcLexProb('b', 'NULL') = 0.1
+        # (ソース語 'b' は整列が無いため、逆方向の参照は
+        #  calcLexProb('b', 'NULL') = 0.1 にフォールバックする)
+        rec = _moses('a b', 'x y', aligns='0-0')
+        weight = triangulate.calcLexWeight(rec, lex_counts, reverse=True)
+        assert weight == pytest.approx(0.4 * 0.1)
 
     def test_small_probabilities_are_clamped_to_the_minimum(self):
         lex_counts = _FakeLexCounts()
@@ -462,3 +557,185 @@ class TestPivot:
                           workdir=str(tmp_path), progress=False,
                           matchmethod='symbols', method='prodprob')
         assert out.read_text(encoding='utf-8') == ''
+
+    def test_pivot_multi_target_annotates_the_pivot_phrase(self, tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        out = tmp_path / 'pivoted.txt'
+        self._write_table(table1, [
+            'a ||| x ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        self._write_table(table2, [
+            'x ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        triangulate.pivot(str(table1), str(table2), savefile=str(out),
+                          workdir=str(tmp_path), progress=False,
+                          matchmethod='symbols', method='prodprob',
+                          multitarget=True)
+        lines = out.read_text(encoding='utf-8').strip().splitlines()
+        assert len(lines) == 1
+        rec = MosesRecord(lines[0])
+        # the pivot phrase is appended to the target with |COL|
+        # (ピボット句が |COL| 付きでターゲット側に追記される)
+        assert rec.trg == 'c |COL| x'
+        # memoryless joint: fgep comes straight from the src-pvt side
+        # (memoryless 結合では fgep は src→pvt 側の値をそのまま使う)
+        assert rec.features['fgep'] == pytest.approx(1.0)
+
+    def test_pivot_multi_target_with_independent_joint_combines_probs(self,
+                                                                      tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        out = tmp_path / 'pivoted.txt'
+        self._write_table(table1, [
+            'a ||| x ||| 0.5 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        self._write_table(table2, [
+            'x ||| c ||| 0.8 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        triangulate.pivot(str(table1), str(table2), savefile=str(out),
+                          workdir=str(tmp_path), progress=False,
+                          matchmethod='symbols', method='prodprob',
+                          multitarget=True, jointmethod='independent')
+        rec = MosesRecord(out.read_text(encoding='utf-8').strip())
+        # fgep combines the two estimates:
+        # 1 - (1 - 1fgep)(1 - 0fgep) = 1 - 0.5 * 0.6 = 0.7. The forward
+        # prob is normalized from the counts at the end, so with a single
+        # record per source it becomes 1.
+        # (fgep は 2 つの推定値を 1 - (1 - 1fgep)(1 - 0fgep) = 0.7 として
+        #  合成する。順方向確率は最後にカウントから正規化されるため、
+        #  ソースごとにレコードが 1 件だと 1 になる)
+        assert rec.features['egfp'] == pytest.approx(1.0)
+        assert rec.features['fgep'] == pytest.approx(0.7)
+
+    def test_pivot_multi_target_applies_the_nbest_filter(self, tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        out = tmp_path / 'pivoted.txt'
+        self._write_table(table1, [
+            'a ||| x ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        self._write_table(table2, [
+            'x ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+            'x ||| e ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        triangulate.pivot(str(table1), str(table2), savefile=str(out),
+                          workdir=str(tmp_path), progress=False,
+                          matchmethod='symbols', method='prodprob',
+                          multitarget=True, nbest=1)
+        lines = out.read_text(encoding='utf-8').strip().splitlines()
+        # one pivot-annotated record survives the nbest filter
+        # (nbest フィルタを通過するのはピボット注釈付きレコード 1 件)
+        assert len(lines) == 1
+        assert '|COL|' in lines[0].split(' ||| ')[1]
+
+    def test_pivot_multi_target_nbest_with_duplicated_targets(self, tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        out = tmp_path / 'pivoted.txt'
+        # the same target 'c' is reached through three pivot phrases, so
+        # records has 1 entry while multiRecords has 3
+        # (同じターゲット 'c' に 3 つのピボット句から到達するため、
+        #  records は 1 件、multiRecords は 3 件になる)
+        self._write_table(table1, [
+            'a ||| x ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+            'a ||| y ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+            'a ||| z ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        self._write_table(table2, [
+            'x ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+            'y ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+            'z ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        triangulate.pivot(str(table1), str(table2), savefile=str(out),
+                          workdir=str(tmp_path), progress=False,
+                          matchmethod='symbols', method='prodprob',
+                          multitarget=True, nbest=2)
+        lines = out.read_text(encoding='utf-8').strip().splitlines()
+        # the T1 filter keeps nbest records, filled from the multi records
+        # in order of the pivot phrase
+        # (T1 フィルタは nbest 件を保持する。足りない分はマルチレコードを
+        #  ピボット句の順に埋める)
+        assert len(lines) == 2
+        assert all('|COL|' in line.split(' ||| ')[1] for line in lines)
+
+    def test_pivot_negative_threshold_keeps_the_records(self, tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        out = tmp_path / 'pivoted.txt'
+        self._write_table(table1, [
+            'a ||| x ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        self._write_table(table2, [
+            'x ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        # a negative threshold enters the filter loop but never drops a
+        # record, because the probabilities are non-negative
+        # (負の threshold ではフィルタのループに入るが、確率は非負のため
+        #  レコードは 1 件も除去されない)
+        triangulate.pivot(str(table1), str(table2), savefile=str(out),
+                          workdir=str(tmp_path), progress=False,
+                          matchmethod='symbols', method='prodprob',
+                          threshold=-0.5)
+        lines = out.read_text(encoding='utf-8').strip().splitlines()
+        assert len(lines) == 1
+
+    def test_pivot_with_hiero_matchmethod(self, tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        out = tmp_path / 'pivoted.txt'
+        self._write_table(table1, [
+            'a b ||| x y ||| 1 1 1 1 ||| 0-0 1-1 ||| 2 4 6',
+        ])
+        self._write_table(table2, [
+            'x y ||| c d ||| 1 1 1 1 ||| 0-1 1-0 ||| 3 5 2',
+        ])
+        triangulate.pivot(str(table1), str(table2), savefile=str(out),
+                          workdir=str(tmp_path), progress=False,
+                          matchmethod='hiero', method='prodprob')
+        lines = out.read_text(encoding='utf-8').strip().splitlines()
+        assert len(lines) == 1
+        rec = MosesRecord(lines[0])
+        assert rec.src == 'a b'
+        assert rec.trg == 'c d'
+        assert rec.features['egfp'] == pytest.approx(1.0)
+
+    def test_pivot_requires_an_aligned_lexfile(self, tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        self._write_table(table1, [
+            'a ||| x ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        self._write_table(table2, [
+            'x ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        # a lex method outside prodweight/table needs --alignlex
+        # (prodweight / table 以外の lex 方式には --alignlex が必要)
+        with pytest.raises(AssertionError,
+                           match='aligned lexfile is not given'):
+            triangulate.pivot(str(table1), str(table2), savefile=str(tmp_path / 'out.txt'),
+                              workdir=str(tmp_path), progress=False,
+                              matchmethod='symbols', method='prodprob',
+                              lexmethod='counts')
+
+    def test_pivot_logs_the_lost_source_words(self, tmp_path):
+        table1 = tmp_path / 'src_pvt.txt'
+        table2 = tmp_path / 'pvt_trg.txt'
+        out = tmp_path / 'pivoted.txt'
+        log = tmp_path / 'log.txt'
+        # 'b' has no matching pivot rows, so its source word is lost
+        # ('b' に対応するピボット行が無いため、そのソース語は失われる)
+        self._write_table(table1, [
+            'a ||| x ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+            'b ||| z ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        self._write_table(table2, [
+            'x ||| c ||| 1 1 1 1 ||| 0-0 ||| 0 2 0',
+        ])
+        triangulate.pivot(str(table1), str(table2), savefile=str(out),
+                          workdir=str(tmp_path), progress=False,
+                          matchmethod='symbols', method='prodprob',
+                          log=str(log))
+        log_text = log.read_text(encoding='utf-8')
+        assert 'Lost Words:' in log_text
+        assert '"b"' in log_text
