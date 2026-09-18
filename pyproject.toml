@@ -134,6 +134,7 @@ select = [
 # 新規モジュールは注釈を付けてここに追加していく。
 files = [
     "lpu/commands/abspath.py",
+    "lpu/commands/clean_parallel.py",
     "lpu/commands/dialog.py",
     "lpu/commands/exec_parallel.py",
     "lpu/commands/guess_langcode.py",

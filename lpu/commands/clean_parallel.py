@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
 # Standard libraries
+from __future__ import annotations
+
 import argparse
 import os
 import re
 import unicodedata
 from functools import reduce
+from typing import Any
 
 # Local libraries
 from lpu.common import logging
@@ -33,7 +36,7 @@ REPLACE_MAP = {
     unicodedata.lookup('ZERO WIDTH NO-BREAK SPACE'): ' ',
 }
 
-def getLongestCommonPrefix(s1, s2):
+def getLongestCommonPrefix(s1: str, s2: str) -> str:
     index = 0
     f1 = s1.split('.')
     f2 = s2.split('.')
@@ -45,17 +48,17 @@ def getLongestCommonPrefix(s1, s2):
         index += 1
     return str.join('.', f1[0:index])
 
-def getLongestCommonSuffix(s1, s2):
+def getLongestCommonSuffix(s1: str, s2: str) -> str:
     return getLongestCommonPrefix(s1[::-1],s2[::-1])[::-1]
 
-def replaceChar(c):
+def replaceChar(c: str) -> str:
     if c in REPLACE_MAP:
         #logging.log("Replacing '%s' -> '%s'" % (c, REPLACE_MAP[c]))
         return REPLACE_MAP[c]
     else:
         return c
 
-def normalize(line, escape=False):
+def normalize(line: str, escape: bool = False) -> str:
     line = unicodedata.normalize('NFKD', line)
     if escape:
         line = ''.join(map(replaceChar, line))
@@ -63,26 +66,28 @@ def normalize(line, escape=False):
     line = re.sub(r'\s+', ' ', line)
     return line
 
-def checkLength(lines, minLength, maxLength):
+def checkLength(lines: list[str], minLength: int, maxLength: int) -> bool:
     for line in lines:
         words = line.split()
         if len(words) < minLength: return False
         if len(words) > maxLength: return False
     return True
 
-def getDiff(s, prefix, suffix):
+def getDiff(s: str, prefix: str, suffix: str) -> str:
     if len(suffix) == 0:
         return s[len(prefix):None]
     else:
         return s[len(prefix):-len(suffix)]
 
-def cleanParallel(**args):
-    srcFilePaths = args.get('srcFilePaths')
+def cleanParallel(**args: Any) -> None:
+    # デフォルト値は main() の argparse と同一のため、CLI 経由では動作不変。
+    # .get() の None を排除し、型チェッカー上も実行時上も後段を安全にする
+    srcFilePaths = args.get('srcFilePaths', [])
     #outPrefix = args.get('outfileprefix')
-    outTag = args.get('outTag')
-    minLength = args.get('min')
-    maxLength = args.get('max')
-    out_dir    = args.get('target_directory')
+    outTag = args.get('outTag', '')
+    minLength = args.get('min', 1)
+    maxLength = args.get('max', 80)
+    out_dir    = args.get('target_directory', './')
 
     if not os.path.isdir(out_dir):
         logger.info(f"Making directory: {out_dir}")
@@ -111,11 +116,11 @@ def cleanParallel(**args):
     outfiles = [open(path, 'w', encoding='utf-8') for path in outPaths]
     infiles[0] = progress.view(infiles[0], header='processing')
     # 対訳の片側だけ行数が多い場合、従来動作どおり短い側で打ち切る
-    for i, lines in enumerate(zip(*infiles, strict=False)):
+    for i, raw_lines in enumerate(zip(*infiles, strict=False)):
         try:
-            lines = [text.to_unicode(line.strip()) for line in lines]
-            if args.get('normalize'):
-                escape = args.get('escape')
+            lines = [text.to_unicode(line.strip()) for line in raw_lines]
+            if args.get('normalize', False):
+                escape = args.get('escape', False)
                 #lines = list( map(normalize, lines) )
                 lines = [normalize(line, escape=escape) for line in lines]
             if checkLength(lines, minLength, maxLength):
@@ -126,7 +131,7 @@ def cleanParallel(**args):
             #sys.stdout.write("\n")
             logger.warning(f"{e} (Line {i})")
 
-def main():
+def main() -> None:
     DEFAULT_MIN_LENGTH = 1
     DEFAULT_MAX_LENGTH = 80
     DEFAULT_RATIO = 9.0
