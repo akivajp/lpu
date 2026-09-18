@@ -166,6 +166,13 @@ files = [
 # import 先 (未注釈モジュール) のエラーは報告せず、解決のみを行う
 follow_imports = "silent"
 
+# Every module in the list is fully annotated, so the bodies of untyped
+# functions can be checked for free; it also covers the module-level
+# code.
+# (対象モジュールはすべて完全に注釈済みのため、未注釈関数の本体検査は
+#  無償で有効化できる。モジュールレベルのコードも検査される)
+check_untyped_defs = true
+
 # The compiled Cython extension modules have no stubs, so their imports
 # are treated as missing; accept them as Any.
 # (コンパイル済み Cython 拡張モジュールには stub が無いため欠落扱いになる。
