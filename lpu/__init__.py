@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 __all__ = [
-    'common',
     'commands',
+    'common',
     'data_structs',
     'smt',
     #'__system__',

@@ -27,7 +27,7 @@ def get_valid_indices(conf: Config) -> list[int]:
         try:
             lines = map(text.to_unicode, raw_lines)
             if conf.data.ignore_empty:
-                if all([line.rstrip("\n") for line in lines]):
+                if all(line.rstrip("\n") for line in lines):
                         indices.append(i)
             else:
                 indices.append(i)

@@ -262,7 +262,7 @@ class TestPackageInit:
 
         import sys
         monkeypatch.setattr(sys, 'meta_path',
-                            [_ImportBlocker()] + sys.meta_path)
+                            [_ImportBlocker(), *sys.meta_path])
         # force the import attempt even if the extension was loaded:
         # dropping the module from sys.modules alone is not enough because
         # the parent package keeps it as an attribute

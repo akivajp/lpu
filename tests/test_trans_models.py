@@ -172,7 +172,7 @@ class TestFilter:
         table.write_text(self.TABLE, encoding='utf-8')
         savefile = tmp_path / 'filtered.txt'
         _run('lpu.smt.trans_models.filter',
-             [str(table), str(savefile)] + list(extra_args), tmp_path)
+             [str(table), str(savefile), *extra_args], tmp_path)
         return savefile.read_text(encoding='utf-8').splitlines()
 
     def test_keeps_only_records_passing_the_count_rule(self, tmp_path):

@@ -39,7 +39,7 @@ class TestBleu:
         ref = 'a b c d'.split()
         assert bleu.calc_breavity_penalty(ref, ref) == 1.0
         # A longer hypothesis is not penalized / 長い仮説は減点しない
-        assert bleu.calc_breavity_penalty(ref, ref + ['e']) == 1.0
+        assert bleu.calc_breavity_penalty(ref, [*ref, 'e']) == 1.0
         hyp = 'a b'.split()
         assert bleu.calc_breavity_penalty(ref, hyp) == pytest.approx(
             math.exp(1 - 4 / 2))

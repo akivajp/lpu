@@ -114,9 +114,11 @@ dev = [
 # スタイル系のルールは対象外とする。
 select = [
     "B",    # bugbear: real defect patterns
+    "C4",   # flake8-comprehensions: redundant collection calls
     "E722", # bare except
     "E9",   # runtime / syntax errors
     "F",    # pyflakes: unused imports / variables, undefined names
+    "RUF",  # ruff-specific: defects like mutable class defaults
     "UP",   # pyupgrade: modernize for the supported Python (>= 3.10)
 ]
 

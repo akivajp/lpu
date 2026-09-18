@@ -31,7 +31,7 @@ def toNumber(num_any: float | int | str, margin: float = 0) -> int | float:
         3.5
     '''
     num_float = float(num_any)
-    num_int = int(round(num_float))
+    num_int = round(num_float)
     if abs(num_float - num_int) <= margin:
         return num_int
     else:

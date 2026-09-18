@@ -102,7 +102,7 @@ def getContentSize(path: str) -> int:
 
 def get_ext(filename: str) -> str:
     '''get the extension of given file'''
-    (name, ext) = os.path.splitext(filename)
+    _, ext = os.path.splitext(filename)
     return ext
 
 #def isIOType(obj):

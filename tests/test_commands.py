@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -64,7 +65,7 @@ def run_command(module, args, cwd=None, input_bytes=None, entry='main'):
             'COVERAGE_FILE': str(repo_root / '.coverage'),
         }
     return subprocess.run(
-        [sys.executable, '-c', code] + list(args),
+        [sys.executable, '-c', code, *args],
         cwd=cwd, input=input_bytes, capture_output=True, **kwargs,
     )
 
@@ -599,7 +600,7 @@ class TestRandomSplit:
         # to_unicode is only invoked with --ignore-empty, so enable it to
         # reach the conversion path (to_unicode は --ignore-empty 時のみ
         # 呼ばれるため、変換経路に到達するよう有効化する)
-        conf.update(dict(inpaths=[str(src), str(trg)], ignore_empty=True))
+        conf.update({'inpaths': [str(src), str(trg)], 'ignore_empty': True})
         indices = random_split.get_valid_indices(conf)
         # no line survived and the failure is reported as a warning
         # (生存行は無く、失敗は警告として報告される)
@@ -621,8 +622,8 @@ class TestRandomSplit:
                 '--tags', 'a', 'b']
         # a non-numeric size aborts the whole split
         # (数値化できないサイズでは分割全体が中断される)
-        result = run_command('lpu.commands.random_split', base + [
-            '--split-sizes', 'abc', '*', '--random-seed', '1', '--quiet',
+        result = run_command('lpu.commands.random_split', [
+            *base, '--split-sizes', 'abc', '*', '--random-seed', '1', '--quiet',
         ], cwd=str(tmp_path))
         assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
         # nothing is written for a rejected configuration
@@ -630,8 +631,8 @@ class TestRandomSplit:
         assert not (tmp_path / 'a.en').exists()
         # a negative size is reported as non-positive and processing goes on
         # (負のサイズは正でない値として報告され、処理は継続する)
-        result = run_command('lpu.commands.random_split', base + [
-            '--split-sizes', '-1', '*', '--random-seed', '1',
+        result = run_command('lpu.commands.random_split', [
+            *base, '--split-sizes', '-1', '*', '--random-seed', '1',
         ], cwd=str(tmp_path))
         assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
         stderr = result.stderr.decode('utf-8', 'replace')
@@ -656,9 +657,10 @@ class TestRandomSplit:
         for extra in cases:
             # the later option of each pair wins, so the last group gets
             # the wrong element count (最後のオプションが優先され要素数が合わない)
-            result = run_command('lpu.commands.random_split', base + [
-                '--suffixes', 'en', 'fr', '--split-sizes', '1', '1',
-            ] + extra, cwd=str(tmp_path))
+            result = run_command('lpu.commands.random_split', [
+                *base, '--suffixes', 'en', 'fr', '--split-sizes', '1', '1',
+                *extra,
+            ], cwd=str(tmp_path))
             assert result.returncode == 0, (
                 result.stderr.decode('utf-8', 'replace'))
             # nothing is written for a rejected configuration
@@ -932,7 +934,8 @@ class TestWordAlign:
     IBM モデルの学習とスコアリングの end-to-end テスト。
     '''
 
-    EXPECTED_ALIGNMENT = {
+    # 参照のみの定数のため、ミュータブルな既定値の誤検出 (RUF012) を除く
+    EXPECTED_ALIGNMENT: ClassVar[dict[str, str]] = {
         'the': 'le', 'cat': 'chat', 'dog': 'chien',
         'sat': 'assis', 'ran': 'couru', 'a': 'un',
     }

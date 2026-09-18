@@ -125,7 +125,7 @@ class ConfigData:
     def __iter__(self) -> Iterator[str]:
         base = self.__base
         main = self.__main
-        l = list()
+        l = []
         s = set()
         #l = list(self.__main)
         #s = set(l)
@@ -155,9 +155,9 @@ class ConfigData:
         str_params = get_key_val_str(main, False)
         if base:
             if str_params:
-                return f"{name}({repr(base)},{str_params})"
+                return f"{name}({base!r},{str_params})"
             else:
-                return f"{name}({repr(base)})"
+                return f"{name}({base!r})"
         else:
             if str_params:
                 return f"{name}({str_params})"

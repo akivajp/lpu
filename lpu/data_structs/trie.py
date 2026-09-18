@@ -38,7 +38,7 @@ class IDMap:
     def __init__(self):
         #self.trie      = pycedar.trie()
         self.dict      = pycedar.dict()
-        self.unusedIDs = list()
+        self.unusedIDs = []
         self.numEmpty   = 0
 
     @cython.locals(n = long)

@@ -173,7 +173,7 @@ class ColorizingFormatter(logging.Formatter):
         #self._default_fmt = fmt
         # 既定の書式は文字列前提 (None は ColorizingFormatter の利用形態では無い)
         self._default_fmt: str = cast(str, self._fmt)
-        self._colors: dict[str, str] = dict()
+        self._colors: dict[str, str] = {}
 
     def addFormatRule(self, rule: logging.Filter, fmt: str | None = None) -> None:
         #self._format_rules.append([rule, fmt])
@@ -341,11 +341,7 @@ class CustomLogger(logging.Logger):
         #logger = getColorLogger(module_name)
         #logger = getLogger(module_name)
         #logger = colorizeLogger(logger)
-        extra = dict(
-            filename = path,
-            funcName = func,
-            lineno = lineno,
-        )
+        extra = {'filename': path, 'funcName': func, 'lineno': lineno}
         self.debug(format, extra=extra)
 
     def makeRecord(self, name: str, level: int, fn: str | None, lno: int, msg: Any, args: Any,

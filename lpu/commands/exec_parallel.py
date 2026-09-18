@@ -172,11 +172,11 @@ def splitFile(conf: Config) -> bool | None:
     prefix = getSplitPrefix(conf)
     if not splitSize:
         #splitSize = int( math.ceil(float(lineCount) / threads) )
-        splitSize = conf.data.splitSize = int( math.ceil(float(lineCount) / numChunks) )
+        splitSize = conf.data.splitSize = math.ceil(float(lineCount) / numChunks)
         logger.info(f'Split size: {splitSize}')
     #splitCount = conf.data.splitCount = int(math.ceil(float(lineCount) / splitSize))
     #splitCount = int(math.ceil(float(lineCount) / splitSize))
-    numChunks = conf.data.numChunks = int(math.ceil(float(lineCount) / splitSize))
+    numChunks = conf.data.numChunks = math.ceil(float(lineCount) / splitSize)
     #digits = conf.data.digits = len(str(splitCount))
     digits = conf.data.digits = len(str(numChunks))
     logger.info(f'Splitting into: "{prefix}.*"')
