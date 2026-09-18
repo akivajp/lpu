@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # cython: profile=True
 
 '''Configuration utility class for function settings'''
@@ -16,7 +15,7 @@ from lpu.common import logging
 logger = logging.getColorLogger(__name__)
 dprint = logger.debug_print
 
-class ConfigData(object):
+class ConfigData:
     '''Configuration data holder'''
 
     # The actual storage is written into __dict__ under mangled aliases in
@@ -24,11 +23,11 @@ class ConfigData(object):
     # checker see the attributes.
     # (実体は __init__ 内で __dict__ に名前修飾付きの別名として書き込まれる。
     #  ここでの宣言は型チェッカーが属性を認識するためのもの)
-    __base: "OrderedDict[str, Any] | ConfigData | None"
-    __main: "OrderedDict[str, Any]"
+    __base: OrderedDict[str, Any] | ConfigData | None
+    __main: OrderedDict[str, Any]
 
     def __init__(self, _base: Any = None, **args: Any) -> None:
-        base: "OrderedDict[str, Any] | ConfigData | None" = None
+        base: OrderedDict[str, Any] | ConfigData | None = None
         main: OrderedDict[str, Any]
         if isinstance(_base, Config):
             base = _base.data
@@ -78,7 +77,7 @@ class ConfigData(object):
             del self.__main[key]
         else:
             name = self.__class__.__name__
-            raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
+            raise AttributeError(f"'{name}' object has no attribute '{key}'")
 
     def __getattr__(self, key: str) -> Any:
         try:
@@ -89,7 +88,7 @@ class ConfigData(object):
             dprint(key)
             # 元の例外 (KeyError 等) はデバッグ目的で既に記録済みのため、
             # チェーンを抑制して通常の AttributeError として見せる
-            raise AttributeError("'%s' object has no attribute '%s'" % (name, key)) from None
+            raise AttributeError(f"'{name}' object has no attribute '{key}'") from None
 
     def __getitem__(self, key: Any) -> Any:
         main = self.__main
@@ -156,14 +155,14 @@ class ConfigData(object):
         str_params = get_key_val_str(main, False)
         if base:
             if str_params:
-                return "{}({},{})".format(name, repr(base), str_params)
+                return f"{name}({repr(base)},{str_params})"
             else:
-                return "{}({})".format(name, repr(base))
+                return f"{name}({repr(base)})"
         else:
             if str_params:
-                return "{}({})".format(name, str_params)
+                return f"{name}({str_params})"
             else:
-                return "{}()".format(name)
+                return f"{name}()"
         #    return "%s(%r, %s)" % (name,self.__base,str_params)
         #    return "%s(%s)" % (name,self.__base)
 
@@ -180,9 +179,9 @@ class ConfigData(object):
         base = self.__base
         # check the key validity
         if not isinstance(key, (str,bytes)):
-            raise TypeError('key value should be type of str, but given: %s' % type(key).__name__)
+            raise TypeError(f'key value should be type of str, but given: {type(key).__name__}')
         elif key.startswith('_'):
-            raise KeyError('key should not start with "_": %s' % key)
+            raise KeyError(f'key should not start with "_": {key}')
         # process for chained accessing
         if key.find('.') >= 0:
             # chained access key
@@ -218,7 +217,7 @@ class ConfigData(object):
                 val = ConfigData(val)
             main.__setitem__(key, val)
 
-class Config(object):
+class Config:
     '''Configuration maintenance class'''
 
     #def __cinit__(self, _base = None, **args):
@@ -245,9 +244,9 @@ class Config(object):
         elif isinstance(key, Iterable):
             return all(map(self.has, key))
         else:
-            raise TypeError("Expected str or iterable type, but given: %s" % type(key).__name__)
+            raise TypeError(f"Expected str or iterable type, but given: {type(key).__name__}")
 
-    def get(self, key: "str | Iterable[str]", default: Any = None) -> Any:
+    def get(self, key: str | Iterable[str], default: Any = None) -> Any:
         if type(key) is str:
             if key in self:
                 return self[key]
@@ -256,7 +255,7 @@ class Config(object):
         elif isinstance(key, Iterable):
             return [self.get(elem, default) for elem in key]
         else:
-            raise TypeError("Expected str or iterable type, but given: %s" % type(key).__name__)
+            raise TypeError(f"Expected str or iterable type, but given: {type(key).__name__}")
 
     def items(self) -> Iterator[tuple[str, Any]]:
         for key in self:
@@ -286,9 +285,9 @@ class Config(object):
     def require_any(self, name: str, desc: str | None = None) -> Any:
         if name not in self.data:
             if desc:
-                raise KeyError('Configuration "%s" (%s) is not defined' % (name, desc))
+                raise KeyError(f'Configuration "{name}" ({desc}) is not defined')
             else:
-                raise KeyError('Configuration "%s" is not defined' % (name))
+                raise KeyError(f'Configuration "{name}" is not defined')
         return self.data.__getitem__(name)
 
     def require_type(self, name: str, typeOf: type) -> Any:
@@ -389,7 +388,7 @@ class Config(object):
         cls = self.__class__
         name = cls.__name__
         #strParams = get_key_val_str(vars(self.data), False)
-        return "%s(%r)" % (name, self.data)
+        return f"{name}({self.data!r})"
 
     def __setitem__(self, key: str, val: Any) -> None:
         self.data.__setitem__(key, val)
@@ -469,9 +468,9 @@ def dict2data(obj: Any) -> Any:
 
 def get_key_val_str(d: Mapping[str, Any], verbose: bool) -> str:
     if verbose:
-        items = ["%s=%r" % (t[0],t[1]) for t in d.items()]
+        items = [f"{t[0]}={t[1]!r}" for t in d.items()]
     else:
-        items = ["%s=%r" % (t[0],t[1]) for t in d.items() if not t[0].startswith('_')]
+        items = [f"{t[0]}={t[1]!r}" for t in d.items() if not t[0].startswith('_')]
     return str.join(', ', items)
 
 def flat_items(
@@ -565,5 +564,5 @@ def _update_data(
                 if key not in cdata:
                     cdata[key] = _conf[key]
     else:
-        raise TypeError("unsupported configuration type: {}".format(type(_conf).__name__))
+        raise TypeError(f"unsupported configuration type: {type(_conf).__name__}")
     return cdata

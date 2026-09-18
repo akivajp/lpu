@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''glue rules extracting function'''
 
@@ -18,7 +17,7 @@ def makeGlueRules(srcRuleTable, saveRules, progress = False):
       #srcRuleTable = files.open(srcRuleTable)
       srcRuleTable = files.open(srcRuleTable, 'rt')
     if type(saveRules) == str:
-        saveRules = open(saveRules, 'wt', encoding='utf-8')
+        saveRules = open(saveRules, 'w', encoding='utf-8')
     if progress:
         srcRuleTable = view(srcRuleTable)
     for line in srcRuleTable:
@@ -36,10 +35,10 @@ def makeGlueRules(srcRuleTable, saveRules, progress = False):
     setTags.add('X')
     for tag in setTags:
         if tag != "S":
-            saveRules.write("x0:%s @ S ||| x0:%s @ S ||| glue=1\n" % (tag, tag))
+            saveRules.write(f"x0:{tag} @ S ||| x0:{tag} @ S ||| glue=1\n")
     for tag in setPOSTags:
         if tag != "X":
-            saveRules.write("x0:X @ %s ||| x0:X @ %s ||| glue=1 unk=1\n" % (tag, tag))
+            saveRules.write(f"x0:X @ {tag} ||| x0:X @ {tag} ||| glue=1 unk=1\n")
     #saveRules.write("x0:X x1:X @ X ||| x0:X x1:X @ X ||| glue=1\n")
     saveRules.write("x0:X x1:X @ X ||| x0:X x1:X @ X ||| glue=1 unk=1\n")
 

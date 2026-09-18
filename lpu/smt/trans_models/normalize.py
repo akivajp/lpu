@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''functions to normalize phrase translation probabilities of given phrase/rule table'''
 
@@ -104,10 +103,10 @@ def normalize_table(table_path, save_path):
                 fobj_out.write(rec.to_str())
                 fobj_out.write("\n")
             except Exception as e:
-                logger.warning("source: %s" % rec.src)
-                logger.warning("target: %s" % rec.trg)
-                logger.warning("num: %s" % num)
-                logger.warning("target: %s" % target)
+                logger.warning(f"source: {rec.src}")
+                logger.warning(f"target: {rec.trg}")
+                logger.warning(f"num: {num}")
+                logger.warning(f"target: {target}")
                 logger.warning(e)
                 raise Exception("failed to normalize a record") from e
 

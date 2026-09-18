@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''Utilities for viewing I/O progress'''
 
@@ -9,7 +8,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from collections.abc import Iterator as AbstractIterator
 from datetime import datetime
-from typing import Any, Callable, Sized, TextIO, cast
+from typing import Any, TextIO, cast
+from collections.abc import Callable, Sized
 import io
 import sys
 import time
@@ -27,7 +27,7 @@ BACK_WHITE = '  \b\b'
 DEFAULT_BUFFER_SIZE = 10 * (1024 ** 2) # 10MB
 DEFAULT_REFRESH_INTERVAL = 0.5
 
-class SpeedCounter(object):
+class SpeedCounter:
     def __init__(self, header: str = "", max_count: int = -1, refresh: float = DEFAULT_REFRESH_INTERVAL, force: bool = False, color: str = 'green') -> None:
         """constructor
         
@@ -158,7 +158,7 @@ class SpeedCounter(object):
             else:
                 str_rate = about(0.0, show_bytes)
             if self.header:
-                str_header = "%s: " % self.header
+                str_header = f"{self.header}: "
             else:
                 str_header = ""
             if self.max_count > 0:
@@ -173,7 +173,7 @@ class SpeedCounter(object):
                 fobj.write("\r")
                 str_elapsed = format_time(now - self.start_time)
                 str_about = about(self.count, show_bytes)
-                str_print = "[%s] %s%s %s%s [%s/s]%s" % (str_timestamp, str_header, str_about, str_ratio, str_elapsed, str_rate, BACK_WHITE)
+                str_print = f"[{str_timestamp}] {str_header}{str_about} {str_ratio}{str_elapsed} [{str_rate}/s]{BACK_WHITE}"
                 str_print = put_color(str_print, self.color)
                 fobj.write(str_print)
             except Exception as e:
@@ -186,7 +186,7 @@ class SpeedCounter(object):
     def __del__(self) -> None:
         self.reset()
 
-    def __enter__(self) -> 'SpeedCounter':
+    def __enter__(self) -> SpeedCounter:
         #logger.debug("__enter__")
         return self
 
@@ -194,12 +194,12 @@ class SpeedCounter(object):
         #logger.debug("__exit__")
         self.reset()
 
-class FileReader(object):
+class FileReader:
     def __init__(self, source: str | io.IOBase, header: str = "", refresh: float = DEFAULT_REFRESH_INTERVAL, force: bool = False) -> None:
         if isinstance(source, str):
             #self.source = files.open(source, 'r')
             if not header:
-                header = "reading file '%s'" % source
+                header = f"reading file '{source}'"
             #self.source = files.open(source, 'rt')
             # gzip / raw / buffered ファイルのいずれも入るため Any で受ける
             self.source: Any = files.open(source, 'rb')
@@ -207,7 +207,7 @@ class FileReader(object):
         elif isinstance(source, files.FileType):
             self.source = source
         else:
-            raise TypeError("FileReader() expected iterable str or file type, but given %s found" % type(source).__name__)
+            raise TypeError(f"FileReader() expected iterable str or file type, but given {type(source).__name__} found")
         size = files.rawsize(self.source)
         #self.counter = ProgressCounter(header=header, refresh=refresh, force=force, max_count=size)
         self.counter = SpeedCounter(header=header, max_count=size, refresh=refresh, force=force)
@@ -287,7 +287,7 @@ class FileReader(object):
             yield line
         self.close()
 
-    def __enter__(self) -> 'FileReader':
+    def __enter__(self) -> FileReader:
         #logger.debug("__enter__")
         return self
 
@@ -295,13 +295,13 @@ class FileReader(object):
         #logger.debug("__exit__")
         self.close()
 
-class Iterator(object):
+class Iterator:
     def __init__(self, source: Iterable[Any], header: str = "", refresh: float = DEFAULT_REFRESH_INTERVAL, force: bool = False, max_count: int = -1) -> None:
         if isinstance(source, Iterable):
             # close() で None を代入するため Optional として扱う
             self.source: Iterable[Any] | None = source
         else:
-            raise TypeError("Iterator() expected iterable type, but %s found" % type(source).__name__)
+            raise TypeError(f"Iterator() expected iterable type, but {type(source).__name__} found")
         self.counter = SpeedCounter(header=header, max_count=max_count, refresh=refresh, force=force)
 
     def __dealloc__(self) -> None:
@@ -325,7 +325,7 @@ class Iterator(object):
         # Sized 前提で呼ばれるが、宣言上は Iterable のみ保証できるため cast する
         return len(cast(Sized, self.source))
 
-    def __enter__(self) -> 'Iterator':
+    def __enter__(self) -> Iterator:
         #logger.debug("__enter__")
         return self
 
@@ -339,34 +339,34 @@ def format_time(seconds: float) -> str:
     show_seconds = int(seconds % 60)
     show_minutes = int((seconds / 60) % 60)
     show_hours = int(seconds / (60*60))
-    return "%02d:%02d:%02d" % (show_hours,show_minutes,show_seconds)
+    return f"{show_hours:02d}:{show_minutes:02d}:{show_seconds:02d}"
 
 
 def about(num: float, show_bytes: bool = False) -> str:
     if show_bytes:
         if num >= 2 ** 30:
             show = num / float(2 ** 30)
-            return "%.3fGiB" % show
+            return f"{show:.3f}GiB"
         elif num >= 2 ** 20:
             show = num / float(2 ** 20)
-            return "%.3fMiB" % show
+            return f"{show:.3f}MiB"
         elif num >= 2 ** 10:
             show = num / float(2 ** 10)
-            return "%.3fKiB" % show
+            return f"{show:.3f}KiB"
         else:
-            return "%.3f" % num
+            return f"{num:.3f}"
     else:
         if num >= 10 ** 9:
             show = num / float(10 ** 9)
-            return "%.3fG" % show
+            return f"{show:.3f}G"
         elif num >= 10 ** 6:
             show = num / float(10 ** 6)
-            return "%.3fM" % show
+            return f"{show:.3f}M"
         elif num >= 10 ** 3:
             show = num / float(10 ** 3)
-            return "%.3fk" % show
+            return f"{show:.3f}k"
         else:
-            return "%.3f" % num
+            return f"{num:.3f}"
 
 def open(path: str, header: str = "") -> FileReader:
     return FileReader(path, header)
@@ -420,7 +420,7 @@ def view(source: Any, header: str | None = None, max_count: int = -1, env: bool 
     elif isinstance(source, (str,bytes,files.FileType)):
         if not header:
             #header = "reading file"
-            header = "reading file '{}'".format(source)  # type: ignore[str-bytes-safe]
+            header = f"reading file '{source}'"  # type: ignore[str-bytes-safe]
         # bytes は FileReader が受け付けず TypeError になる (歴史的経緯の分岐)
         return FileReader(source, header)  # type: ignore[arg-type]
         #return FileReader(source, header, force=True)
@@ -434,4 +434,4 @@ def view(source: Any, header: str | None = None, max_count: int = -1, env: bool 
         return Iterator(source, header, max_count=max_count)
         #return Iterator(source, header, max_count=max_count, force=True)
     else:
-        raise TypeError("view() expected file or iterable type, but %s found" % type(source).__name__)
+        raise TypeError(f"view() expected file or iterable type, but {type(source).__name__} found")

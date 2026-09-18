@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Run the doctests embedded in the annotated modules
 
@@ -50,7 +49,7 @@ def _collect_doctests():
 def pytest_generate_tests(metafunc):
     if 'doctest_case' in metafunc.fixturenames:
         cases = _collect_doctests()
-        ids = ['%s#%s' % (case.name, i)
+        ids = [f'{case.name}#{i}'
                for i, case in enumerate(cases)]
         metafunc.parametrize('doctest_case', cases, ids=ids)
 

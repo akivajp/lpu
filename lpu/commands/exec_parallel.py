@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # Standard libraries
 import argparse
@@ -30,30 +29,30 @@ def getCurrentWorkerID():
     ホストとプロセスに対して一意な識別子を返す。
     0.2.x は Windows に存在しない os.uname() を使っていた。
     '''
-    return "%s:%s" % (platform.node(), os.getpid())
+    return f"{platform.node()}:{os.getpid()}"
 
 def report(filepath, message):
     if os.path.exists(filepath):
-        logger.info('Exists file or directory: %s' % filepath)
+        logger.info(f'Exists file or directory: {filepath}')
         return False
     else:
-        logger.info('Reporting into file: %s' % filepath)
+        logger.info(f'Reporting into file: {filepath}')
         with open(filepath, 'w', encoding='utf-8') as fobj:
             fobj.write(message)
         return True
 
 def remove(f):
     if type(f) == str:
-        logger.info('Removing file: %s' % f)
+        logger.info(f'Removing file: {f}')
         os.remove(f)
     elif isinstance(f, files.FileType):
-        logger.info('Removing file: %s' % f.name)
+        logger.info(f'Removing file: {f.name}')
         f.close()
         os.remove(f.name)
 
 def checkFile(filepath):
     if os.path.exists(filepath):
-        logger.info('File already exists: %s' % filepath)
+        logger.info(f'File already exists: {filepath}')
         return True
     else:
         return False
@@ -63,10 +62,10 @@ def checkFile(filepath):
 def checkPhase(conf, phase):
     tmpdir = conf.data.tmpdir
 #    if checkFile('%s/__INIT__.%s.%s' % (tmpdir,stage,basename)):
-    if checkFile('%s/report.%s.begin' % (tmpdir,phase)):
+    if checkFile(f'{tmpdir}/report.{phase}.begin'):
         return 'started'
 #    elif checkFile('%s/__DONE__.%s.%s' % (tmpdir,stage,basename)):
-    elif checkFile('%s/report.%s.done' % (tmpdir,phase)):
+    elif checkFile(f'{tmpdir}/report.{phase}.done'):
         return 'finished'
     else:
         return 'none'
@@ -75,15 +74,15 @@ def getPhaseCharge(conf, phase):
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #path = '%(tmpdir)s/__INIT__.%(stage)s.%(basename)s' % locals()
-    path = '%(tmpdir)s/report.%(phase)s.begin' % locals()
+    path = '{tmpdir}/report.{phase}.begin'.format(**locals())
     #return open(path, 'r').read()
-    with open(path, 'r', encoding='utf-8') as fobj_charge:
+    with open(path, encoding='utf-8') as fobj_charge:
         chargeID = fobj_charge.read()
     return chargeID
 
 def checkPhaseCharge(conf, phase):
     if getPhaseCharge(conf,phase) != getCurrentWorkerID():
-        logger.warning('Failed to confirm the responsible process of the phase: "%s"' % phase)
+        logger.warning(f'Failed to confirm the responsible process of the phase: "{phase}"')
         return False
     return True
 
@@ -91,11 +90,11 @@ def reportInit(conf, phase):
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #path = '%(tmpdir)s/__INIT__.%(stage)s.%(basename)s' % locals()
-    path = '%(tmpdir)s/report.%(phase)s.begin' % locals()
+    path = '{tmpdir}/report.{phase}.begin'.format(**locals())
     #if not report(path, conf.data.hostproc):
     if not report(path, getCurrentWorkerID()):
         return False
-    logger.info('Waiting %s second to confirm the responsible process of the phase' % conf.data.interval)
+    logger.info(f'Waiting {conf.data.interval} second to confirm the responsible process of the phase')
     time.sleep(conf.data.interval)
     return checkPhaseCharge(conf, phase)
 
@@ -103,23 +102,24 @@ def reportDone(conf, phase):
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #return report('%(tmpdir)s/__DONE__.%(stage)s.%(basename)s'%locals(), conf.data.hostproc)
-    return report('%(tmpdir)s/report.%(phase)s.done'%locals(), getCurrentWorkerID())
+    return report('{tmpdir}/report.{phase}.done'.format(**locals()), getCurrentWorkerID())
 
 def waitPhaseDone(conf, phase):
     tmpdir = conf.data.tmpdir
     #basename = conf.data.basename
     #return waitFile('%(tmpdir)s/__DONE__.%(stage)s.%(basename)s'%locals())
     #return wait_file('%(tmpdir)s/report.%(phase)s.done' % locals())
-    return files.wait_file('%(tmpdir)s/report.%(phase)s.done' % locals())
+    return files.wait_file('{tmpdir}/report.{phase}.done'.format(**locals()))
 
 def getInBuffer(conf):
     #bufname = '%s/__BUFFER__%s' % (tmpdir,hostproc)
     #bufname = '%(tmpdir)s/__BUFFER__%(hostproc)s' % conf
-    bufname = '%(tmpdir)s/tmp.buffer' % conf
+    # Config は ** 展開 (keys()) を持たないため、直接参照する
+    bufname = f"{conf['tmpdir']}/tmp.buffer"
     #progCounter = progress.ProgressCounter(1, "buffering", force=True)
-    with open(conf.data.inPath, 'r', encoding='utf-8') as inFile:
+    with open(conf.data.inPath, encoding='utf-8') as inFile:
         inbuf = open(bufname, 'w+', encoding='utf-8')
-        logger.info("Buffering into file: \"%s\"" % inbuf.name)
+        logger.info(f"Buffering into file: \"{inbuf.name}\"")
         lineCount = 0
         with progress.view(inFile, 'buffering') as p:
             for line in p:
@@ -127,7 +127,7 @@ def getInBuffer(conf):
                 inbuf.write(line)
     conf.data.lineCount = lineCount
     #progCounter.flush()
-    logger.info("Lines: %s" % lineCount)
+    logger.info(f"Lines: {lineCount}")
     inbuf.seek(0)
     return inbuf
 
@@ -138,14 +138,15 @@ def int2str(number, digits, suppress='0'):
 
 def getSplitPrefix(conf):
     #return "%(tmpdir)s/%(basename)s" % conf
-    return "%(tmpdir)s/split" % conf
+    # Config は ** 展開 (keys()) を持たないため、直接参照する
+    return f"{conf['tmpdir']}/split"
 
 def splitFile(conf):
-    configFile = "%s/config.json" % conf.data.tmpdir
+    configFile = f"{conf.data.tmpdir}/config.json"
     if not reportInit(conf, 'split'):
         waitPhaseDone(conf, 'split')
         logger.debug(conf)
-        logger.info("Updating the configuration with: %s" % configFile)
+        logger.info(f"Updating the configuration with: {configFile}")
         conf.load_json(open(configFile).read(), False)
         logger.debug(conf)
         return True
@@ -166,18 +167,18 @@ def splitFile(conf):
     if not splitSize:
         #splitSize = int( math.ceil(float(lineCount) / threads) )
         splitSize = conf.data.splitSize = int( math.ceil(float(lineCount) / numChunks) )
-        logger.info('Split size: %s' % splitSize)
+        logger.info(f'Split size: {splitSize}')
     #splitCount = conf.data.splitCount = int(math.ceil(float(lineCount) / splitSize))
     #splitCount = int(math.ceil(float(lineCount) / splitSize))
     numChunks = conf.data.numChunks = int(math.ceil(float(lineCount) / splitSize))
     #digits = conf.data.digits = len(str(splitCount))
     digits = conf.data.digits = len(str(numChunks))
-    logger.info('Splitting into: "%s.*"' % prefix)
+    logger.info(f'Splitting into: "{prefix}.*"')
     #progCounter = progress.ProgressCounter(1, "splitting", force=True, maxCount=lineCount)
     progInbuf = progress.FileReader(inbuf, "splitting")
     with inbuf:
         for fileNumber in range(1, numChunks+1):
-            path = "%s.%s.in" % (prefix, int2str(fileNumber,digits,'0'))
+            path = "{}.{}.in".format(prefix, int2str(fileNumber,digits,'0'))
             with open(path,'w') as outFile:
                 for _ in range(0, splitSize):
                     line = progInbuf.readline()
@@ -190,7 +191,7 @@ def splitFile(conf):
     #progCounter.flush()
     logger.info('Finished to split')
     remove(inbuf)
-    logger.info('Saving configuration into: %s' % configFile)
+    logger.info(f'Saving configuration into: {configFile}')
     with open(configFile, 'w') as fobj:
         fobj.write(conf.to_json(indent=4))
     reportDone(conf, 'split')
@@ -241,21 +242,21 @@ def runWorkers(conf):
     conf.data.processed = 0
     for fileNumber in range(1, numChunks+1):
         strFileNumber = int2str(fileNumber, digits, '0')
-        strPhase = 'cmd.%s' % strFileNumber
-        inPath = "%s.%s.in" % (prefix, strFileNumber)
-        outPath = "%s.%s.out" % (prefix, strFileNumber)
+        strPhase = f'cmd.{strFileNumber}'
+        inPath = f"{prefix}.{strFileNumber}.in"
+        outPath = f"{prefix}.{strFileNumber}.out"
         #cmdline = "%s < %s > %s" % (conf.data.command, inPath, outPath)
-        cmdline = 'cat "%s" | %s > "%s"' % (inPath, conf.data.command, outPath)
+        cmdline = f'cat "{inPath}" | {conf.data.command} > "{outPath}"'
         waitAvailableWorker(conf, workers)
         if not reportInit(conf, strPhase):
-            logger.info("Skipping processing: %s" % inPath)
+            logger.info(f"Skipping processing: {inPath}")
             #if checkPhase(conf.data.tmpdir, strPhase) == 'finished':
             if checkPhase(conf, strPhase) == 'finished':
                 conf.data.processed += 1
             continue
         proc = subprocess.Popen(cmdline, shell=True)
         workers.append([proc,strPhase])
-        logger.info("Executing: %s" % cmdline)
+        logger.info(f"Executing: {cmdline}")
         #logging.debug(p)
         #reportInit(conf, 'cmd.%s' % strFileNumber)
         fileNumber += 1
@@ -265,7 +266,7 @@ def concatFiles(conf):
     if not reportInit(conf, 'concat'):
         waitPhaseDone(conf, 'concat')
         chargeID = getPhaseCharge(conf, 'concat')
-        logger.info("Finalizing (concatenation) process is running: %s" % chargeID)
+        logger.info(f"Finalizing (concatenation) process is running: {chargeID}")
         return True
     prefix = getSplitPrefix(conf)
     numChunks = conf.data.numChunks
@@ -278,16 +279,16 @@ def concatFiles(conf):
     progCounter = progress.SpeedCounter(header="concat", max_count=lineCount)
     for fileNumber in range(1, numChunks+1):
         strFileNumber = int2str(fileNumber, digits, '0')
-        inPath = "%s.%s.out" % (prefix, strFileNumber)
+        inPath = f"{prefix}.{strFileNumber}.out"
         #wait_file(inPath)
         files.wait_file(inPath)
         conf.data.processed += 1
-    logger.info('Concatenating: "%s.*" -> "%s"' % (prefix,outPath))
+    logger.info(f'Concatenating: "{prefix}.*" -> "{outPath}"')
     with open(outPath, 'w') as outFile:
         for fileNumber in range(1, numChunks+1):
             strFileNumber = int2str(fileNumber, digits, '0')
-            inPath = "%s.%s.out" % (prefix, strFileNumber)
-            with open(inPath, 'r') as inFile:
+            inPath = f"{prefix}.{strFileNumber}.out"
+            with open(inPath) as inFile:
                 for line in inFile:
                     outFile.write(line)
                     progCounter.add(1, view=True)
@@ -313,7 +314,7 @@ def checkConfig(conf):
             return False
     #conf.setdefault('basename', os.path.basename(conf.data.inPath))
     conf.setdefault('basename', os.path.basename(conf.data.outPath))
-    conf.setdefault('tmpdir', './tmp-%s' % conf.data.basename)
+    conf.setdefault('tmpdir', f'./tmp-{conf.data.basename}')
     conf.data.tmpdir = os.path.abspath(conf.data.tmpdir)
     #if conf.data.threads > numCPUs:
     #    strTemplate = "Number of worker processes is limited to number of available threads: %s -> %s"
@@ -330,7 +331,7 @@ def execParallel(conf = None, **others):
     #hostproc = conf.data.hostproc = getHostProcID()
     workerID = getCurrentWorkerID()
     files.safeMakeDirs(conf.data.tmpdir)
-    logger.info("Worker ID (Host+Proc): \"%s\"" % workerID)
+    logger.info(f"Worker ID (Host+Proc): \"{workerID}\"")
     splitFile(conf)
     runWorkers(conf)
     concatFiles(conf)
@@ -345,7 +346,7 @@ def cmdExecParallel(args):
     #parser.add_argument('--digitsize', '-d', type=int, default=6, help='assign the number of digits in suffix of splitted files')
     parser.add_argument('--splitsize', '-s', dest='splitSize', type=int, default=None, help='assign the size (number of lines) of each splitted file')
     parser.add_argument('--chunks', '-c', dest='numChunks', type=int, default=None, help='assign the number of splitted files (default: same as --threads parameter)')
-    parser.add_argument('--threads', '-n', type=int, default=None, help='assign the maximum number of worker processes (default: %s in your computer' % numCPUs)
+    parser.add_argument('--threads', '-n', type=int, default=None, help=f'assign the maximum number of worker processes (default: {numCPUs} in your computer')
     #parser.add_argument('--tmpdir', '-t', type=str, default='./tmp', help='assign the path of working directory')
     parser.add_argument('--tmpdir', '-t', type=str, default=None, help='assign the path of working directory (default: "./tmp-[basename]"')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbosely print progressive messages')

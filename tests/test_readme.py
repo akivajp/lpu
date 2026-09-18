@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Validate the shell command examples in the README files
 
@@ -165,7 +164,7 @@ SCRIPTS = _load_scripts()
 
 
 @pytest.mark.parametrize('name,line_no,command', _all_commands(),
-                         ids=['%s:%s' % (n, l) for n, l, _ in _all_commands()])
+                         ids=[f'{n}:{l}' for n, l, _ in _all_commands()])
 def test_command_is_known(name, line_no, command):
     '''The leading command of a README example must be resolvable
 
@@ -173,12 +172,12 @@ def test_command_is_known(name, line_no, command):
     解決可能な外部コマンドでなければならない。
     '''
     first = _first_token(command)
-    assert first, 'empty command at %s:%s' % (name, line_no)
+    assert first, f'empty command at {name}:{line_no}'
     scripts = SCRIPTS
     if first.startswith('lpu-'):
         assert first in scripts, (
-            '"%s" at %s:%s is not registered in [project.scripts] '
-            'of pyproject.toml' % (first, name, line_no)
+            f'"{first}" at {name}:{line_no} is not registered in [project.scripts] '
+            'of pyproject.toml'
         )
     elif first in EXTERNAL_COMMANDS:
         # skipped, not failed, when the external tool is absent, so that
@@ -186,10 +185,10 @@ def test_command_is_known(name, line_no, command):
         # (外部ツールが無い場合は失敗ではなくスキップ。cibuildwheel の
         #  テスト実行のような最小環境でも動くようにするため)
         if shutil.which(first) is None:
-            pytest.skip('%s is not installed' % first)
+            pytest.skip(f'{first} is not installed')
     else:
         raise AssertionError(
-            'unknown command "%s" at %s:%s' % (first, name, line_no)
+            f'unknown command "{first}" at {name}:{line_no}'
         )
 
 
@@ -213,12 +212,11 @@ def test_usage_options_exist(command_name, command):
     # (省略形の lpu-smt-* 例 ("[-h] ...") では --help の実行自体が検査)
     process = run_command(module, ['--help'], entry=entry)
     assert process.returncode == 0, (
-        '%s --help failed: %s' % (command_name, process.stderr)
+        f'{command_name} --help failed: {process.stderr}'
     )
     help_text = process.stdout.decode()
     options = _long_options(command)
     missing = [opt for opt in options if opt not in help_text]
     assert not missing, (
-        'options %s of "%s" are not in its --help output'
-        % (missing, command_name)
+        f'options {missing} of "{command_name}" are not in its --help output'
     )

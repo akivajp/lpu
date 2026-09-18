@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''User-dialog functions'''
 
@@ -27,11 +26,11 @@ def get_answer(default: str | None = None) -> bool | None:
 
 def ask_continue(default: str | None = None) -> None:
     str_yes_or_no = get_yes_no_string(default)
-    sys.stderr.write("Do you want to continue? %s: " % str_yes_or_no)
+    sys.stderr.write(f"Do you want to continue? {str_yes_or_no}: ")
     sys.stderr.flush()
     ans = get_answer(default)
     while ans is None:
-        sys.stderr.write("Do you want to continue? %s: " % str_yes_or_no)
+        sys.stderr.write(f"Do you want to continue? {str_yes_or_no}: ")
         sys.stderr.flush()
         ans = get_answer(default)
     if not ans:
@@ -41,5 +40,5 @@ def ask_continue(default: str | None = None) -> None:
 # 拒否時は sys.exit(1) で終了する) ため、戻り値型は None で統一する
 def ask_continue_if_exist(filepath: str, default: str | None = None) -> None:
     if os.path.exists(filepath):
-        sys.stderr.write('"%s" is found. ' % filepath)
+        sys.stderr.write(f'"{filepath}" is found. ')
         ask_continue(default)

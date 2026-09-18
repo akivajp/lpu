@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Tests for the remaining lpu.common modules
 
@@ -577,7 +576,7 @@ class TestProgress:
         圧縮ストリーム上の位置で進捗を測るのが本モジュールの特徴。
         '''
         path = tmp_path / 'lines.txt.gz'
-        body = ''.join('line%d\n' % i for i in range(500))
+        body = ''.join(f'line{i}\n' for i in range(500))
         with gzip.open(str(path), 'wb') as f:
             f.write(body.encode('utf-8'))
         reader = progress.FileReader(str(path), header='test')

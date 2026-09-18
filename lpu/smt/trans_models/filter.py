@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''phrase/rule table filtering function'''
 
@@ -82,15 +81,15 @@ def filterTravatarTable(srcFile, saveFile, rules, nbest, progress = False):
     filterTable(srcFile, saveFile, rules, nbest, RecordClass = records.TravatarRecord)
 
 def main():
-    epilog = '''
-each rule should be as '{varname} {<,<=,==,>=,>} {value}'
+    epilog = f'''
+each rule should be as '{{varname}} {{<,<=,==,>=,>}} {{value}}'
 varnames:
     c.s : source count
     c.t : target count
     c.c : co-occurrence count
 example:
-    %s model/rule-table.gz model/filtered-table.gz 'c.c > 1'
-    ''' % sys.argv[0]
+    {sys.argv[0]} model/rule-table.gz model/filtered-table.gz 'c.c > 1'
+    '''
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='filter travatar rule-table by supplied rules',

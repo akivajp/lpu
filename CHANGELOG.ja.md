@@ -9,6 +9,15 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
 - `lpu.common.logging` に型注釈を追加しました。`mypy` の検査対象が
   19 モジュールになりました。
 
+### 変更
+
+- ruff の pyupgrade ルール (`UP`) でコードベースを現代化しました。
+  printf 形式と `.format()` の文字列フォーマットを f-string へ、
+  `super()` 呼び出しから冗長な引数を除去し、`# -*- coding: utf-8 -*-`
+  宣言や自明な `object` 継承を削除しました。抽象型は
+  `collections.abc` からインポートします。これに伴い、
+  `lpu.common.logging` の Python 2 用デッドコードも削除されました。
+
 ## 0.5.1 (2026-09-18)
 
 ### 修正

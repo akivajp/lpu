@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Tests for the phrase/rule table operations (lpu.smt.trans_models)
 

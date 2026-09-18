@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''Utility functions handling colors'''
 
@@ -42,13 +41,13 @@ def put_color(content: str, color: str | None = None, eachline: bool = True) -> 
     if code:
         if eachline:
             #lines = str(content).split('\n')
-            lines = ("%s" % (content,)).split('\n')
+            lines = (f"{content}").split('\n')
             #lines = ['{}{}{}'.format(code, line.rstrip(), COLOR_MAP['clear']) for line in lines]
-            lines = ['%s%s%s' % (code, line.rstrip(), COLOR_MAP['clear']) for line in lines]
+            lines = ['{}{}{}'.format(code, line.rstrip(), COLOR_MAP['clear']) for line in lines]
             return str.join('\n', lines)
         else:
             #return "%s%s%s" % (code, content, COLOR_MAP['clear'])
             #return '{}{}{}'.format(code, content, COLOR_MAP['clear'])
-            return '%s%s%s' % (code, content, COLOR_MAP['clear'])
+            return '{}{}{}'.format(code, content, COLOR_MAP['clear'])
     else:
         return content

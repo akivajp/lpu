@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # Standard libraries
 import argparse
@@ -86,14 +85,14 @@ def cleanParallel(**args):
     out_dir    = args.get('target_directory')
 
     if not os.path.isdir(out_dir):
-        logger.info("Making directory: %s" % out_dir)
+        logger.info(f"Making directory: {out_dir}")
         os.makedirs(out_dir)
 
     srcBaseNames = list( map(os.path.basename, srcFilePaths) )
     commonPrefix = reduce(getLongestCommonPrefix, srcBaseNames)
     commonSuffix = reduce(getLongestCommonSuffix, srcBaseNames)
-    logger.info("common prefix: '{}'".format(commonPrefix))
-    logger.info("common suffix: '{}'".format(commonSuffix))
+    logger.info(f"common prefix: '{commonPrefix}'")
+    logger.info(f"common suffix: '{commonSuffix}'")
     outPaths = []
     for i, path in enumerate(srcFilePaths):
         if outTag[0:1] != '.':
@@ -102,10 +101,10 @@ def cleanParallel(**args):
             outPath = path + outTag
         else:
             diff = getDiff(os.path.basename(path), commonPrefix, commonSuffix)
-            logger.info("suffix {}: {}".format(i+1, diff))
+            logger.info(f"suffix {i+1}: {diff}")
             outPath = commonPrefix + outTag + diff
         outPaths.append(os.path.join(out_dir, outPath))
-    logger.info("writing cleaned corpora into: %s ..." % str.join(' ',outPaths))
+    logger.info("writing cleaned corpora into: {} ...".format(str.join(' ',outPaths)))
     # Read as binary and decode each line strictly as UTF-8.
     # バイナリで読み込み、行ごとに UTF-8 として厳密にデコードする
     infiles  = [open(path,'rb') for path in srcFilePaths]
@@ -125,7 +124,7 @@ def cleanParallel(**args):
                     outfiles[i].write("\n")
         except Exception as e:
             #sys.stdout.write("\n")
-            logger.warning("%s (Line %s)" % (e, i))
+            logger.warning(f"{e} (Line {i})")
 
 def main():
     DEFAULT_MIN_LENGTH = 1

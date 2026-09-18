@@ -9,6 +9,15 @@
 - Type annotations for `lpu.common.logging`; `mypy` now checks 19
   modules.
 
+### Changed
+
+- The codebase is modernized with ruff's pyupgrade rules (`UP`):
+  printf-style and `.format()` string formatting became f-strings,
+  `super()` calls dropped their redundant arguments, `# -*- coding:
+  utf-8 -*-` declarations and trivial `object` inheritance were removed,
+  and abstract types are imported from `collections.abc`. The dead
+  Python 2 branches in `lpu.common.logging` are gone with them.
+
 ## 0.5.1 (2026-09-18)
 
 ### Fixed

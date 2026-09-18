@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 __all__ = [
     'common',
@@ -40,4 +39,4 @@ if logging.get_debug_status():
         from lpu.smt.align import ibm_models  # noqa: F401
         logger.debug("C extensions are available")
     except ImportError as _exc:
-        logger.debug("C extensions are not available: %s" % (_exc,))
+        logger.debug(f"C extensions are not available: {_exc}")

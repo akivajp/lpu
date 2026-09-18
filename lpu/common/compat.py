@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''[DEPRECATED] Python 2/3 compatibility layer
 

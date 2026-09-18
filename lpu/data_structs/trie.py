@@ -31,7 +31,7 @@ except ImportError as exc:
         "(e.g. $ pip install 'lpu[smt]' or $ pip install pycedar)"
     ) from exc
 
-class IDMap(object):
+class IDMap:
     '''auto mapping class from string to unique int'''
 
     #def __cinit__(self):
@@ -64,20 +64,17 @@ class IDMap(object):
         # (predict() / node.value() of the 0.1 series were removed).
         # pycedar 0.2 以降は dict 互換 API を持つ
         # (0.1 系の predict() / node.value() は廃止された)
-        for value in self.dict.values():
-            yield value
+        yield from self.dict.values()
 
     def items(self):
         if self.numEmpty > 0:
             yield ('', 0)
-        for key, value in self.dict.items():
-            yield (key, value)
+        yield from self.dict.items()
 
     def keys(self):
         if self.numEmpty > 0:
             yield ''
-        for key in self.dict.keys():
-            yield key
+        yield from self.dict.keys()
 
     @cython.locals(n = long)
     def remove(self, key):
@@ -226,7 +223,7 @@ class TwoWayIDMap(IDMap):
     def __iter__(self):
         return self.keys()
 
-class Dict(object):
+class Dict:
     '''mapping class from string to any object'''
 
     #def __cinit__(self):

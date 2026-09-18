@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Tests for lpu.common.files
 
@@ -21,7 +20,7 @@ def corpus_text():
 
     gzip が実際に圧縮されるだけの分量の本文。
     '''
-    return ''.join('line%d\n' % i for i in range(1000))
+    return ''.join(f'line{i}\n' for i in range(1000))
 
 
 @pytest.fixture
@@ -335,7 +334,7 @@ class TestWaitFiles:
     def test_accepts_a_list_of_paths(self, tmp_path):
         paths = []
         for i in range(2):
-            path = tmp_path / ('file%d' % i)
+            path = tmp_path / f'file{i}'
             path.write_text('x')
             paths.append(str(path))
         files.wait_files(paths, interval=1, quiet=True)

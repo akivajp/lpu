@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Shared fixtures and skip conditions for the test suite
 

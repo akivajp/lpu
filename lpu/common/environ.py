@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''this module provides globally shared stack of environment'''
 
@@ -55,7 +54,7 @@ def get_env(key: str, default: Any = None, system: bool = True) -> Any:
         return os.environ[key]
     return default
 
-class StackHolder(object):
+class StackHolder:
     """Class to manage layer on the stack of environment variables
     
     Returns:
@@ -93,7 +92,7 @@ class StackHolder(object):
         prev_exist = False
         prev_value = ''
         if self.affect_system:
-            _safe_debug_print("setting %s='%s' in env" % (key, value) )
+            _safe_debug_print(f"setting {key}='{value}' in env" )
             if key in os.environ:
                 prev_exist = True
                 prev_value = os.environ[key]
@@ -105,11 +104,11 @@ class StackHolder(object):
         if self.back_log:
             for key, prev_exist, prev_value in self.back_log[::-1]:
                 if prev_exist:
-                    _safe_debug_print("record back %s='%s' to env" % (key, prev_value))
+                    _safe_debug_print(f"record back {key}='{prev_value}' to env")
                     if os and os.environ:
                         os.environ[key] = prev_value
                 else:
-                    _safe_debug_print("unset key from env: %s" % (key,))
+                    _safe_debug_print(f"unset key from env: {key}")
                     try:
                         if os and os.environ:
                             os.environ.pop(key)
@@ -141,11 +140,11 @@ class StackHolder(object):
         if found:
             _, prev_exist, prev_value = found[0]
             if prev_exist:
-                _safe_debug_print("record back %s='%s' to env" % (key, prev_value))
+                _safe_debug_print(f"record back {key}='{prev_value}' to env")
                 if os and os.environ:
                     os.environ[key] = prev_value
             else:
-                _safe_debug_print("unset key from env: %s" % (key,))
+                _safe_debug_print(f"unset key from env: {key}")
                 try:
                     if os and os.environ:
                         os.environ.pop(key)

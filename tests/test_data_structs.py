@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Tests for lpu.data_structs
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''Auxiliary functions for file I/O'''
 
@@ -39,7 +38,7 @@ FileType: type[io.IOBase] = io.IOBase
 
 #def autoCat(filenames, target):
 def concat_into(
-    filenames: "str | list[str]",
+    filenames: str | list[str],
     target: str,
     progress: bool = True,
 ) -> None:
@@ -52,9 +51,9 @@ def concat_into(
     f_out = open(target, 'wb')
     if progress:
         from lpu.common.progress import view as pview
-        logger.info("writing into: {}".format(target))
+        logger.info(f"writing into: {target}")
         for filename in filenames:
-            f_in = pview(filename, header="  transfering from: {}".format(filename))
+            f_in = pview(filename, header=f"  transfering from: {filename}")
             for line in f_in.read_byte_chunks(DEFAULT_BUFFER_SIZE):
                 f_out.write(line)
             f_in.close()
@@ -172,7 +171,7 @@ def load(
         buf = _open(filepath, 'rb')
         if progress:
             from lpu.common.progress import SpeedCounter
-            header = "loading file '{}'".format(filepath)
+            header = f"loading file '{filepath}'"
             max_count = os.path.getsize(filepath)
             c = SpeedCounter(max_count=max_count, header=header)
     else:
@@ -247,11 +246,11 @@ def load_to_temp(
 def safeMakeDirs(dirpath: str, **options: Any) -> None:
     '''make directories recursively for given path, don't throw exception if directory exists but if file exists'''
     if not os.path.isdir(dirpath):
-        logger.debug('making directory: "%s"' % dirpath)
+        logger.debug(f'making directory: "{dirpath}"')
         try:
             os.makedirs(dirpath, **options)
         except OSError:
-            logger.debug('cannot make directory: "%s"' % dirpath)
+            logger.debug(f'cannot make directory: "{dirpath}"')
 
 def open(filename: str, mode: str = 'r') -> io.IOBase:
     '''open the plain/compressed file transparently'''
@@ -290,7 +289,7 @@ def rawfile(f: Any) -> io.IOBase:
         #logging.debug(type(f))
         #logging.debug(dir(f))
         # python -O では assert 文が消えるため、明示的に送出する
-        raise AssertionError('unsupported file object: %s' % type(f))
+        raise AssertionError(f'unsupported file object: {type(f)}')
 
 def rawsize(f: Any) -> int:
     try:
@@ -320,7 +319,7 @@ def testFile(path: str) -> bool:
     if os.path.isfile(path):
         return True
     #logger.debug("file does not exist: '%s'" % path)
-    raise FileNotFoundError("file does not exist: '%s'" % path)
+    raise FileNotFoundError(f"file does not exist: '{path}'")
 
 def wait_file(
     filepath: str,
@@ -335,17 +334,17 @@ def wait_file(
         time.sleep(delay)
     if not os.path.exists(filepath):
         if not quiet:
-            logger.info("waiting for file: %s" % filepath)
+            logger.info(f"waiting for file: {filepath}")
         start = time.time()
     while not os.path.exists(filepath):
         time.sleep(interval)
         elapsed = time.time() - start
         if timeout > 0 and elapsed > timeout:
             if not quiet:
-                logger.error("waiting file (%s) was timed out (%s seconds)" % (filepath, timeout))
+                logger.error(f"waiting file ({filepath}) was timed out ({timeout} seconds)")
             return False
     if not quiet:
-        logger.info("file exists: %s" % filepath)
+        logger.info(f"file exists: {filepath}")
     return True
 
 def wait_files(

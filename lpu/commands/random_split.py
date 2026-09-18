@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # Standard libraries
 import argparse
@@ -31,7 +30,7 @@ def get_valid_indices(conf):
                 indices.append(i)
         except Exception as e:
             #sys.stdout.write("\n")
-            logger.warning("%s (Line %s)" % (e, i))
+            logger.warning(f"{e} (Line {i})")
     return indices
 
 def random_split(conf, **others):
@@ -53,7 +52,7 @@ def random_split(conf, **others):
         files.testFile(path)
     logger.info('building sequence')
     indices = get_valid_indices(conf)
-    logger.info('loaded: {} lines'.format(len(indices)))
+    logger.info(f'loaded: {len(indices)} lines')
     if conf.data.seed >= 0:
         random.seed(conf.data.seed)
     logger.info("randomizing sequence")
@@ -85,12 +84,12 @@ def random_split(conf, **others):
         outpaths = []
         for tag in tags:
             if suffix:
-                outpath = "%s%s.%s" % (prefix, tag, suffix)
+                outpath = f"{prefix}{tag}.{suffix}"
             else:
-                outpath = "%s%s" % (prefix, tag)
+                outpath = f"{prefix}{tag}"
             outpaths.append(outpath)
-        logger.info("writing lines into splitted files: %s" % outpaths)
-        logger.info("split sizes: %s" % split_sizes)
+        logger.info(f"writing lines into splitted files: {outpaths}")
+        logger.info(f"split sizes: {split_sizes}")
         outfiles = [files.open(outpath,'wb') for outpath in outpaths]
         reader = progress.FileReader(infile, 'processing').read_byte_lines()
         #for line_index, line in enumerate(progress.view(infile, 'processing')):
@@ -100,16 +99,16 @@ def random_split(conf, **others):
                     outfile.write(line)
     if conf.data.ids:
         for file_index, tag in enumerate(tags):
-            outpath = "%s.%s" % (tag, conf.data.ids)
+            outpath = f"{tag}.{conf.data.ids}"
             if prefix:
                 outpath = prefix + outpath
             genIDs = iter(sorted(split_indices[file_index]))
             if progress:
-                genIDs = progress.view(genIDs, "Writing IDs into '%s'" % outpath)
+                genIDs = progress.view(genIDs, f"Writing IDs into '{outpath}'")
             outfile = files.open(outpath, 'wt')
             for line_index in genIDs:
                 # line index is zero origin, line id should be +1
-                outfile.write("%d\n" % (line_index+1))
+                outfile.write(f"{line_index + 1}\n")
     return True
 
 def check_config(conf):

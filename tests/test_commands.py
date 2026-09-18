@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Tests for the command line entry points
 
@@ -39,9 +38,9 @@ def run_command(module, args, cwd=None, input_bytes=None, entry='main'):
     '''
     code = (
         'import sys;'
-        'sys.argv = [%r] + sys.argv[1:];'
-        'from %s import %s;'
-        '%s()' % (module.rsplit('.', 1)[-1], module, entry, entry)
+        'sys.argv = [{!r}] + sys.argv[1:];'
+        'from {} import {};'
+        '{}()'.format(module.rsplit('.', 1)[-1], module, entry, entry)
     )
     kwargs = {}
     # When pytest-cov (--cov) is measuring this process, make the child
@@ -413,9 +412,9 @@ class TestRandomSplit:
         '''
         src = tmp_path / 'corpus.en'
         trg = tmp_path / 'corpus.fr'
-        pairs = [('en%d' % i, 'fr%d' % i) for i in range(10)]
-        src.write_text(''.join('%s\n' % a for a, _ in pairs), encoding='utf-8')
-        trg.write_text(''.join('%s\n' % b for _, b in pairs), encoding='utf-8')
+        pairs = [(f'en{i}', f'fr{i}') for i in range(10)]
+        src.write_text(''.join(f'{a}\n' for a, _ in pairs), encoding='utf-8')
+        trg.write_text(''.join(f'{b}\n' for _, b in pairs), encoding='utf-8')
         result = run_command('lpu.commands.random_split', [
             '--input', str(src), str(trg),
             '--suffixes', 'en', 'fr',
@@ -428,9 +427,9 @@ class TestRandomSplit:
         expected = dict(pairs)
         total = 0
         for tag, size in [('train', 7), ('test', 3)]:
-            en_lines = (tmp_path / ('%s.en' % tag)).read_text(
+            en_lines = (tmp_path / (f'{tag}.en')).read_text(
                 encoding='utf-8').split()
-            fr_lines = (tmp_path / ('%s.fr' % tag)).read_text(
+            fr_lines = (tmp_path / (f'{tag}.fr')).read_text(
                 encoding='utf-8').split()
             assert len(en_lines) == size
             assert len(fr_lines) == size
@@ -446,7 +445,7 @@ class TestRandomSplit:
         --ids を付けると各タグの元の行番号 (1 起点) が出力されること。
         '''
         src = tmp_path / 'corpus.en'
-        src.write_text(''.join('en%d\n' % i for i in range(5)),
+        src.write_text(''.join(f'en{i}\n' for i in range(5)),
                        encoding='utf-8')
         result = run_command('lpu.commands.random_split', [
             '--input', str(src),
@@ -461,7 +460,7 @@ class TestRandomSplit:
         for tag in ['a', 'b']:
             # the prefix is concatenated without a separator
             # (prefix はセパレータ無しで結合される)
-            lines = (tmp_path / ('out%s.ids' % tag)).read_text(
+            lines = (tmp_path / (f'out{tag}.ids')).read_text(
                 encoding='utf-8').split()
             assert len(lines) == (2 if tag == 'a' else 3)
             ids.extend(int(line) for line in lines)
@@ -668,8 +667,8 @@ class TestWordAlign:
         コーパスで学習し、各語の最も確率の高い訳語を返す。
         '''
         src_path, trg_path = corpus
-        trans_path = tmp_path / ('trans_%s.txt' % tag)
-        align_path = tmp_path / ('align_%s.txt' % tag)
+        trans_path = tmp_path / (f'trans_{tag}.txt')
+        align_path = tmp_path / (f'align_{tag}.txt')
         result = run_command('lpu.smt.align.ibm_models', [
             '--iteration-limit', '10', '--quiet',
             str(src_path), str(trg_path), str(trans_path), str(align_path),
@@ -690,9 +689,9 @@ class TestWordAlign:
                                                  parallel_corpus):
         best = self._train_and_read_best(tmp_path, parallel_corpus, 'lf')
         for source, target in self.EXPECTED_ALIGNMENT.items():
-            assert source in best, 'missing source word: %s' % source
+            assert source in best, f'missing source word: {source}'
             assert best[source][0] == target, (
-                'expected %s -> %s, got %s' % (source, target, best[source][0]))
+                f'expected {source} -> {target}, got {best[source][0]}')
 
     def test_train_handles_a_crlf_corpus(self, tmp_path, crlf_parallel_corpus):
         '''A CRLF corpus must give the same alignment as an LF one
@@ -710,9 +709,9 @@ class TestWordAlign:
         best = self._train_and_read_best(tmp_path, crlf_parallel_corpus, 'crlf')
         assert '' not in best, 'an empty source word was registered'
         for source, target in self.EXPECTED_ALIGNMENT.items():
-            assert source in best, 'missing source word: %s' % source
+            assert source in best, f'missing source word: {source}'
             assert best[source][0] == target, (
-                'expected %s -> %s, got %s' % (source, target, best[source][0]))
+                f'expected {source} -> {target}, got {best[source][0]}')
 
     def test_score_requires_an_output_option(self, tmp_path, parallel_corpus):
         src_path, trg_path = parallel_corpus

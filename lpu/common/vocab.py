@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''functions mapping from words/phrases to IDs and vice versa'''
 
@@ -50,9 +49,9 @@ def __getattr__(name: str) -> Any:
     '''
     if name == 'phraseMap':
         return _get_phrase_map()
-    raise AttributeError("module {!r} has no attribute {!r}".format(__name__, name))
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-class StringEnumerator(object):
+class StringEnumerator:
     #def __cinit__(self):
     def __init__(self):
         self.dict_str2id: dict[str, int] = {}
@@ -75,7 +74,7 @@ class StringEnumerator(object):
         if 0 <= number and number < len(self.list_id2str):
             return self.list_id2str[number]
         else:
-            raise IndexError("id %s is not registered in vocabulary set" % (number,))
+            raise IndexError(f"id {number} is not registered in vocabulary set")
 
     def ids(self) -> Iterator[int]:
         i = 0
@@ -85,8 +84,7 @@ class StringEnumerator(object):
             i += 1
 
     def strings(self) -> Iterator[str]:
-        for string in self.list_id2str:
-            yield string
+        yield from self.list_id2str
 
     def __iter__(self) -> Iterator[str]:
         return self.strings()

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''functions to triangulate 2 phrase tables into 1 table
 by combining source-pivot and pivot-target for common pivot phrase'''
@@ -236,7 +235,7 @@ def updateCounts(recPivot, recPair, method):
         c = min(recPair[0].counts.cooc, recPair[1].counts.cooc)
         counts.cooc += c
     else:
-        raise AssertionError("Invalid method: %s" % method)
+        raise AssertionError(f"Invalid method: {method}")
 
 
 def mergeAligns(recPivot, recPair):
@@ -249,7 +248,7 @@ def mergeAligns(recPivot, recPair):
     for srcIndex, pvtIndices in alignMapSrcPvt.items():
         for pvtIndex in pvtIndices:
             for trgIndex in alignMapPvtTrg.get(pvtIndex, []):
-              align = '%d-%d' % (srcIndex, trgIndex)
+              align = f'{srcIndex}-{trgIndex}'
 #              alignSet.add(align)
               recPivot.aligns.add(align)
 #    recPivot.aligns = sorted(alignSet)
@@ -300,7 +299,7 @@ def calcPhraseTransProbsOnTable(table_path, savePath, **options):
     lastSrc = ''
     for line in table_file:
         rec = RecordClass(line)
-        key = "%s ||| %s |||" % (rec.src, rec.trg)
+        key = f"{rec.src} ||| {rec.trg} |||"
         if rec.src != lastSrc and records:
             calcPhraseTransProbsByCounts(records)
             writeRecords(saveFile, records)
@@ -604,10 +603,10 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
             key_type = 'src_hiero'
         else:
             key_type = 'src_symbols'
-        logger.info("loading: %s" % table1)
+        logger.info(f"loading: {table1}")
         #tableSrcPvt = Table(table1, RecordClass, key_type=key_type, showProgress=showProgress)
         tableSrcPvt = Table(table1, RecordClass, showProgress=showProgress)
-        logger.info("loading: %s" % table2)
+        logger.info(f"loading: {table2}")
         tablePvtTrg = Table(table2, RecordClass, key_type=key_type, showProgress=showProgress)
 
         workOptions = {}
@@ -654,22 +653,22 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
             rows = []
         if logFile:
             with open(logFile, 'w', encoding='utf-8') as fobj:
-                fobj.write("%s = %s\n" % ('numRecSrcPvt', workset.numRecSrcPvt))
-                fobj.write("%s = %s\n" % ('uniqPhrasesSrcPvt', len(workset.setPhrasesSrcPvt)))
-                fobj.write("%s = %s\n" % ('uniqWordsSrcPvt', len(workset.setWordsSrcPvt)))
+                fobj.write("{} = {}\n".format('numRecSrcPvt', workset.numRecSrcPvt))
+                fobj.write("{} = {}\n".format('uniqPhrasesSrcPvt', len(workset.setPhrasesSrcPvt)))
+                fobj.write("{} = {}\n".format('uniqWordsSrcPvt', len(workset.setWordsSrcPvt)))
                 fobj.write("--\n")
-                fobj.write("%s = %s\n" % ('numRecPvtTrg', workset.numRecPvtTrg))
-                fobj.write("%s = %s\n" % ('uniqPhrasesPvtTrg', len(workset.setPhrasesPvtTrg)))
-                fobj.write("%s = %s\n" % ('uniqWordsPvtTrg', len(workset.setWordsPvtTrg)))
+                fobj.write("{} = {}\n".format('numRecPvtTrg', workset.numRecPvtTrg))
+                fobj.write("{} = {}\n".format('uniqPhrasesPvtTrg', len(workset.setPhrasesPvtTrg)))
+                fobj.write("{} = {}\n".format('uniqWordsPvtTrg', len(workset.setWordsPvtTrg)))
                 fobj.write("--\n")
-                fobj.write("%s = %s\n" % ('numRecSrcTrg', workset.numRecSrcTrg))
-                fobj.write("%s = %s\n" % ('uniqPhrasesSrcTrg', len(workset.setPhrasesSrcTrg)))
-                fobj.write("%s = %s\n" % ('uniqWordsSrcTrg', len(workset.setWordsSrcTrg)))
+                fobj.write("{} = {}\n".format('numRecSrcTrg', workset.numRecSrcTrg))
+                fobj.write("{} = {}\n".format('uniqPhrasesSrcTrg', len(workset.setPhrasesSrcTrg)))
+                fobj.write("{} = {}\n".format('uniqWordsSrcTrg', len(workset.setWordsSrcTrg)))
                 fobj.write("--\n")
                 if len(workset.setWordsSrcPvt) != len(workset.setWordsSrcTrg):
                     fobj.write("Lost Words:\n")
                     for word in iter(workset.setWordsSrcPvt - workset.setWordsSrcTrg):
-                        fobj.write("\t* \"%s\"\n" % word)
+                        fobj.write(f"\t* \"{word}\"\n")
         workset.close()
 #        # loading necessary word pair count files
 #        if lexMethod != 'prodweight':

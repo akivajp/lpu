@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''Customizable logging functions'''
 
@@ -7,9 +6,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from typing import Any, Mapping, cast
+from typing import Any, cast
+from collections.abc import Mapping
 import ast
-import codecs
 import inspect
 import logging
 import os
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 class LoggingConfig(environ.StackHolder):
     def __init__(self, loggers: logging.Logger | str | Iterable[Any] | None = None) -> None:
         #logger.debug("initializing logging status")
-        super(LoggingConfig, self).__init__()
+        super().__init__()
         self.set_loggers(loggers)
 
     def _reconfigureLogger(self) -> None:
@@ -85,11 +84,11 @@ class LoggingConfig(environ.StackHolder):
 
     def __enter__(self) -> LoggingConfig:
         #logger.debug("entering logging environment")
-        super(LoggingConfig,self).__enter__()
+        super().__enter__()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        super(LoggingConfig,self).__exit__(exc_type, exc_val, exc_tb)
+        super().__exit__(exc_type, exc_val, exc_tb)
         #logger.debug("exiting from logging environment")
         self._reconfigureLogger()
 
@@ -148,7 +147,7 @@ def get_quiet_status() -> bool:
 
 class FilterCondition(logging.Filter):
     def __init__(self, **rules: Any) -> None:
-        super(FilterCondition,self).__init__()
+        super().__init__()
         self.rules: dict[str, Any] = rules
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -169,7 +168,7 @@ def getLevelString(level: int | str) -> str:
 
 class ColorizingFormatter(logging.Formatter):
     def __init__(self, fmt: str | None = None, datefmt: str | None = None) -> None:
-        super(ColorizingFormatter,self).__init__(fmt, datefmt)
+        super().__init__(fmt, datefmt)
         self._format_rules: list[list[Any]] = []
         #self._default_fmt = fmt
         # 既定の書式は文字列前提 (None は ColorizingFormatter の利用形態では無い)
@@ -182,8 +181,7 @@ class ColorizingFormatter(logging.Formatter):
 
     def _setColorizedFormat(self, fmt: str, record: logging.LogRecord) -> str:
         self._fmt = fmt
-        if sys.version_info.major == 3:
-            self._style._fmt = fmt
+        self._style._fmt = fmt
         return fmt
 
     #def _colorizeText(self, record, str text):
@@ -209,10 +207,7 @@ class ColorizingFormatter(logging.Formatter):
             self._setColorizedFormat(fmt_apply, record)
         else:
             self._setColorizedFormat(self._default_fmt, record)
-        text = super(ColorizingFormatter,self).format(record)
-        if sys.version_info.major == 2:
-            # Python 2 専用パス (Py3 では到達しない)
-            text = codecs.escape_decode(text)[0]  # type: ignore[assignment]
+        text = super().format(record)
         #logger.info(text)
         #logger.info(type(text))
         return self._colorizeText(record, text)
@@ -298,7 +293,7 @@ class CustomLogger(logging.Logger):
         if limit > 0:
             for path, lineno, func, line in stack:
                 line = (_get_cached_line(path, lineno, line) or '').strip()
-                s = '\n  file:{}, line:{}, func:{}, code:{}'.format(path, lineno, func, line)
+                s = f'\n  file:{path}, line:{lineno}, func:{func}, code:{line}'
                 format += s
         stack = traceback.extract_stack(limit=offset+1)
         path, lineno, func, line = stack[0]
@@ -321,7 +316,7 @@ class CustomLogger(logging.Logger):
             #if expr.find(',') > 0:
             #    expr = str.join(',', expr.split(',')[:-1]).strip()
             if isinstance(val, (int,float)):
-                str_val = '{}({})'.format(type(val).__name__,val)
+                str_val = f'{type(val).__name__}({val})'
             elif isinstance(val, str):
                 str_val = val
             elif isinstance(val, bytes):
@@ -332,11 +327,11 @@ class CustomLogger(logging.Logger):
             if str_val.find('\n') >= 0:
                 # multiple lines
                 #format = "{} => (see following lines)\n{}".format(expr, str_val) + format
-                format = "%s => (see following lines)\n%s"%(expr, str_val) + format
+                format = f"{expr} => (see following lines)\n{str_val}" + format
             else:
                 # single line
                 #format = "{} => {}".format(expr, str_val) + format
-                format = "%s => %s"%(expr, str_val) + format
+                format = f"{expr} => {str_val}" + format
         else:
             format = str(val) + format
         #module_name = inspect.getmodulename(path)
@@ -360,10 +355,7 @@ class CustomLogger(logging.Logger):
         A factory method which can be overridden in subclasses to create
         specialized LogRecords.
         """
-        if sys.version_info.major <= 2:
-            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func)  # type: ignore[arg-type]
-        else: # sys.version_info.major >= 3
-            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func, sinfo)  # type: ignore[arg-type]
+        rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func, sinfo)  # type: ignore[arg-type]
         if extra is not None:
             for key in extra:
                 # accept overwrite!
@@ -543,7 +535,7 @@ def _seek_args(path: str, lineno: int, fallback: Any = None, frame: Any = None) 
         # 式の復元はベストエフォートであり、呼び出し元のソースが無い場合
         # (stdin / REPL / exec() / frozen ビルド) でも値自体は出力される。
         # 0.2.x ではこれを ERROR レベルでトレースバック付きで出力していた。
-        logger.debug("could not recover the source expression: %r" % (e,))
+        logger.debug(f"could not recover the source expression: {e!r}")
         return fallback
 def _parse_args(buf: str, feeder: Iterator[str], offset: int = 0, depth: int = 0) -> Any:
     args = []

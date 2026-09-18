@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 '''
     Utility functions for validation
@@ -24,23 +23,23 @@ def to_type_names_string(
     if isinstance(types, (list, tuple)):
         length = len(types)
         if length == 0:
-            raise ValueError("Expected non-empty list or tuple, but given empty: {}".format(types))
+            raise ValueError(f"Expected non-empty list or tuple, but given empty: {types}")
         elif length == 1:
             return to_type_names_string(types[0])
         else:
             type_names = list(map(to_type_names_string, types))
             if length == 2:
-                return '{} {} {}'.format(type_names[0], conjunction, type_names[1])
+                return f'{type_names[0]} {conjunction} {type_names[1]}'
             else:
                 left = str.join(', ', type_names[0:-1])
                 right = type_names[-1]
-                return '{} {} {}'.format(left, conjunction, right)
+                return f'{left} {conjunction} {right}'
     else:
         elem = types
         if isinstance(elem, type):
             return elem.__name__
         else:
-            raise TypeError("Expected type object, but given non-type object: {}".format(elem))
+            raise TypeError(f"Expected type object, but given non-type object: {elem}")
 
 def check_argument_type(
     val: object,

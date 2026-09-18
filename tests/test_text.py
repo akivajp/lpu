@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 '''Tests for lpu.common.text and the deprecated lpu.common.compat alias
 
@@ -19,7 +18,7 @@ class TestToStr:
         assert text.to_str('abc') == 'abc'
 
     def test_decodes_utf8_bytes(self):
-        assert text.to_str('あ'.encode('utf-8')) == 'あ'
+        assert text.to_str('あ'.encode()) == 'あ'
 
     def test_escapes_invalid_bytes_instead_of_raising(self):
         # Invalid UTF-8 must not raise / 不正な UTF-8 で例外を投げないこと
@@ -33,7 +32,7 @@ class TestToUnicode:
     '''to_unicode is strict / to_unicode は厳密にデコードする'''
 
     def test_decodes_utf8_bytes(self):
-        assert text.to_unicode('あ'.encode('utf-8')) == 'あ'
+        assert text.to_unicode('あ'.encode()) == 'あ'
 
     def test_raises_on_invalid_bytes(self):
         with pytest.raises(UnicodeDecodeError):
@@ -45,7 +44,7 @@ class TestToUnicode:
 
 class TestToBytes:
     def test_encodes_str_as_utf8(self):
-        assert text.to_bytes('あ') == 'あ'.encode('utf-8')
+        assert text.to_bytes('あ') == 'あ'.encode()
 
     def test_passes_bytes_through(self):
         assert text.to_bytes(b'abc') == b'abc'
