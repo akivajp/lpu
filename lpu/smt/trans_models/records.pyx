@@ -41,7 +41,11 @@ cdef class CoOccurrence:
     cpdef CoOccurrence getReversed(self):
         return CoOccurrence(self.trg, self.src, self.cooc)
 
-    cdef void round(self, digits=6):
+    # cpdef, not cdef: MosesRecord.to_str (a plain Python method) calls
+    # this, and cdef methods are invisible from Python code
+    # (cpdef にする。cdef メソッドは Python コードから呼び出せず、
+    #  MosesRecord.to_str はプレーンな Python メソッドのため)
+    cpdef void round(self, digits=6):
         self.src  = round(self.src, digits)
         self.trg  = round(self.trg, digits)
         self.cooc = round(self.cooc, digits)
@@ -147,7 +151,13 @@ cdef class Record(object):
         return phrase
 
     @staticmethod
-    def getSymbols(phrase):
+    def getSymbols(phrase, hiero=False):
+        # 'hiero' is accepted for interface compatibility with
+        # TravatarRecord.getSymbols, which tables.pyx calls uniformly with
+        # the keyword; the base record just splits the phrase
+        # (tables.pyx が TravatarRecord.getSymbols と共通の呼び出し方で
+        #  hiero キーワードを渡すため、インターフェース互換性として
+        #  受け取れるようにする。基底クラスでは単に分割するだけ)
         if isinstance(phrase, str):
             phrase = phrase.split(' ')
         return phrase
@@ -167,7 +177,11 @@ class MosesRecord(Record):
 #            self.aligns = fields[3].strip().split()
             self.aligns = getAlignSet( fields[3] )
             listCounts = getCounts(fields[4])
-            self.counts.setCounts(trg = listCounts[0], src = listCounts[1], co = listCounts[2])
+            # 'co' is the pre-rename name of the cooc parameter; the
+            # original call always crashed with TypeError
+            # ('co' はリネーム前のパラメータ名。元のコードは常に
+            #  TypeError となっていた)
+            self.counts.setCounts(trg = listCounts[0], src = listCounts[1], cooc = listCounts[2])
 
 #        return self.src.split(' ')
 #
@@ -234,7 +248,11 @@ def getRevAlignSet(aligns):
 
 def getMosesFeatures(field):
     features = {}
-    scores = map(getNumber, field.split())
+    # a map object is not subscriptable in python 3; the original
+    # reference always crashed with TypeError
+    # (python 3 では map オブジェクトに添字アクセスできないため、
+    #  元のコードは常に TypeError となっていた)
+    scores = list(map(getNumber, field.split()))
     features[intern('fgep')] = scores[0]
     features[intern('fgel')] = scores[1]
     features[intern('egfp')] = scores[2]

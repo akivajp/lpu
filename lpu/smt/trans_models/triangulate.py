@@ -207,29 +207,33 @@ def updateCounts(recPivot, recPair, method):
     elif method == 'bidirgmean':
         counts1 = recPair[0].counts
         counts2 = recPair[1].counts
-        co1 = counts1.co * counts2.co / float(counts2.src)
-        co2 = counts2.co * counts1.co / float(counts1.trg)
-        counts.co += math.sqrt(co1*co2)
+        # .co is the pre-rename name of CoOccurrence.cooc; the original
+        # references always crashed with AttributeError.
+        # (.co は CoOccurrence.cooc の改名前の名前。元のコードは
+        #  常に AttributeError で落ちていた)
+        co1 = counts1.cooc * counts2.cooc / float(counts2.src)
+        co2 = counts2.cooc * counts1.cooc / float(counts1.trg)
+        counts.cooc += math.sqrt(co1*co2)
 #        progress.log("%s ||| %s ||| %s ||| (%s %s %s) * (%s %s %s) -> %s %s -> %s\n" % (recPair[0].src, recPair[0].trg, recPair[1].trg, counts1.co, counts1.src, counts1.trg, counts2.co, counts2.src, counts2.trg, co1, co2, math.sqrt(co1*co2)))
     elif method == 'bidirmax':
         counts1 = recPair[0].counts
         counts2 = recPair[1].counts
-        co1 = counts1.co * counts2.co / float(counts2.src)
-        co2 = counts2.co * counts1.co / float(counts1.trg)
-        counts.co += max(co1, co2)
+        co1 = counts1.cooc * counts2.cooc / float(counts2.src)
+        co2 = counts2.cooc * counts1.cooc / float(counts1.trg)
+        counts.cooc += max(co1, co2)
     elif method == 'bidiravr':
         counts1 = recPair[0].counts
         counts2 = recPair[1].counts
-        co1 = counts1.cooc * counts2.co / float(counts2.src)
-        co2 = counts2.cooc * counts1.co / float(counts1.trg)
-        counts.co += (co1 + co2) * 0.5
+        co1 = counts1.cooc * counts2.cooc / float(counts2.src)
+        co2 = counts2.cooc * counts1.cooc / float(counts1.trg)
+        counts.cooc += (co1 + co2) * 0.5
     elif method == 'prodprob':
         counts.src  = recPair[0].counts.src
         counts.cooc = counts.src * features['egfp']
         counts.trg  = counts.cooc / features['fgep']
     elif method == 'multi':
-        c = min(recPair[0].counts.co, recPair[1].counts.co)
-        counts.co += c
+        c = min(recPair[0].counts.cooc, recPair[1].counts.cooc)
+        counts.cooc += c
     else:
         assert False, "Invalid method: %s" % method
 
@@ -253,17 +257,17 @@ def mergeAligns(recPivot, recPair):
 def filterByCountRatioToMax(records, div = 100):
     coMax = 0
     for rec in flattenRecords(records):
-        coMax = max(coMax, rec.counts.co)
+        coMax = max(coMax, rec.counts.cooc)
     if isinstance(records, list):
         newRecords = []
         for rec in records:
-            if rec.counts.co >= coMax / float(div):
+            if rec.counts.cooc >= coMax / float(div):
                 newRecords.append( rec )
         records = newRecords
     elif isinstance(records, dict):
         newRecords = {}
         for key, rec in records.items():
-            if rec.counts.co >= coMax / float(div):
+            if rec.counts.cooc >= coMax / float(div):
                 newRecords[key] = rec
         records = newRecords
     return records
@@ -276,9 +280,13 @@ def calcPhraseTransProbsByCounts(records):
         counts = rec.counts
         counts.src = srcCount
         if srcCount > 0:
-            rec.features['egfp'] = counts.co / float(srcCount)
+            rec.features['egfp'] = counts.cooc / float(srcCount)
         else:
-            rec.features['egfp'] == 0
+            # assignment, not comparison (0.2.x had "==" here, which made
+            # this branch a no-op)
+            # (代入する。0.2.x では "==" になっており、この分岐は無意味
+            #  だった)
+            rec.features['egfp'] = 0
 
 
 def calcPhraseTransProbsOnTable(table_path, savePath, **options):
@@ -296,7 +304,7 @@ def calcPhraseTransProbsOnTable(table_path, savePath, **options):
             calcPhraseTransProbsByCounts(records)
             writeRecords(saveFile, records)
             records = {}
-        if rec.counts.co > 0:
+        if rec.counts.cooc > 0:
             records[key] = rec
         lastSrc = rec.src
     if records:
@@ -310,18 +318,20 @@ def calcSrcCount(records):
     '''calculate source phrase occurrence counts by co-occurrence counts'''
     total = 0
     for rec in flattenRecords(records):
-        total += rec.counts.co
+        total += rec.counts.cooc
     return total
 
 def updateWordPairCounts(lexCounts, records):
     '''find word pairs in phrase pairs, and update the counts of word pairs'''
     if len(records) > 0:
-        src_symbols = records.values()[0].src_symbols
+        # dict.values() is not subscriptable in Python 3 (0.2.x code)
+        # (Python 3 では dict.values() は添字アクセス不可。0.2.x のコード)
+        src_symbols = next(iter(records.values())).src_symbols
         if len(src_symbols) == 1:
            for rec in records.values():
                trgSymbols = rec.trgSymbols
                if len(trgSymbols) == 1:
-                   lexCounts.addPair(src_symbols[0], trgSymbols[0], rec.counts.co)
+                   lexCounts.addPair(src_symbols[0], trgSymbols[0], rec.counts.cooc)
         lexCounts.filterNBestBySrc(srcWord = src_symbols[0])
 
 def flattenRecords(records, sort = False):
@@ -411,14 +421,16 @@ def pivotRecPairs(rows, workset):
 #            updateWordPairCounts(lexCounts, records)
 #            # filtering n-best records by co-occurrence counts
 #            if not NOPREFILTER:
-#                            scores.append( (rec.counts.co, key) )
+#                            scores.append( (rec.counts.cooc, key) )
 #            # calculate forward phrase trans probs
         # if threshold is set (non-zero), aborting the records having trans probs under it
         if workset.threshold < 0:
             # aborting records for extremely small trans probs
             ignoring = []
             for key, rec in records.items():
-                if rec[0]['fgep'] < workset.threshold and rec[0]['egfp'] < workset.threshold:
+                # rec[0][...] was a leftover from when records were pairs
+                # (rec[0][...] は records がペア列だった頃の名残)
+                if rec.features['fgep'] < workset.threshold and rec.features['egfp'] < workset.threshold:
                     #ignoring.append(pair)
                     ignoring.append(key)
             for key in ignoring:
@@ -488,7 +500,7 @@ def pivotRecPairs(rows, workset):
 
 def writeRecords(fileObj, records):
   for rec in flattenRecords(records, sort = True):
-      if rec.counts.co > 0:
+      if rec.counts.cooc > 0:
           fileObj.write( rec.to_str() )
           fileObj.write("\n")
 
