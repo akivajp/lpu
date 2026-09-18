@@ -2,12 +2,35 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
-## Unreleased
+## 0.5.2 (2026-09-18)
+
+### Fixed
+
+- `lpu-random-split` crashed with `UnboundLocalError` (and, after
+  surviving that, later in `float()`) when a split size was not a
+  number; it now aborts the configuration like the other validation
+  failures.
+- `lpu-exec-parallel` crashed with `AttributeError` on an empty input,
+  because `numChunks` was left unset; it now records zero chunks and
+  finishes with an empty output. `--chunks 0` passed the validation
+  and crashed later with `ZeroDivisionError`; it is now rejected like
+  the other invalid values.
 
 ### Added
 
-- Type annotations for `lpu.common.logging`; `mypy` now checks 19
-  modules.
+- Type annotations for `lpu.common.logging`, the remaining large
+  `lpu.commands` modules (`exec_parallel`, `clean_parallel`,
+  `random_split`) and the pure Python `lpu.smt.trans_models` modules
+  (`convert_extract`, `filter`, `make_glue_rules`, `normalize` and
+  `triangulate`); `mypy` now checks 27 modules.
+- Tests for the quiet / debug initialization of the package (including
+  the report of unavailable C extensions), the failure branches of
+  `lpu.common.environ` and `colors`, the coordination paths of
+  `lpu-exec-parallel` (module coverage 84% to 99%), the multi-target
+  and tree matching paths of triangulation, the multi-target path of
+  `lpu-smt-normalize`, and further branches of `lpu-random-split` and
+  `lpu-clean-parallel`. The suite grew from 476 to 497 tests and its
+  coverage rose from 85% to 91%.
 
 ### Changed
 
@@ -17,6 +40,9 @@
   utf-8 -*-` declarations and trivial `object` inheritance were removed,
   and abstract types are imported from `collections.abc`. The dead
   Python 2 branches in `lpu.common.logging` are gone with them.
+- The test workflow skips the word-align usage tests where the compiled
+  EM extension is unavailable, like the SMT commands already do, and
+  the lint job now covers `setup.py`.
 
 ## 0.5.1 (2026-09-18)
 

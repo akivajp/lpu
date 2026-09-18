@@ -2,12 +2,34 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
-## 未リリース
+## 0.5.2 (2026-09-18)
+
+### 修正
+
+- `lpu-random-split` で、分割サイズが数値でない場合に
+  `UnboundLocalError` (それを潜り抜けた場合は後段の `float()`) で
+  クラッシュしていました。他の設定検証失敗と同様に設定を中断する
+  ようになりました。
+- `lpu-exec-parallel` で、空の入力に対して `numChunks` が未設定のまま
+  `AttributeError` でクラッシュしていました。チャンク数 0 として記録し、
+  空の出力で正常終了するようになりました。また `--chunks 0` は検証を
+  通過した後 `ZeroDivisionError` でクラッシュしていましたが、他の不正値と
+  同様に拒否されるようになりました。
 
 ### 追加
 
-- `lpu.common.logging` に型注釈を追加しました。`mypy` の検査対象が
-  19 モジュールになりました。
+- `lpu.common.logging`、残りの大規模 `lpu.commands` モジュール
+  (`exec_parallel`, `clean_parallel`, `random_split`) および純 Python の
+  `lpu.smt.trans_models` モジュール (`convert_extract`, `filter`,
+  `make_glue_rules`, `normalize`, `triangulate`) に型注釈を追加し、
+  `mypy` の検査対象が 27 モジュールになりました。
+- パッケージの quiet / debug 初期化 (利用できない C 拡張の報告を含む)、
+  `lpu.common.environ` と `colors` の失敗分岐、`lpu-exec-parallel` の
+  協調動作の経路 (モジュールカバレッジ 84% → 99%)、トライアンギュレーションの
+  multi-target とツリー照合の経路、`lpu-smt-normalize` の multi-target
+  経路、および `lpu-random-split` / `lpu-clean-parallel` の追加分岐に
+  テストを追加しました。テスト数は 476 から 497 に、スイートの
+  カバレッジは 85% から 91% に向上しました。
 
 ### 変更
 
@@ -17,6 +39,9 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
   宣言や自明な `object` 継承を削除しました。抽象型は
   `collections.abc` からインポートします。これに伴い、
   `lpu.common.logging` の Python 2 用デッドコードも削除されました。
+- テストワークフローは、コンパイル済み EM 拡張が無い環境で word-align の
+  使用例テストを SMT コマンドと同様にスキップするようになり、lint ジョブは
+  `setup.py` も対象にするようになりました。
 
 ## 0.5.1 (2026-09-18)
 
