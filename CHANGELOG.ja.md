@@ -2,6 +2,45 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
+## 0.5.1 (2026-09-18)
+
+### 修正
+
+- `lpu-smt-triangulate` とフレーズ/ルールテーブル系ツールが、2.x 時代の
+  移行漏れにより Python 3 上で動作しない状態でした。`map` オブジェクトの
+  添字アクセス、`dict.values()[0]`、名前ではなく添字での features アクセス、
+  リネーム前の `co` 属性と `co=` キーワード引数、Python から見えない
+  `cdef` の `round()` メソッド、`Table.find_src()` が常に渡す `hiero`
+  キーワードに応答しない `Record.getSymbols()` を修正しました。
+  レコードの読み込みとルールのトライアンギュレーションが再び動作します。
+- ロガーを指定せずに生成した `LoggingConfig` が `_reconfigureLogger()`
+  内で `AttributeError` で落ちていました。空のロガーセットを既定値に
+  するようになりました。
+- `assert False` によるガードを明示的な `AssertionError` 送出に置き換え、
+  `python -O` 下でも例外が発生するようにしました。`lpu-smt-normalize`
+  がレコード処理の失敗時に送出する例外には文言と元例外 (cause) が
+  含まれるようになりました。
+
+### 追加
+
+- レコード読み込みとトライアンギュレーションのテスト (34件)、
+  `lpu.common.logging` の内部処理のテスト、`lpu-random-split` の
+  `--ids` / `--ignore-empty` オプション、`lpu-clean-parallel` の
+  長さ制限 / 正規化 / `--target-directory` の各経路、dialog ヘルパー、
+  `lpu.common.config` の例外分岐 (カバレッジ 100%) のテストを追加
+  しました。スイート全体のカバレッジは 67% から 85% に向上しました。
+- `lpu.common.config`, `files`, `environ`, `dialog` および小規模な
+  `lpu.commands` モジュールに型注釈を追加し、`mypy` の検査対象が
+  17 モジュールになりました。
+- `ruff` の bugbear (`B`) ルールを有効化し、指摘された18件の欠陥を
+  修正しました。
+
+### 変更
+
+- 対訳コーパスのループは行数不一致の入力を短い側で打ち切る従来動作を
+  維持しつつ、許容が意図された箇所の `zip()` では `strict=False` を、
+  長さが保証される箇所では `strict=True` を明示するようにしました。
+
 ## 0.5.0 (2026-09-18)
 
 ### 追加

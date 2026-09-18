@@ -2,6 +2,44 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
+## 0.5.1 (2026-09-18)
+
+### Fixed
+
+- `lpu-smt-triangulate` and the phrase/rule table tools were broken on
+  Python 3 by leftovers from the 2.x era: subscripted `map` objects,
+  `dict.values()[0]`, features accessed by item index instead of name,
+  the pre-rename `co` count attribute and the `co=` keyword argument, a
+  `cdef` `round()` method invisible from Python, and `Record.getSymbols()`
+  missing the `hiero` keyword that `Table.find_src()` always passes.
+  Record loading and rule triangulation work again.
+- A `LoggingConfig` built without loggers crashed in
+  `_reconfigureLogger()` with `AttributeError`; it now defaults to an
+  empty logger set.
+- `assert False` guards were replaced with explicit `AssertionError`
+  raises, so they also fire under `python -O`. The exception raised by
+  `lpu-smt-normalize` when a record fails now carries a message and the
+  original exception as its cause.
+
+### Added
+
+- Tests for the record parsing and triangulation (34 tests), the
+  internals of `lpu.common.logging`, the `--ids` / `--ignore-empty`
+  options of `lpu-random-split`, the length bounds / normalization /
+  `--target-directory` paths of `lpu-clean-parallel`, the dialog
+  helpers and the exception branches of `lpu.common.config` (100%
+  coverage). Suite coverage rose from 67% to 85%.
+- Type annotations for `lpu.common.config`, `files`, `environ`,
+  `dialog` and the small `lpu.commands` modules; `mypy` now checks 17
+  modules.
+- `ruff` bugbear (`B`) rules, with the 18 reported defects fixed.
+
+### Changed
+
+- The parallel-corpus loops keep truncating uneven input; the `zip()`
+  calls now state this with `strict=False` where the tolerance is
+  intended, and `strict=True` where the lengths are guaranteed.
+
 ## 0.5.0 (2026-09-18)
 
 ### Added
