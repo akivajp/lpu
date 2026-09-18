@@ -24,8 +24,10 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
   `gzip.GzipFile` など) に対して `files.is_mode()` が `AttributeError`
   で落ちていました。これにより CI の wheel テスト実行が失敗していました。
 - 更新間隔の経過時間が 0.0 になった場合に `progress.SpeedCounter.view()`
-  が `ZeroDivisionError` を送出することがありました (Windows の粗い
-  `time.time()` 分解能で発生します)。
+  が `ZeroDivisionError` を送出したり、`reset()` が活動後の改行を
+  出力しなかったりすることがありました (いずれも Windows の粗い
+  `time.time()` 分解能が原因です)。活動の判定を時計ではなく出力フラグに
+  よるものに変更しました。
 
 ### 追加
 

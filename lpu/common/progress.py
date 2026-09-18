@@ -42,6 +42,9 @@ class SpeedCounter(object):
         self.header: str = header
         self.start_time: float = -1
         self.last_time: float = -1
+        # 粗いタイマー (Windows の time.time()) では経過時間が 0.0 のまま
+        # になることがあるため、出力の実績は時間ではなくフラグで管理する
+        self.printed: bool = False
         self.reset()
         self.force: bool = force
         self.max_count: int = max_count
@@ -71,7 +74,7 @@ class SpeedCounter(object):
             force {[bool]} -- new force mode (default: {None})
             color {[bool]} -- new text color (default: {None})
         """
-        if self.last_time > self.start_time:
+        if self.printed:
             self.flush()
             fobj = self._get_fobj()
             if fobj:
@@ -82,6 +85,7 @@ class SpeedCounter(object):
         self.count: int = 0
         self.last_count: int = 0
         self.pos: int = 0
+        self.printed = False
         if refresh != None:
             self.refresh = refresh
         if header != None:
@@ -174,6 +178,7 @@ class SpeedCounter(object):
                 fobj.write(str_print)
             except Exception as e:
                 logger.exception(e)
+            self.printed = True
         self.last_time = now
         self.last_count = self.count
         return True

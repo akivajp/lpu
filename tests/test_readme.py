@@ -30,6 +30,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import _module_available
 from test_commands import run_command
 
 
@@ -200,6 +201,13 @@ def test_usage_options_exist(command_name, command):
     --help 出力に存在しなければならない。
     '''
     module, entry = SCRIPTS[command_name]
+    if command_name.startswith('lpu-smt-'):
+        # the smt commands need the compiled extensions, numpy and pycedar,
+        # which are not installable in every wheel test environment
+        # (smt 系コマンドはコンパイル済み拡張と numpy / pycedar を必要とし、
+        #  環境によっては導入できないためスキップする)
+        if not _module_available('lpu.smt.trans_models.tables'):
+            pytest.skip('lpu.smt.trans_models is not available')
     # the abbreviated lpu-smt-* examples ("[-h] ...") have no options
     # to check beyond the help run itself
     # (省略形の lpu-smt-* 例 ("[-h] ...") では --help の実行自体が検査)

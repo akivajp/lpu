@@ -23,9 +23,11 @@
 - `files.is_mode()` crashed with `AttributeError` on file objects whose
   `.mode` is an int (e.g. `gzip.GzipFile` on Python 3.12 or earlier),
   which broke the wheel test runs on CI.
-- `progress.SpeedCounter.view()` could raise `ZeroDivisionError` when the
-  elapsed time between updates was 0.0, which happens with the coarse
-  `time.time()` resolution on Windows.
+- `progress.SpeedCounter` could raise `ZeroDivisionError` when the
+  elapsed time between updates was 0.0, and `reset()` missed the trailing
+  newline after activity, both because of the coarse `time.time()`
+  resolution on Windows. The activity is now tracked with an explicit
+  output flag instead of the clock.
 
 ### Added
 
