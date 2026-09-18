@@ -28,7 +28,7 @@ def calc_src_factor(table, src, target_number=None):
     targets = set()
     if target_number:
         feature = str(target_number) + feature
-    for i, rec in enumerate( table.find_src(src) ):
+    for rec in table.find_src(src):
         target = get_target_field(rec,target_number)
         if target not in targets:
             total += rec.features[feature]
@@ -43,7 +43,7 @@ def calc_trg_factor(table, trg, target_number=None):
     sources = set()
     #for i, rec in enumerate( table.find_trg(trg) ):
     #for i, rec in enumerate( table.find(trg) ):
-    for i, rec in enumerate( table.find_trg(trg, target_number) ):
+    for rec in table.find_trg(trg, target_number):
         #logging.log((i, rec.to_str()))
         #if target_number == 0:
         #    logging.log(trg)
@@ -82,7 +82,8 @@ def normalize_table(table_path, save_path):
                     for num in target_numbers:
                         src_total[num] = calc_src_factor(table, rec.src, num)
                     last_src = rec.src
-                for num, target in zip(target_numbers, targets):
+                # target_numbers と targets は常に同じ長さで作られる
+                for num, target in zip(target_numbers, targets, strict=True):
                     #logging.log(target)
                     trg_track = table.field_dict.get_node(target).track()
                     if (num,trg_track) in dict_trg_total:
@@ -108,7 +109,7 @@ def normalize_table(table_path, save_path):
                 logger.warning("num: %s" % num)
                 logger.warning("target: %s" % target)
                 logger.warning(e)
-                raise Exception()
+                raise Exception("failed to normalize a record") from e
 
 def main():
     parser = argparse.ArgumentParser(description = 'load 2 rule tables and pivot into one travatar rule table')

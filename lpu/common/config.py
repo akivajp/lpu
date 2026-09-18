@@ -87,7 +87,9 @@ class ConfigData(object):
             name = self.__class__.__name__
             dprint(name)
             dprint(key)
-            raise AttributeError("'%s' object has no attribute '%s'" % (name, key))
+            # 元の例外 (KeyError 等) はデバッグ目的で既に記録済みのため、
+            # チェーンを抑制して通常の AttributeError として見せる
+            raise AttributeError("'%s' object has no attribute '%s'" % (name, key)) from None
 
     def __getitem__(self, key: Any) -> Any:
         main = self.__main

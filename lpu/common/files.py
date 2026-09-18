@@ -278,7 +278,8 @@ def rawfile(f: Any) -> io.IOBase:
         logger.debug(f)
         #logging.debug(type(f))
         #logging.debug(dir(f))
-        assert False
+        # python -O では assert 文が消えるため、明示的に送出する
+        raise AssertionError('unsupported file object: %s' % type(f))
 
 def rawsize(f: Any) -> int:
     try:

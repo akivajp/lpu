@@ -113,6 +113,7 @@ dev = [
 # 今のところ実害を捉えるルールのみ有効化。レガシー命名が混在しているため
 # スタイル系のルールは対象外とする。
 select = [
+    "B",    # bugbear: real defect patterns
     "E722", # bare except
     "E9",   # runtime / syntax errors
     "F",    # pyflakes: unused imports / variables, undefined names

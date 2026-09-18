@@ -152,7 +152,8 @@ def updateFeatures(recPivot, recPair, workset, multi_target = False):
                     rate = math.exp(-dist)
                     features[key] += (rate * srcFeatures[key] * trgFeatures[key])
                 else:
-                    assert False, 'Invalid Match Method'
+                    # python -O では assert 文が消えるため、明示的に送出する
+                    raise AssertionError('Invalid Match Method')
         if multi_target:
             # p(trg,pvt|src) ~ p(trg|pvt) * p(pvt|src)
             features['egfp'] =  srcFeatures['egfp'] * trgFeatures['egfp']
@@ -235,7 +236,7 @@ def updateCounts(recPivot, recPair, method):
         c = min(recPair[0].counts.cooc, recPair[1].counts.cooc)
         counts.cooc += c
     else:
-        assert False, "Invalid method: %s" % method
+        raise AssertionError("Invalid method: %s" % method)
 
 
 def mergeAligns(recPivot, recPair):
@@ -350,7 +351,7 @@ def flattenRecords(records, sort = False):
         else:
             return records
     else:
-        assert False, "Invalid records"
+        raise AssertionError("Invalid records")
 
 def pivotRecPairs(rows, workset):
     '''combine the source-pivot and pivot-target records for common pivot phrases
@@ -408,7 +409,7 @@ def pivotRecPairs(rows, workset):
         # at this time, all the source-target records are determined for given source
         if workset.multi_target:
             # copying the estimated features of source-target records to source-target-pivot records
-            for multiKey, recMulti in multiRecords.items():
+            for recMulti in multiRecords.values():
                 trgPair = recMulti.trg.split(' |COL| ')
                 recPivot = records[trgPair[0]+' |||']
                 for featureKey in ['egfl', 'egfp', 'fgel', 'fgep']:
@@ -459,7 +460,7 @@ def pivotRecPairs(rows, workset):
                                 bestTrgRecords[rec.trg].append(recMulti)
                     bestMultiRecords = {}
                     # second, filtering n-best by forward joint trans probs
-                    for trgKey, multiList in bestTrgRecords.items():
+                    for multiList in bestTrgRecords.values():
                         bestMultiRec = None
                         bestForwardJointTransProb = 0
                         for multiRec in multiList:
@@ -597,7 +598,7 @@ def pivot(table1, table2, savefile="phrase-table.gz", workdir=".", **options):
         if lexMethod not in ('prodweight', 'table'):
             if alignLexPath == None:
                 logger.debug(lexMethod)
-                assert False, "aligned lexfile is not given"
+                raise AssertionError("aligned lexfile is not given")
 
         if matchMethod == 'hiero':
             key_type = 'src_hiero'

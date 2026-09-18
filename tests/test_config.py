@@ -160,7 +160,7 @@ class TestRequire:
 
     def test_require_raises_for_missing_key(self):
         conf = Config()
-        with pytest.raises(Exception):
+        with pytest.raises(KeyError):
             conf.require('missing')
 
 
@@ -196,8 +196,10 @@ class TestConfigDataEdges:
 
     def test_getattr_raises_attribute_error_for_missing_key(self):
         conf = Config()
+        # 例外を期待する属性アクセス。破棄代入 (_) は ruff B018/B009 の
+        # 両方を満たすための形式
         with pytest.raises(AttributeError):
-            conf.data.missing_key
+            _ = conf.data.missing_key
 
     def test_getitem_with_missing_key_raises_key_error(self):
         data = ConfigData()

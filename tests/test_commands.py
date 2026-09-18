@@ -231,7 +231,8 @@ class TestRandomSplit:
                 encoding='utf-8').split()
             assert len(en_lines) == size
             assert len(fr_lines) == size
-            for en_line, fr_line in zip(en_lines, fr_lines):
+            # 直前で両側の行数一致を検証済み
+            for en_line, fr_line in zip(en_lines, fr_lines, strict=True):
                 assert expected[en_line] == fr_line
             total += size
         assert total == len(pairs)

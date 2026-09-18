@@ -111,7 +111,8 @@ def cleanParallel(**args):
     infiles  = [open(path,'rb') for path in srcFilePaths]
     outfiles = [open(path, 'w', encoding='utf-8') for path in outPaths]
     infiles[0] = progress.view(infiles[0], header='processing')
-    for i, lines in enumerate(zip(*infiles)):
+    # 対訳の片側だけ行数が多い場合、従来動作どおり短い側で打ち切る
+    for i, lines in enumerate(zip(*infiles, strict=False)):
         try:
             lines = [text.to_unicode(line.strip()) for line in lines]
             if args.get('normalize'):

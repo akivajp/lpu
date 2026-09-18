@@ -20,7 +20,8 @@ def get_valid_indices(conf):
     infiles = [files.open(path,'rb') for path in conf.data.inpaths]
     infiles[0] = progress.view(infiles[0], 'loading')
     #for i, lines in enumerate(progress.view(compat.zip(*infiles), 'loading')):
-    for i, lines in enumerate(zip(*infiles)):
+    # 対訳の片側だけ行数が多い場合、従来動作どおり短い側で打ち切る
+    for i, lines in enumerate(zip(*infiles, strict=False)):
         try:
             lines = map(text.to_unicode, lines)
             if conf.data.ignore_empty:
@@ -78,7 +79,8 @@ def random_split(conf, **others):
         split_indices.append( set(indices[start:start+size]) )
         start += size
     split_sizes = list( map(len, split_indices) )
-    for inpath, prefix, suffix in zip(inpaths, prefixes, suffixes):
+    # check_config() が3要素の長さ一致を保証する
+    for inpath, prefix, suffix in zip(inpaths, prefixes, suffixes, strict=True):
         infile = files.open(inpath, 'rb')
         outpaths = []
         for tag in tags:
