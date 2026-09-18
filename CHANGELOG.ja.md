@@ -2,6 +2,34 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
+## 未リリース
+
+### 修正
+
+- coverage ジョブだけ `actions/upload-artifact@v4` を使っており、他の
+  ステップは `v7` でした。`v7` に統一しました。
+- `indexTree` が空リストノードに対して暗黙の `None` を返しており、
+  呼び出し側で `TypeError` によりクラッシュしていました。他の異常系の
+  入力と同様、未訪問の左範囲 `-1` を返すようになりました。
+
+### 変更
+
+- `mypy` が未注釈関数の本体も検査するようになり
+  (`check_untyped_defs`, `disallow_untyped_defs`)、型付き関数からの
+  `Any` 返却 (`warn_return_any`) や厳格な等値性・指令の検査
+  (`strict_equality`, `warn_unused_ignores`) も有効になりました。
+  残っていた未注釈関数には注釈を追加し、`Any` を返していた経路は
+  宣言型への `cast` で明示しました。
+- CI ランナーを `ubuntu-24.04` に明示ピン留めしました。`ubuntu-latest`
+  の Ubuntu 26 への自動移行 (2026-10-19) を先回りして回避するもので、
+  実際の移行は後日意図的に実施します。
+- ruff の flake8-comprehensions (`C4`) と ruff 固有ルール (`RUF`) を
+  有効化し、指摘された 22 件を修正しました: 冗長な `list()` / `dict()`
+  呼び出し、`math.ceil()` / `round()` (既に int を返す) の余分な
+  `int()` ラップ、`all()` へのリスト内包引数、リスト連結の展開化への
+  書き換え、未使用のアンパック変数、参照のみのクラス属性への
+  `ClassVar` 注釈。挙動の変更はありません。
+
 ## 0.5.2 (2026-09-18)
 
 ### 修正

@@ -2,6 +2,36 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
+## Unreleased
+
+### Fixed
+
+- The coverage job used `actions/upload-artifact@v4` while every other
+  step used `v7`; it is now unified on `v7`.
+- `indexTree` returned an implicit `None` for an empty list node, which
+  made the caller crash with a `TypeError`; it now reports the
+  unvisited left range `-1` like the other degenerate inputs.
+
+### Changed
+
+- `mypy` now also checks the bodies of untyped functions
+  (`check_untyped_defs`, `disallow_untyped_defs`), reports returning
+  `Any` from typed functions (`warn_return_any`) and enables stricter
+  equality and directive checks (`strict_equality`,
+  `warn_unused_ignores`). The few remaining unannotated functions got
+  their annotations, and the paths returning `Any` are cast to their
+  declared types.
+- The CI runners are pinned to `ubuntu-24.04` ahead of the automatic
+  migration of `ubuntu-latest` to Ubuntu 26 (2026-10-19), so the
+  migration will be a deliberate change later.
+- ruff's flake8-comprehensions (`C4`) and ruff-specific (`RUF`) rules
+  are enabled, and the 22 reported findings were fixed: redundant
+  `list()` / `dict()` calls, redundant `int()` wrappers around
+  `math.ceil()` / `round()`, list-comprehension arguments passed to
+  `all()`, list concatenations rewritten to unpacking, an unused
+  unpacked variable and a read-only class attribute annotated as
+  `ClassVar`. No behavior change.
+
 ## 0.5.2 (2026-09-18)
 
 ### Fixed
