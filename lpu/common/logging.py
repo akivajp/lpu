@@ -49,6 +49,13 @@ class LoggingConfig(environ.StackHolder):
                     logger = getColorLogger(logger)
                 set_loggers.add(logger)
             self.loggers = set_loggers
+        else:
+            # without this default, a LoggingConfig built without loggers
+            # crashed in _reconfigureLogger() with AttributeError
+            # (この既定値が無いと、ロガー指定なしで生成した
+            #  LoggingConfig が _reconfigureLogger 内で AttributeError
+            #  となっていた)
+            self.loggers = set()
 
     def set_debug(self, enable=True):
         if enable:
