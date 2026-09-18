@@ -2,6 +2,13 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
+## Unreleased
+
+### Added
+
+- Type annotations for `lpu.common.logging`; `mypy` now checks 19
+  modules.
+
 ## 0.5.1 (2026-09-18)
 
 ### Fixed

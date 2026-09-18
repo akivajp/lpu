@@ -4,15 +4,19 @@
 '''Customizable logging functions'''
 
 # Standard libraries
+from __future__ import annotations
+
+from collections.abc import Iterable, Iterator
+from typing import Any, Mapping, cast
 import ast
 import codecs
 import inspect
+import logging
 import os
 import sys
 import tokenize
+from traceback import FrameSummary
 import traceback
-
-import logging
 
 from lpu.common import environ
 from lpu.common import validation
@@ -22,12 +26,12 @@ from lpu.common import text
 logger = logging.getLogger(__name__)
 
 class LoggingConfig(environ.StackHolder):
-    def __init__(self, loggers=None):
+    def __init__(self, loggers: logging.Logger | str | Iterable[Any] | None = None) -> None:
         #logger.debug("initializing logging status")
         super(LoggingConfig, self).__init__()
         self.set_loggers(loggers)
 
-    def _reconfigureLogger(self):
+    def _reconfigureLogger(self) -> None:
         if self.loggers:
             for logger in self.loggers:
                 configureLogger(logger)
@@ -38,7 +42,7 @@ class LoggingConfig(environ.StackHolder):
             except Exception as e:
                 lpu.logger.exception(e)
 
-    def set_loggers(self, loggers):
+    def set_loggers(self, loggers: logging.Logger | str | Iterable[Any] | None) -> None:
         if loggers:
             set_loggers = set()
             if not isinstance(loggers, (list,tuple)):
@@ -48,7 +52,7 @@ class LoggingConfig(environ.StackHolder):
                     #logger = logging.getLogger(logger)
                     logger = getColorLogger(logger)
                 set_loggers.add(logger)
-            self.loggers = set_loggers
+            self.loggers: set[logging.Logger] = set_loggers
         else:
             # without this default, a LoggingConfig built without loggers
             # crashed in _reconfigureLogger() with AttributeError
@@ -57,39 +61,39 @@ class LoggingConfig(environ.StackHolder):
             #  となっていた)
             self.loggers = set()
 
-    def set_debug(self, enable=True):
+    def set_debug(self, enable: bool = True) -> None:
         if enable:
             self.set('LPU_DEBUG', '1')
         else:
             self.set('LPU_DEBUG', '0')
         self._reconfigureLogger()
-    def unset_debug(self):
+    def unset_debug(self) -> None:
         return self.unset('LPU_DEBUG')
 
-    def set_quiet(self, enable=True):
+    def set_quiet(self, enable: bool = True) -> None:
         if enable:
             self.set('LPU_QUIET', '1')
         else:
             self.set('LPU_QUIET', '0')
         self._reconfigureLogger()
-    def unset_quiet(self):
+    def unset_quiet(self) -> None:
         # Up to 0.2.x this was another def unset_debug(), which shadowed the
         # one above and left no way to unset the quiet flag.
         # 0.2.x までは 2 つめの unset_debug() として定義されており、
         # 上の定義を隠したうえ quiet を解除する手段が存在しなかった。
         return self.unset('LPU_QUIET')
 
-    def __enter__(self):
+    def __enter__(self) -> LoggingConfig:
         #logger.debug("entering logging environment")
         super(LoggingConfig,self).__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         super(LoggingConfig,self).__exit__(exc_type, exc_val, exc_tb)
         #logger.debug("exiting from logging environment")
         self._reconfigureLogger()
 
-def get_debug_status():
+def get_debug_status() -> bool:
     mode = environ.get_env('LPU_DEBUG')
     if not mode:
         mode = environ.get_env('DEBUG')
@@ -100,7 +104,7 @@ def get_debug_status():
     else:
         return True
 
-def get_color_status():
+def get_color_status() -> bool:
     mode = environ.get_env('LPU_COLOR')
     if not mode:
         mode = environ.get_env('COLOR')
@@ -119,7 +123,7 @@ def get_color_status():
     else:
         return False
 
-def get_quiet_status():
+def get_quiet_status() -> bool:
     '''report whether quiet mode is enabled
 
     Note: up to 0.2.x only the QUIET variable was consulted, while
@@ -143,44 +147,47 @@ def get_quiet_status():
         return True
 
 class FilterCondition(logging.Filter):
-    def __init__(self, **rules):
+    def __init__(self, **rules: Any) -> None:
         super(FilterCondition,self).__init__()
-        self.rules = rules
+        self.rules: dict[str, Any] = rules
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         if 'level' in self.rules:
             if self.rules['level'] not in [record.levelname, record.levelno]:
                 return False
         return True
 
-def getLevelString(level):
+def getLevelString(level: int | str) -> str:
     if isinstance(level, int):
         return logging.getLevelName(level)
     elif isinstance(level, str):
         return level
     else:
         validation.check_argument_type(level, 'level', (int, str))
+        # チェック関数が型不一致で例外を送出するためここには到達しない
+        raise AssertionError('unreachable')
 
 class ColorizingFormatter(logging.Formatter):
-    def __init__(self, fmt=None, datefmt=None):
+    def __init__(self, fmt: str | None = None, datefmt: str | None = None) -> None:
         super(ColorizingFormatter,self).__init__(fmt, datefmt)
-        self._format_rules = []
+        self._format_rules: list[list[Any]] = []
         #self._default_fmt = fmt
-        self._default_fmt = self._fmt
-        self._colors = dict()
+        # 既定の書式は文字列前提 (None は ColorizingFormatter の利用形態では無い)
+        self._default_fmt: str = cast(str, self._fmt)
+        self._colors: dict[str, str] = dict()
 
-    def addFormatRule(self, rule, fmt=None):
+    def addFormatRule(self, rule: logging.Filter, fmt: str | None = None) -> None:
         #self._format_rules.append([rule, fmt])
         self._format_rules.insert(0, [rule, fmt])
 
-    def _setColorizedFormat(self, fmt, record):
+    def _setColorizedFormat(self, fmt: str, record: logging.LogRecord) -> str:
         self._fmt = fmt
         if sys.version_info.major == 3:
             self._style._fmt = fmt
         return fmt
 
     #def _colorizeText(self, record, str text):
-    def _colorizeText(self, record, text):
+    def _colorizeText(self, record: logging.LogRecord, text: str) -> str:
         level = record.levelname.lower()
         color_level = self._colors.get(level, None)
         if color_level:
@@ -191,8 +198,8 @@ class ColorizingFormatter(logging.Formatter):
                 text = put_color(text, color_default)
         return text
 
-    def format(self, record):
-        fmt_apply = None
+    def format(self, record: logging.LogRecord) -> str:
+        fmt_apply: str | None = None
         for flt, fmt in self._format_rules:
             if flt.filter(record):
                 if fmt:
@@ -204,12 +211,13 @@ class ColorizingFormatter(logging.Formatter):
             self._setColorizedFormat(self._default_fmt, record)
         text = super(ColorizingFormatter,self).format(record)
         if sys.version_info.major == 2:
-            text = codecs.escape_decode(text)[0]
+            # Python 2 専用パス (Py3 では到達しない)
+            text = codecs.escape_decode(text)[0]  # type: ignore[assignment]
         #logger.info(text)
         #logger.info(type(text))
         return self._colorizeText(record, text)
 
-    def formatStack(self, stack_info):
+    def formatStack(self, stack_info: str) -> str:
         #logger.debug(stack_info)
         formatted = stack_info.rstrip()
         formatted = '  ' + formatted.replace('\n', '\n  ')
@@ -222,7 +230,7 @@ class ColorizingFormatter(logging.Formatter):
                 formatted = put_color(formatted, color_debug)
         return formatted
 
-    def formatException(self, exc_info):
+    def formatException(self, exc_info: tuple[Any, Any, Any]) -> str:
         #logger.debug(exc_info)
         etype, value, tb = exc_info
         list_formatted = traceback.format_exception(etype, value, tb)
@@ -238,14 +246,18 @@ class ColorizingFormatter(logging.Formatter):
                 formatted = put_color(formatted, color_error)
         return formatted
 
-    def setColor(self, keyword, color_name):
+    def setColor(self, keyword: str | bytes, color_name: str | None) -> None:
         #if isinstance(keyword, str):
-        if isinstance(keyword, (str,bytes)):
+        if isinstance(keyword, str):
             keyword = keyword.lower()
             keyword = keyword.replace('color_', '')
         else:
+            # bytes は Py3 では以前の replace でも TypeError になったため検証へ渡す
+
             #validation.check_argument_type(keyword, 'keyword', str)
             validation.check_argument_type(keyword, 'keyword', (str,bytes))
+            # チェック関数が型不一致で例外を送出するためここには到達しない
+            raise AssertionError('unreachable')
         if color_name is None:
             # unsetting
             if keyword in self._colors:
@@ -256,21 +268,21 @@ class ColorizingFormatter(logging.Formatter):
         else:
             validation.check_argument_type(color_name, 'color_name', str)
 
-    def setColors(self, **kwargs):
+    def setColors(self, **kwargs: str | None) -> None:
         for key, color in kwargs.items():
             self.setColor(key, color)
 
-    def setLevelFormat(self, level, fmt):
+    def setLevelFormat(self, level: int | str, fmt: str) -> None:
         level_rule = FilterCondition(level = level)
         self.addFormatRule(level_rule, fmt)
 
-    def setLevelColor(self, level, color_name):
+    def setLevelColor(self, level: int | str, color_name: str | None) -> None:
         level_name = getLevelString(level)
         #self._colors[level_name] = color_name
         self.setColor(level_name, color_name)
 
 class CustomLogger(logging.Logger):
-    def debug_print(self, val=None, limit=0, offset=0):
+    def debug_print(self, val: Any = None, limit: int = 0, offset: int = 0) -> None:
         if logging.DEBUG < self.level:
             return
         # Skip one frame, because this method's own frame is on the stack
@@ -279,13 +291,13 @@ class CustomLogger(logging.Logger):
         # 1 段分ずらす
         offset += 1
         #stack = traceback.extract_stack(limit=limit)
-        stack = traceback.extract_stack(limit=offset+limit)
+        stack: list[FrameSummary] = traceback.extract_stack(limit=offset+limit)
         if offset > 0:
             stack = stack[:-offset]
         format = ""
         if limit > 0:
             for path, lineno, func, line in stack:
-                line = _get_cached_line(path, lineno, line).strip()
+                line = (_get_cached_line(path, lineno, line) or '').strip()
                 s = '\n  file:{}, line:{}, func:{}, code:{}'.format(path, lineno, func, line)
                 format += s
         stack = traceback.extract_stack(limit=offset+1)
@@ -341,22 +353,24 @@ class CustomLogger(logging.Logger):
         )
         self.debug(format, extra=extra)
 
-    def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None, sinfo=None):
+    def makeRecord(self, name: str, level: int, fn: str | None, lno: int, msg: Any, args: Any,
+                   exc_info: tuple[Any, Any, Any] | None, func: str | None = None,
+                   extra: Mapping[str, Any] | None = None, sinfo: str | None = None) -> logging.LogRecord:
         """
         A factory method which can be overridden in subclasses to create
         specialized LogRecords.
         """
         if sys.version_info.major <= 2:
-            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func)
+            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func)  # type: ignore[arg-type]
         else: # sys.version_info.major >= 3
-            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func, sinfo)
+            rv = logging.LogRecord(name, level, fn, lno, msg, args, exc_info, func, sinfo)  # type: ignore[arg-type]
         if extra is not None:
             for key in extra:
                 # accept overwrite!
                 rv.__dict__[key] = extra[key]
         return rv
 
-def debug_print(val=None, limit=0, offset=0):
+def debug_print(val: Any = None, limit: int = 0, offset: int = 0) -> None:
     # Skip one frame, because this function's own frame is on the stack
     # when running as pure Python.
     # 純 Python 実行時はこの関数自身のフレームがスタックに乗るため 1 段分ずらす
@@ -379,7 +393,8 @@ DEFAULT_WARNING_COLOR  = 'yellow'
 DEFAULT_ERROR_COLOR    = 'yellow'
 DEFAULT_CRITICAL_COLOR = 'red'
 
-def colorizeHandler(handler, mode='auto'):
+def colorizeHandler(handler: logging.Handler,
+                    mode: str = 'auto') -> logging.Formatter | logging.Handler:
     # deciding whether to enable colorizing mode (based on arguments, environment)
     if mode == 'auto':
         if isinstance(handler.formatter, ColorizingFormatter):
@@ -404,7 +419,7 @@ def colorizeHandler(handler, mode='auto'):
     handler.setFormatter(formatter)
     return formatter
 
-def _checkLoggerColorized(logger):
+def _checkLoggerColorized(logger: logging.Logger | None) -> bool:
     while logger:
         for handler in logger.handlers:
             if isinstance(handler.formatter, ColorizingFormatter):
@@ -413,7 +428,7 @@ def _checkLoggerColorized(logger):
         logger = logger.parent
     return False
 
-def colorizeLogger(logger, mode='auto'):
+def colorizeLogger(logger: logging.Logger | str, mode: str = 'auto') -> logging.Logger:
     if isinstance(logger, str):
         logger = getLogger(logger)
     handlers = logger.handlers
@@ -421,13 +436,13 @@ def colorizeLogger(logger, mode='auto'):
         colorizeHandler(handler, mode)
     return logger
 
-def colorize(obj):
+def colorize(obj: logging.Logger | logging.Handler) -> logging.Logger | logging.Formatter | logging.Handler | None:
     if isinstance(obj, logging.Logger):
         return colorizeLogger(obj)
     elif isinstance(obj, logging.Handler):
         return colorizeHandler(obj)
 
-def configureLogger(logger, mode='auto'):
+def configureLogger(logger: logging.Logger | None, mode: str | int = 'auto') -> logging.Logger | None:
     if not logger:
         return logger
     if mode == 'auto':
@@ -442,8 +457,8 @@ def configureLogger(logger, mode='auto'):
         logger.setLevel(mode)
     return logger
 
-_cached_lines = {}
-def _get_cached_line(path, lineno, fallback=None, frame=None):
+_cached_lines: dict[str, list[str]] = {}
+def _get_cached_line(path: str, lineno: int, fallback: str | None = None, frame: Any = None) -> str | None:
     try:
         if path not in _cached_lines:
             if os.path.exists(path):
@@ -469,8 +484,8 @@ def _get_cached_line(path, lineno, fallback=None, frame=None):
         pass
     return fallback
 
-_cached_calls = {}
-def _get_cached_calls(path, lineno, fallback=None, frame=None):
+_cached_calls: dict[str, list[ast.Call]] = {}
+def _get_cached_calls(path: str, lineno: int, fallback: Any = None, frame: Any = None) -> Any:
     if path not in _cached_calls:
         if os.path.exists(path):
             # See the note in _get_cached_line() about tokenize.open()
@@ -508,10 +523,10 @@ def _get_cached_calls(path, lineno, fallback=None, frame=None):
     if not call:
         return fallback
     return call
-def _get_call_key(call):
+def _get_call_key(call: ast.Call) -> tuple[int, int]:
     return (call.lineno, call.col_offset)
 
-def _seek_args(path, lineno, fallback=None, frame=None):
+def _seek_args(path: str, lineno: int, fallback: Any = None, frame: Any = None) -> Any:
     try:
         call = _get_cached_calls(path, lineno, fallback, frame)
         _get_cached_line(path, lineno, fallback, frame)
@@ -530,7 +545,7 @@ def _seek_args(path, lineno, fallback=None, frame=None):
         # 0.2.x ではこれを ERROR レベルでトレースバック付きで出力していた。
         logger.debug("could not recover the source expression: %r" % (e,))
         return fallback
-def _parse_args(buf, feeder, offset=0, depth=0):
+def _parse_args(buf: str, feeder: Iterator[str], offset: int = 0, depth: int = 0) -> Any:
     args = []
     expr = ""
     i = offset
@@ -583,7 +598,7 @@ def _parse_args(buf, feeder, offset=0, depth=0):
         return args, i
     else:
         return expr, i
-def _seek_str(buf, offset):
+def _seek_str(buf: str, offset: int) -> tuple[str, int]:
     i = offset
     if buf[offset:offset+3] == '"""':
         until = '"""'
@@ -614,18 +629,23 @@ def _seek_str(buf, offset):
             expr += c
         i += 1
     return expr, i
-def _get_feeder(lines, lineno):
+def _get_feeder(lines: list[str], lineno: int) -> Iterator[str]:
     for n in range(lineno-1, len(lines)):
         yield lines[n]
 
-def getLogger(name=None):
+def getLogger(name: str | None = None) -> CustomLogger:
     CustomLogger.manager.setLoggerClass(CustomLogger)
-    return CustomLogger.manager.getLogger(name)
+    # manager.getLogger() の返り値の型は Logger だが、クラスが
+    # CustomLogger に設定済みであるためキャストする
+    # manager.getLogger() の typeshed は str を要求するが None (root) も渡せる
+    return cast(CustomLogger, CustomLogger.manager.getLogger(cast(str, name)))
 
-def getColorLogger(name, level_mode='auto', add_handler='auto'):
+def getColorLogger(name: str, level_mode: str = 'auto',
+                   add_handler: str | logging.Handler | None = 'auto') -> CustomLogger:
     logger = getLogger(name)
     if level_mode != 'auto':
-        logger = configureLogger(logger, mode=level_mode)
+        # configureLogger は truthy な logger をそのまま返すため実質非 None
+        logger = cast(CustomLogger, configureLogger(logger, mode=level_mode))
     #logger.debug_print = MethodType(_debug_print, logger, logging.Logger)
     if add_handler == 'auto':
         if _checkLoggerColorized(logger):
@@ -638,13 +658,16 @@ def getColorLogger(name, level_mode='auto', add_handler='auto'):
             if handler is add_handler:
                 add_handler = None
         if add_handler:
-            logger.addHandler(add_handler)
+            # 'auto' の処理後に Handler か None に確定している
+            logger.addHandler(cast(logging.Handler, add_handler))
             if level_mode == 'auto':
                 configureLogger(logger, mode=level_mode)
-    return colorizeLogger(logger)
+    # colorizeLogger は logger 自身を返すため CustomLogger と同一
+    return cast(CustomLogger, colorizeLogger(logger))
 
 # global environ
-def using_config(loggers, debug=None, quiet=None):
+def using_config(loggers: logging.Logger | str | Iterable[Any],
+                 debug: bool | None = None, quiet: bool | None = None) -> LoggingConfig:
     env_layer = environ.push(LoggingConfig)
     env_layer.set_loggers(loggers)
     if debug is not None:

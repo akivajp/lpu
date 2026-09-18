@@ -142,6 +142,7 @@ files = [
     "lpu/common/dialog.py",
     "lpu/common/environ.py",
     "lpu/common/files.py",
+    "lpu/common/logging.py",
     "lpu/common/numbers.py",
     "lpu/common/progress.py",
     "lpu/common/text.py",

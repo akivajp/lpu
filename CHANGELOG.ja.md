@@ -2,6 +2,13 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
+## 未リリース
+
+### 追加
+
+- `lpu.common.logging` に型注釈を追加しました。`mypy` の検査対象が
+  19 モジュールになりました。
+
 ## 0.5.1 (2026-09-18)
 
 ### 修正
