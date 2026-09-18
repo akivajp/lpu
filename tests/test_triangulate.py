@@ -12,8 +12,13 @@ import math
 
 import pytest
 
-from lpu.smt.trans_models import triangulate
-from lpu.smt.trans_models.records import MosesRecord
+# 未コンパイルのソースツリーでは Cython 拡張が import できないため、
+# モジュール全体をまとめてスキップする
+triangulate = pytest.importorskip(
+    'lpu.smt.trans_models.triangulate',
+    reason='lpu.smt.trans_models requires the compiled extension and numpy',
+)
+MosesRecord = triangulate.MosesRecord
 
 
 def _moses(src, trg, features='0 0 0 0', counts='0 0 0', aligns=''):

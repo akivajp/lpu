@@ -57,7 +57,13 @@ jobs:
           sdist="$(ls dist/*.tar.gz)"
           "${RUNNER_TEMP}/sdist-check/bin/python" -m pip install \
             "lpu[smt,trie] @ file://${PWD}/${sdist}" pytest
-          "${RUNNER_TEMP}/sdist-check/bin/python" -m pytest tests
+          # Run from outside the checkout so the tests import the installed
+          # wheel with the compiled extensions, not the source tree in the
+          # current directory, which has no .so files and would shadow it.
+          # (チェックアウト外から実行し、.so を含まないソースツリーではなく
+          #  コンパイル済み拡張を含むインストール済み wheel を import させる)
+          cd "${RUNNER_TEMP}"
+          "${RUNNER_TEMP}/sdist-check/bin/python" -m pytest "${GITHUB_WORKSPACE}/tests"
       - uses: actions/upload-artifact@v7
         with:
           name: dist-sdist
