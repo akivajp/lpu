@@ -628,6 +628,18 @@ class TestProgress:
         assert counter.view(flush=True) is True
         counter.reset()
 
+    def test_speed_counter_survives_a_zero_elapsed_time(self,
+                                                        monkeypatch):
+        # On Windows, time.time() is too coarse to advance within a short
+        # interval, so delta_time can stay 0.0.
+        # (Windows では time.time() が粗く、短い間隔では delta_time が
+        #  0.0 のままになることがある)
+        monkeypatch.setattr(progress.time, 'time', lambda: 1000.0)
+        counter = progress.SpeedCounter(header='test', force=True)
+        counter.set_count(5)
+        assert counter.view(flush=True) is True
+        counter.reset()
+
     def test_file_reader_read_byte_chunks(self, tmp_path):
         path = tmp_path / 'chunks.bin'
         path.write_bytes(b'0123456789' * 10)

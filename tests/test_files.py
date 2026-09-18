@@ -8,6 +8,7 @@ lpu.common.files のテスト。
 import gzip
 import io
 import os
+import types
 
 import pytest
 
@@ -209,10 +210,23 @@ class TestIsMode:
 
     def test_binary_file_modes(self, gz_path):
         with files.open(str(gz_path)) as f_in:
-            # GzipFile keeps a .mode attribute ('rb')
-            # (GzipFile は .mode 属性に 'rb' を持つ)
+            # GzipFile keeps a .mode attribute ('rb' on Python 3.13+, an
+            # int (READ=1) on 3.12 or earlier)
+            # (GzipFile は .mode 属性を持つ。Python 3.13 以降は 'rb' の
+            #  文字列、3.12 以前は int (READ=1) になる)
             assert files.is_mode(f_in, 'b')
             assert not files.is_mode(f_in, 't')
+
+    def test_int_mode_objects(self):
+        # GzipFile on Python <= 3.12 reports .mode as an int
+        # (Python 3.12 以前の GzipFile と同じく .mode が int のオブジェクト)
+        reader = types.SimpleNamespace(mode=1)
+        assert files.is_mode(reader, 'r')
+        assert files.is_mode(reader, 'b')
+        assert not files.is_mode(reader, 't')
+        writer = types.SimpleNamespace(mode=2)
+        assert files.is_mode(writer, 'w')
+        assert files.is_mode(writer, 'b')
 
     def test_unknown_mode_returns_none(self, plain_path):
         with open(str(plain_path), encoding='utf-8') as f_in:

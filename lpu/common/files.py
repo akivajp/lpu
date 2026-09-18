@@ -128,21 +128,32 @@ def is_gzipped(filename: str) -> bool:
         return False
 
 def is_mode(fobj: Any, mode: str) -> bool | None:
+    # Python 3.12 以前の gzip.GzipFile は .mode 属性が int (READ=1 /
+    # WRITE=2) で、3.13 以降は 'rb' 等の文字列になるため正規化する。
+    # (GzipFile は常にバイナリとして開かれる)
+    fmode = fobj.mode
+    if isinstance(fmode, int):
+        if fmode == 1:
+            fmode = 'rb'
+        elif fmode == 2:
+            fmode = 'wb'
+        else:
+            fmode = ''
     if mode in ('r', 'read'):
-        return fobj.mode.find('r') >= 0
+        return fmode.find('r') >= 0
     elif mode in ('w', 'write'):
-        return fobj.mode.find('w') >= 0
+        return fmode.find('w') >= 0
     elif mode in ('b', 'binary'):
-        if fobj.mode.find('b') >= 0:
+        if fmode.find('b') >= 0:
             return True
-        elif fobj.mode.find('t') >= 0:
+        elif fmode.find('t') >= 0:
             return False
         else:
             return sys.version_info.major < 3
     elif mode in ('t', 'text'):
-        if fobj.mode.find('t') >= 0:
+        if fmode.find('t') >= 0:
             return True
-        elif fobj.mode.find('b') >= 0:
+        elif fmode.find('b') >= 0:
             return False
         else:
             return sys.version_info.major >= 3

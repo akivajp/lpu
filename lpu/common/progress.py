@@ -147,7 +147,12 @@ class SpeedCounter(object):
             if self.count == self.pos:
                 # bytes mode
                 show_bytes = True
-            str_rate = about(delta_count / delta_time, show_bytes)
+            # Windows では time.time() の分解能が粗く、直前の更新から
+            # delta_time が 0.0 のままになることがあるため保護する
+            if delta_time > 0:
+                str_rate = about(delta_count / delta_time, show_bytes)
+            else:
+                str_rate = about(0.0, show_bytes)
             if self.header:
                 str_header = "%s: " % self.header
             else:

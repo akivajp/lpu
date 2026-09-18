@@ -20,6 +20,12 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
   `python -O` 下でも例外が発生するようにしました。`lpu-smt-normalize`
   がレコード処理の失敗時に送出する例外には文言と元例外 (cause) が
   含まれるようになりました。
+- `.mode` 属性が int になるファイルオブジェクト (Python 3.12 以前の
+  `gzip.GzipFile` など) に対して `files.is_mode()` が `AttributeError`
+  で落ちていました。これにより CI の wheel テスト実行が失敗していました。
+- 更新間隔の経過時間が 0.0 になった場合に `progress.SpeedCounter.view()`
+  が `ZeroDivisionError` を送出することがありました (Windows の粗い
+  `time.time()` 分解能で発生します)。
 
 ### 追加
 
@@ -29,9 +35,9 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
   長さ制限 / 正規化 / `--target-directory` の各経路、dialog ヘルパー、
   `lpu.common.config` の例外分岐 (カバレッジ 100%) のテストを追加
   しました。スイート全体のカバレッジは 67% から 85% に向上しました。
-- `lpu.common.config`, `files`, `environ`, `dialog` および小規模な
-  `lpu.commands` モジュールに型注釈を追加し、`mypy` の検査対象が
-  17 モジュールになりました。
+- `lpu.common.config`, `files`, `environ`, `dialog`, `progress` および
+  小規模な `lpu.commands` モジュールに型注釈を追加し、`mypy` の検査対象が
+  18 モジュールになりました。
 - `ruff` の bugbear (`B`) ルールを有効化し、指摘された18件の欠陥を
   修正しました。
 

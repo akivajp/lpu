@@ -20,6 +20,12 @@
   raises, so they also fire under `python -O`. The exception raised by
   `lpu-smt-normalize` when a record fails now carries a message and the
   original exception as its cause.
+- `files.is_mode()` crashed with `AttributeError` on file objects whose
+  `.mode` is an int (e.g. `gzip.GzipFile` on Python 3.12 or earlier),
+  which broke the wheel test runs on CI.
+- `progress.SpeedCounter.view()` could raise `ZeroDivisionError` when the
+  elapsed time between updates was 0.0, which happens with the coarse
+  `time.time()` resolution on Windows.
 
 ### Added
 
@@ -30,8 +36,8 @@
   helpers and the exception branches of `lpu.common.config` (100%
   coverage). Suite coverage rose from 67% to 85%.
 - Type annotations for `lpu.common.config`, `files`, `environ`,
-  `dialog` and the small `lpu.commands` modules; `mypy` now checks 17
-  modules.
+  `dialog`, `progress` and the small `lpu.commands` modules; `mypy` now
+  checks 18 modules.
 - `ruff` bugbear (`B`) rules, with the 18 reported defects fixed.
 
 ### Changed
