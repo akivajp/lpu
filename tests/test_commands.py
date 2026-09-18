@@ -20,6 +20,10 @@ import pytest
 from conftest import requires_smt
 from conftest import requires_trans_models
 
+from lpu.commands import random_split
+from lpu.commands.clean_parallel import cleanParallel
+from lpu.common.config import Config
+
 
 def run_command(module, args, cwd=None, input_bytes=None, entry='main'):
     '''Invoke a command module's entry function in a subprocess
@@ -507,6 +511,198 @@ class TestRandomSplit:
         assert result.returncode == 0
         assert not list(tmp_path.glob('a.*'))
 
+    def test_star_split_size_takes_the_remainder(self, tmp_path):
+        '''A '*' split size is filled with the lines left over
+
+        '*' を指定した分割サイズには、残りの行が割り当てられること。
+        '''
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        src.write_text(''.join(f'en{i}\n' for i in range(6)),
+                       encoding='utf-8')
+        trg.write_text(''.join(f'fr{i}\n' for i in range(6)),
+                       encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src), str(trg),
+            '--suffixes', 'en', 'fr',
+            '--tags', 'a', 'b',
+            '--split-sizes', '2', '*',
+            '--random-seed', '3', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        a_lines = (tmp_path / 'a.en').read_text(encoding='utf-8').split()
+        b_lines = (tmp_path / 'b.en').read_text(encoding='utf-8').split()
+        # the fixed part takes exactly 2 lines, the rest go to '*'
+        # (固定サイズ側は丁度2行、残りは '*' 側へ)
+        assert len(a_lines) == 2
+        assert len(b_lines) == 4
+        assert sorted(a_lines + b_lines) == [f'en{i}' for i in range(6)]
+
+    def test_suffixes_with_a_leading_dot_are_stripped(self, tmp_path):
+        '''A leading dot of a suffix is not doubled in the output name
+
+        suffixes の先頭ドットは出力ファイル名で二重にならないこと。
+        '''
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        src.write_text('en0\nen1\nen2\n', encoding='utf-8')
+        trg.write_text('fr0\nfr1\nfr2\n', encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src), str(trg),
+            '--suffixes', '.en', '.fr',
+            '--tags', 'a', 'b',
+            '--split-sizes', '1', '2',
+            '--random-seed', '5', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        # the outputs keep a single extension
+        # (出力には拡張子が1つだけ付く)
+        assert (tmp_path / 'a.en').exists()
+        assert (tmp_path / 'b.fr').exists()
+
+    def test_empty_suffixes_name_outputs_with_the_tag_only(self, tmp_path):
+        '''An empty suffix names the outputs with the tag alone
+
+        空の suffixes ではタグ名のみで出力ファイルが作られること。
+        '''
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        src.write_text('en0\nen1\n', encoding='utf-8')
+        trg.write_text('fr0\nfr1\n', encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src), str(trg),
+            '--suffixes', '', '',
+            '--tags', 'a', 'b',
+            '--split-sizes', '1', '1',
+            '--random-seed', '5', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        assert (tmp_path / 'a').exists()
+        assert (tmp_path / 'b').exists()
+
+    def test_decode_failures_are_logged_as_warnings(self, monkeypatch,
+                                                    tmp_path, caplog):
+        '''A line that fails to convert is dropped with a warning
+
+        変換に失敗した行は警告と共に除外されること。
+        '''
+        def raise_error(data):
+            raise UnicodeDecodeError('utf-8', b'\xff', 0, 1,
+                                     'invalid start byte')
+        from lpu.common import text as text_module
+        monkeypatch.setattr(text_module, 'to_unicode', raise_error)
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        src.write_text('en0\nen1\n', encoding='utf-8')
+        trg.write_text('fr0\nfr1\n', encoding='utf-8')
+        conf = Config()
+        # to_unicode is only invoked with --ignore-empty, so enable it to
+        # reach the conversion path (to_unicode は --ignore-empty 時のみ
+        # 呼ばれるため、変換経路に到達するよう有効化する)
+        conf.update(dict(inpaths=[str(src), str(trg)], ignore_empty=True))
+        indices = random_split.get_valid_indices(conf)
+        # no line survived and the failure is reported as a warning
+        # (生存行は無く、失敗は警告として報告される)
+        assert indices == []
+        assert any('(Line 0)' in record.message for record in caplog.records)
+
+    def test_invalid_and_negative_split_sizes_are_reported(self, tmp_path):
+        '''Non-numeric sizes abort; non-positive sizes only log a warning
+
+        数値化できない split sizes は中断し、正でない値は警告のみで
+        処理継続すること。
+        '''
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        src.write_text('en0\nen1\nen2\n', encoding='utf-8')
+        trg.write_text('fr0\nfr1\nfr2\n', encoding='utf-8')
+        base = ['--input', str(src), str(trg),
+                '--suffixes', 'en', 'fr',
+                '--tags', 'a', 'b']
+        # a non-numeric size aborts the whole split
+        # (数値化できないサイズでは分割全体が中断される)
+        result = run_command('lpu.commands.random_split', base + [
+            '--split-sizes', 'abc', '*', '--random-seed', '1', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        # nothing is written for a rejected configuration
+        # (拒否された設定では何も書き出されない)
+        assert not (tmp_path / 'a.en').exists()
+        # a negative size is reported as non-positive and processing goes on
+        # (負のサイズは正でない値として報告され、処理は継続する)
+        result = run_command('lpu.commands.random_split', base + [
+            '--split-sizes', '-1', '*', '--random-seed', '1',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        stderr = result.stderr.decode('utf-8', 'replace')
+        assert 'split size should be positive' in stderr
+
+    def test_count_mismatches_are_rejected_without_output(self, tmp_path):
+        '''Wrong element counts for prefixes/suffixes/sizes abort cleanly
+
+        prefixes / suffixes / split sizes の要素数不一致では
+        出力無しで中断すること。
+        '''
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        src.write_text('a\nb\n', encoding='utf-8')
+        trg.write_text('x\ny\n', encoding='utf-8')
+        base = ['--input', str(src), str(trg), '--tags', 'a', 'b', '--quiet']
+        cases = [
+            ['--prefixes', 'p1', 'p2', 'p3'],
+            ['--suffixes', 's1', 's2', 's3'],
+            ['--split-sizes', '1', '1', '1'],
+        ]
+        for extra in cases:
+            # the later option of each pair wins, so the last group gets
+            # the wrong element count (最後のオプションが優先され要素数が合わない)
+            result = run_command('lpu.commands.random_split', base + [
+                '--suffixes', 'en', 'fr', '--split-sizes', '1', '1',
+            ] + extra, cwd=str(tmp_path))
+            assert result.returncode == 0, (
+                result.stderr.decode('utf-8', 'replace'))
+            # nothing is written for a rejected configuration
+            # (拒否された設定では何も書き出されない)
+            assert not list(tmp_path.glob('a.*'))
+
+    def test_missing_suffixes_default_to_empty_names(self, tmp_path):
+        '''Given only prefixes, the suffix list defaults to empty strings
+
+        prefixes のみ指定した場合、suffixes は空文字列のリストに
+        フォールバックすること。
+        '''
+        src = tmp_path / 'corpus.en'
+        src.write_text('a\nb\n', encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src),
+            '--prefixes', 'out',
+            '--tags', 'a', 'b',
+            '--split-sizes', '1', '1', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        # outputs are named prefix + tag without any extension
+        # (出力は拡張子無しの prefix + tag 名)
+        assert (tmp_path / 'outa').exists()
+        assert (tmp_path / 'outb').exists()
+
+    def test_debug_flag_runs_to_completion(self, tmp_path):
+        '''--debug only makes the logging verbose
+
+        --debug はログを冗長にするだけで処理は完遂すること。
+        '''
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        src.write_text('a\nb\n', encoding='utf-8')
+        trg.write_text('x\ny\n', encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src), str(trg),
+            '--suffixes', 'en', 'fr',
+            '--tags', 'a', 'b',
+            '--split-sizes', '1', '1', '--random-seed', '1', '--debug',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        assert (tmp_path / 'a.en').exists()
+
 
 class TestCleanParallel:
     def test_drops_empty_lines_from_both_sides(self, tmp_path):
@@ -581,6 +777,86 @@ class TestCleanParallel:
             encoding='utf-8') == 'a\n'
         assert (target / 'corpus.fr.txt.cleaned').read_text(
             encoding='utf-8') == 'x\n'
+
+    def test_names_without_a_common_suffix_use_the_diff_naming(self, tmp_path):
+        '''When basenames share no common suffix, tag + diff naming applies
+
+        basename に共通 suffix が無い場合は tag + 差分の命名になること。
+        '''
+        src = tmp_path / 'doc'
+        trg = tmp_path / 'doc.src'
+        src.write_text('a b\n', encoding='utf-8')
+        trg.write_text('x y\n', encoding='utf-8')
+        result = run_command('lpu.commands.clean_parallel', [
+            '--min', '1', '--max', '10', 'doc', 'doc.src', 'cleaned',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        # commonPrefix is "doc", so each output is tag + '.' + diff part
+        # (commonPrefix は "doc" のため、出力は tag + '.' + 差分部分)
+        assert (tmp_path / 'doc.cleaned').read_text(
+            encoding='utf-8') == 'a b\n'
+        assert (tmp_path / 'doc.cleaned.src').read_text(
+            encoding='utf-8') == 'x y\n'
+
+    def test_decode_failures_are_reported_and_dropped(self, monkeypatch,
+                                                      tmp_path, caplog):
+        '''A line failing to convert is dropped with a warning
+
+        変換に失敗した行は警告と共に除外されること。
+        '''
+        def raise_error(data):
+            raise UnicodeDecodeError('utf-8', b'\xff', 0, 1,
+                                     'invalid start byte')
+        from lpu.common import text as text_module
+        monkeypatch.setattr(text_module, 'to_unicode', raise_error)
+        src = tmp_path / 'corpus.en.txt'
+        trg = tmp_path / 'corpus.fr.txt'
+        src.write_text('valid line\nother line\n', encoding='utf-8')
+        trg.write_text('x1\nx2\n', encoding='utf-8')
+        caplog.clear()
+        cleanParallel(srcFilePaths=[str(src), str(trg)], outTag='cleaned',
+                      min=1, max=10, target_directory=str(tmp_path))
+        # the failing row is reported with its line number and dropped
+        # (失敗した行は行番号付きで報告され、出力から除外される)
+        assert any('(Line 0)' in record.message for record in caplog.records)
+        en_lines = (tmp_path / 'corpus.en.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        fr_lines = (tmp_path / 'corpus.fr.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        assert en_lines == []
+        assert fr_lines == []
+
+    def test_invalid_byte_sequences_are_escaped_not_dropped(self, tmp_path):
+        '''Undecodable bytes become backslash escapes, not a failure
+
+        デコードできないバイト列は例外ではなくバックスラッシュ
+        エスケープ文字列として出力されること。
+        '''
+        src = tmp_path / 'corpus.en.txt'
+        trg = tmp_path / 'corpus.fr.txt'
+        src.write_bytes(b'\xff broken\nvalid line\n')
+        trg.write_text('x1\nx2\n', encoding='utf-8')
+        result = run_command('lpu.commands.clean_parallel', [
+            '--min', '1', '--max', '10', str(src), str(trg), 'cleaned',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        en_lines = (tmp_path / 'corpus.en.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        fr_lines = (tmp_path / 'corpus.fr.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        # the byte 0xff became the literal text "\xff" and the line is kept
+        # (0xff はリテラルの "\xff" 文字列になり、行は保持される)
+        assert en_lines == ['\\xff broken', 'valid line']
+        assert fr_lines == ['x1', 'x2']
+
+    def test_get_diff_with_a_non_empty_suffix(self):
+        '''getDiff removes both the common prefix and suffix
+
+        getDiff は共通 prefix と suffix の両方を取り除くこと。
+        '''
+        from lpu.commands.clean_parallel import getDiff
+        assert getDiff('doc.cleaned.src', 'doc.cleaned', '.src') == ''
+        assert getDiff('doc.cleaned.body', 'doc', '') == '.cleaned.body'
 
 
 class TestDialog:

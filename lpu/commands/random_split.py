@@ -149,6 +149,9 @@ def check_config(conf: Config) -> bool:
             except Exception:
                 msg = "string '%s' cannnot be converted to number (given invalid split sizes: %s)"
                 logger.warning(msg % (size, conf.data.split_sizes))
+                # 数値化できないサイズは後段の float() で確実にクラッシュ
+                # するため、他の設定エラーと同様に処理を中断する
+                return False
             if n <= 0:
                 msg = "split size should be positive, but given negative: %s (given invalid split sizes: %s)"
                 logger.warning(msg % (n, conf.data.split_sizes))

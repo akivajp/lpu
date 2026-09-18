@@ -124,6 +124,87 @@ class TestEnviron:
                 pass
         assert len(environ.env_stack) == depth
 
+    def test_get_returns_the_default_for_missing_keys(self):
+        '''StackHolder.get falls back to the default value
+
+        StackHolder.get は存在しないキーに対して既定値を返すこと。
+        '''
+        with environ.push() as holder:
+            assert holder.get('LPU_TEST_MISSING_KEY') == ''
+            assert holder.get('LPU_TEST_MISSING_KEY', 'fallback') == 'fallback'
+
+    def test_clear_reports_unrestorable_variables(self, caplog):
+        '''clear() logs the failure when a recorded variable vanished
+
+        clear() 時に記録済み変数が os.environ から消えていた場合、
+        復元失敗がログされること。
+        '''
+        with environ.push() as holder:
+            holder.set('LPU_TEST_CLEAR_VAR', 'value')
+            # simulate an external modification of os.environ
+            # (os.environ が外部で変更された状況を再現する)
+            del os.environ['LPU_TEST_CLEAR_VAR']
+            caplog.clear()
+            holder.clear()
+        assert any('failed to unset' in record.message
+                   for record in caplog.records)
+
+    def test_unset_reports_unrestorable_variables(self, caplog):
+        '''unset() logs the failure when the recorded variable vanished
+
+        unset() 時に記録済み変数が os.environ から消えていた場合、
+        復元失敗がログされること。
+        '''
+        with environ.push() as holder:
+            holder.set('LPU_TEST_UNSET2_VAR', 'value')
+            del os.environ['LPU_TEST_UNSET2_VAR']
+            caplog.clear()
+            holder.unset('LPU_TEST_UNSET2_VAR')
+        assert caplog.records
+
+    def test_exit_tolerates_a_layer_already_removed(self):
+        '''__exit__ survives when the layer was removed from env_stack
+
+        env_stack から層が既に取り除かれていても __exit__ は
+        エラーにならないこと。
+        '''
+        holder = environ.StackHolder()
+        layer = holder.env_layer
+        # pretend another component already dropped the layer
+        # (別の要素が既に層を取り除いた状況を再現する)
+        environ.env_stack.remove(layer)
+        with holder:
+            pass
+        assert layer not in environ.env_stack
+
+    def test_dealloc_clears_the_layer(self):
+        '''__dealloc__ releases the recorded variables
+
+        __dealloc__ で記録済み変数が解放されること。
+        '''
+        holder = environ.StackHolder()
+        holder.set('LPU_TEST_DEALLOC_VAR', 'value')
+        holder.__dealloc__()
+        assert 'LPU_TEST_DEALLOC_VAR' not in os.environ
+        assert holder.env_layer == {}
+        assert holder.back_log == []
+
+    def test_safe_debug_print_swallows_logging_failures(self, monkeypatch):
+        '''_safe_debug_print degrades quietly when logging raises
+
+        logging 側で例外が発生しても _safe_debug_print は
+        処理を継続すること。
+        '''
+        def raise_error(message):
+            raise RuntimeError('logging is broken')
+        monkeypatch.setattr(environ.logger, 'debug', raise_error)
+        holder = environ.StackHolder()
+        # the failing debug call must not prevent setting variables
+        # (debug 出力の失敗で変数設定が妨げられない)
+        holder.set('LPU_TEST_SAFE_PRINT', 'value')
+        assert os.environ['LPU_TEST_SAFE_PRINT'] == 'value'
+        holder.clear()
+
 
 class TestColors:
     def test_put_color_wraps_the_text_in_escape_sequences(self):
@@ -131,6 +212,73 @@ class TestColors:
         assert 'text' in colored
         assert colored != 'text'
         assert '\033[' in colored
+
+    def test_put_color_without_eachline_wraps_the_whole_text(self):
+        '''With eachline=False only one pair of escapes wraps the text
+
+        eachline=False ではエスケープ全体が1組だけ付くこと。
+        '''
+        colored = colors.put_color('line1\nline2', 'red', eachline=False)
+        assert colored.count('\033[31m') == 1
+        assert colored.count('\033[0m') == 1
+        assert '\n' in colored
+
+
+class TestPackageInit:
+    '''Tests for the package level initialization of lpu
+
+    lpu パッケージ本体の初期化処理のテスト。
+    '''
+
+    @staticmethod
+    def _reload_lpu():
+        import importlib
+        import lpu
+        return importlib.reload(lpu)
+
+    def test_quiet_mode_sets_the_error_level(self):
+        '''With LPU_QUIET the package logger stays at ERROR level
+
+        LPU_QUIET 有効時はパッケージロガーが ERROR レベルになること。
+        '''
+        with environ.push(LPU_QUIET='1'):
+            lpu_module = self._reload_lpu()
+            assert lpu_module.logger.level == std_logging.ERROR
+        # restore the normal initialization for the other tests
+        # (他のテストのために通常の初期化へ戻す)
+        self._reload_lpu()
+
+    def test_debug_mode_reports_unavailable_c_extensions(self, monkeypatch):
+        '''A missing C extension is only reported in the debug log
+
+        C 拡張が利用不能な場合もデバッグログでの報告のみで
+        異常終了しないこと。
+        '''
+        class _ImportBlocker:
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname == 'lpu.smt.align.ibm_models':
+                    raise ImportError('blocked by the test')
+                return None
+
+        import sys
+        monkeypatch.setattr(sys, 'meta_path',
+                            [_ImportBlocker()] + sys.meta_path)
+        # force the import attempt even if the extension was loaded:
+        # dropping the module from sys.modules alone is not enough because
+        # the parent package keeps it as an attribute
+        # (拡張が既に読み込まれていても import を試みさせる。sys.modules から
+        #  取り除くだけでは親パッケージが属性を保持しているため不十分)
+        import lpu.smt.align
+        monkeypatch.delitem(sys.modules, 'lpu.smt.align.ibm_models',
+                            raising=False)
+        monkeypatch.delattr(lpu.smt.align, 'ibm_models', raising=False)
+        with environ.push(LPU_DEBUG='1'):
+            lpu_module = self._reload_lpu()
+            assert lpu_module.logger.level == std_logging.DEBUG
+        # restore the normal state, without the blocker and with the
+        # regular log level (ブロッカー無し・通常レベルへ戻す)
+        self._reload_lpu()
+        assert self._reload_lpu().logger.level == std_logging.INFO
 
 
 class TestValidation:
