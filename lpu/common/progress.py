@@ -4,8 +4,13 @@
 '''Utilities for viewing I/O progress'''
 
 # Standard libraries
+from __future__ import annotations
+
 from collections.abc import Iterable
+from collections.abc import Iterator as AbstractIterator
 from datetime import datetime
+from typing import Any, Callable, Sized, TextIO, cast
+import io
 import sys
 import time
 
@@ -23,7 +28,7 @@ DEFAULT_BUFFER_SIZE = 10 * (1024 ** 2) # 10MB
 DEFAULT_REFRESH_INTERVAL = 0.5
 
 class SpeedCounter(object):
-    def __init__(self, header="", max_count=-1, refresh=DEFAULT_REFRESH_INTERVAL, force=False, color='green'):
+    def __init__(self, header: str = "", max_count: int = -1, refresh: float = DEFAULT_REFRESH_INTERVAL, force: bool = False, color: str = 'green') -> None:
         """constructor
         
         Keyword Arguments:
@@ -33,16 +38,16 @@ class SpeedCounter(object):
             force {bool} -- force mode, to work with non tty output (default: {False})
             color {str} -- text color of progress line (default: {'green'})
         """
-        self.refresh = refresh
-        self.header = header 
-        self.start_time = -1
-        self.last_time = -1
+        self.refresh: float = refresh
+        self.header: str = header
+        self.start_time: float = -1
+        self.last_time: float = -1
         self.reset()
-        self.force = force
-        self.max_count = max_count
-        self.color = color
+        self.force: bool = force
+        self.max_count: int = max_count
+        self.color: str = color
 
-    def add(self, count=1, view=False):
+    def add(self, count: int = 1, view: bool = False) -> None:
         """count up the counter
         
         Keyword Arguments:
@@ -53,11 +58,11 @@ class SpeedCounter(object):
         if view:
             self.view()
 
-    def flush(self):
+    def flush(self) -> None:
         """update the console"""
         self.view(flush=True)
 
-    def reset(self, refresh=None, header=None, force=None, color=None):
+    def reset(self, refresh: float | None = None, header: str | None = None, force: bool | None = None, color: str | None = None) -> None:
         """reset the counter
         
         Keyword Arguments:
@@ -74,9 +79,9 @@ class SpeedCounter(object):
         now = time.time()
         self.start_time = now
         self.last_time  = now
-        self.count = 0
-        self.last_count = 0
-        self.pos = 0
+        self.count: int = 0
+        self.last_count: int = 0
+        self.pos: int = 0
         if refresh != None:
             self.refresh = refresh
         if header != None:
@@ -85,7 +90,7 @@ class SpeedCounter(object):
             self.force = force
         if color != None:
             self.color = color
-    def _get_fobj(self):
+    def _get_fobj(self) -> TextIO | None:
         fobj = None
         if sys.stderr.isatty():
             fobj = sys.stderr
@@ -95,7 +100,7 @@ class SpeedCounter(object):
             fobj = sys.stderr
         return fobj
 
-    def set_count(self, count, view=False):
+    def set_count(self, count: int, view: bool = False) -> None:
         """set the counter value
         
         Arguments:
@@ -108,7 +113,7 @@ class SpeedCounter(object):
         if view:
             self.view()
 
-    def set_position(self, position, view=False):
+    def set_position(self, position: int, view: bool = False) -> None:
         """set the current position (work with bytes input)
         
         Arguments:
@@ -121,7 +126,7 @@ class SpeedCounter(object):
         if view:
             self.view()
 
-    def view(self, flush=False):
+    def view(self, flush: bool = False) -> bool:
         """update the console on condition
         
         Keyword Arguments:
@@ -168,25 +173,26 @@ class SpeedCounter(object):
         self.last_count = self.count
         return True
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.reset()
 
-    def __enter__(self):
+    def __enter__(self) -> 'SpeedCounter':
         #logger.debug("__enter__")
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):
+    def __exit__(self, exception_type: Any, exception_value: Any, traceback: Any) -> None:
         #logger.debug("__exit__")
         self.reset()
 
 class FileReader(object):
-    def __init__(self, source, header="", refresh=DEFAULT_REFRESH_INTERVAL, force=False):
+    def __init__(self, source: str | io.IOBase, header: str = "", refresh: float = DEFAULT_REFRESH_INTERVAL, force: bool = False) -> None:
         if isinstance(source, str):
             #self.source = files.open(source, 'r')
             if not header:
                 header = "reading file '%s'" % source
             #self.source = files.open(source, 'rt')
-            self.source = files.open(source, 'rb')
+            # gzip / raw / buffered ファイルのいずれも入るため Any で受ける
+            self.source: Any = files.open(source, 'rb')
         #elif isinstance(source, io.IOBase):
         elif isinstance(source, files.FileType):
             self.source = source
@@ -197,18 +203,18 @@ class FileReader(object):
         self.counter = SpeedCounter(header=header, max_count=size, refresh=refresh, force=force)
 
 
-    def __dealloc__(self):
+    def __dealloc__(self) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         if self.source:
             #self.counter.flush()
             self.counter.reset()
-            self.counter = None
+            self.counter = None  # type: ignore[assignment]
             self.source.close()
             self.source = None
 
-    def read(self, size):
+    def read(self, size: int) -> bytes | None:
         if self.source:
             buf = self.source.read(size)
             self.counter.add(len(buf))
@@ -219,8 +225,9 @@ class FileReader(object):
                 pass
             self.counter.view()
             return buf
+        return None
 
-    def read_byte_chunks(self, bs = DEFAULT_BUFFER_SIZE):
+    def read_byte_chunks(self, bs: int = DEFAULT_BUFFER_SIZE) -> AbstractIterator[bytes]:
         while True:
             buf = self.read(bs)
             if not buf:
@@ -228,9 +235,9 @@ class FileReader(object):
             yield buf
         self.close()
 
-    def read_byte_line(self):
+    def read_byte_line(self) -> bytes | None:
         return self._read_byte_line(True)
-    def _read_byte_line(self, countup=False):
+    def _read_byte_line(self, countup: bool = False) -> bytes | None:
         if self.source:
             line = self.source.readline()
             if countup:
@@ -242,8 +249,9 @@ class FileReader(object):
                 pass
             self.counter.view()
             return line
+        return None
 
-    def read_byte_lines(self):
+    def read_byte_lines(self) -> AbstractIterator[bytes]:
         while True:
             line = self.read_byte_line()
             if not line:
@@ -251,17 +259,17 @@ class FileReader(object):
             yield line
         self.close()
 
-    def readline(self):
+    def readline(self) -> str | None:
         line = self._read_byte_line(False)
         if line:
             self.counter.add(1)
             return bytes_to_str(line)
         return None
 
-    def tell(self):
+    def tell(self) -> int:
         return files.rawtell(self.source)
 
-    def __iter__(self):
+    def __iter__(self) -> AbstractIterator[str]:
         while True:
             line = self.readline()
             if not line:
@@ -269,52 +277,54 @@ class FileReader(object):
             yield line
         self.close()
 
-    def __enter__(self):
+    def __enter__(self) -> 'FileReader':
         #logger.debug("__enter__")
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):
+    def __exit__(self, exception_type: Any, exception_value: Any, traceback: Any) -> None:
         #logger.debug("__exit__")
         self.close()
 
 class Iterator(object):
-    def __init__(self, source, header="", refresh=DEFAULT_REFRESH_INTERVAL, force=False, max_count=-1):
+    def __init__(self, source: Iterable[Any], header: str = "", refresh: float = DEFAULT_REFRESH_INTERVAL, force: bool = False, max_count: int = -1) -> None:
         if isinstance(source, Iterable):
-            self.source = source
+            # close() で None を代入するため Optional として扱う
+            self.source: Iterable[Any] | None = source
         else:
             raise TypeError("Iterator() expected iterable type, but %s found" % type(source).__name__)
         self.counter = SpeedCounter(header=header, max_count=max_count, refresh=refresh, force=force)
 
-    def __dealloc__(self):
+    def __dealloc__(self) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         if self.source is not None:
             #self.counter.flush()
             self.counter.reset()
-            self.counter = None
+            self.counter = None  # type: ignore[assignment]
             self.source = None
 
-    def __iter__(self):
+    def __iter__(self) -> AbstractIterator[Any]:
         if self.source is not None:
             for obj in self.source:
                 self.counter.add(1, view=True)
                 yield obj
         self.close()
 
-    def __len__(self):
-        return len(self.source)
+    def __len__(self) -> int:
+        # Sized 前提で呼ばれるが、宣言上は Iterable のみ保証できるため cast する
+        return len(cast(Sized, self.source))
 
-    def __enter__(self):
+    def __enter__(self) -> 'Iterator':
         #logger.debug("__enter__")
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):
+    def __exit__(self, exception_type: Any, exception_value: Any, traceback: Any) -> None:
         #logger.debug("__exit__")
         self.close()
 
 
-def format_time(seconds):
+def format_time(seconds: float) -> str:
     seconds = int(seconds)
     show_seconds = int(seconds % 60)
     show_minutes = int((seconds / 60) % 60)
@@ -322,7 +332,7 @@ def format_time(seconds):
     return "%02d:%02d:%02d" % (show_hours,show_minutes,show_seconds)
 
 
-def about(num, show_bytes=False):
+def about(num: float, show_bytes: bool = False) -> str:
     if show_bytes:
         if num >= 2 ** 30:
             show = num / float(2 ** 30)
@@ -348,15 +358,16 @@ def about(num, show_bytes=False):
         else:
             return "%.3f" % num
 
-def open(path, header=""):
+def open(path: str, header: str = "") -> FileReader:
     return FileReader(path, header)
 
-def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTERVAL, outfunc=None):
+def pipe_view(filepaths: Iterable[str], mode: str = 'bytes', header: str | None = None, refresh: float = DEFAULT_REFRESH_INTERVAL, outfunc: Callable[[bytes], Any] | None = None) -> None:
     max_count = -1
     delta = 1
     if refresh < 0:
         refresh = DEFAULT_REFRESH_INTERVAL
-    infiles = [files.open(fpath, 'rb') for fpath in filepaths]
+    # gzip / raw / buffered の混在と bin_stdin の代入があるため Any で受ける
+    infiles: list[Any] = [files.open(fpath, 'rb') for fpath in filepaths]
     if infiles:
         try:
             max_count = sum(map(files.rawsize, infiles))
@@ -365,7 +376,7 @@ def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTE
             max_count = 0
     else:
         infiles = [files.bin_stdin]
-    counter = SpeedCounter(header=header, refresh=refresh, max_count=max_count)
+    counter = SpeedCounter(header=header or '', refresh=refresh, max_count=max_count)
     for infile in infiles:
         while True:
             buf = infile.read(DEFAULT_BUFFER_SIZE)
@@ -389,7 +400,7 @@ def pipe_view(filepaths, mode='bytes', header=None, refresh=DEFAULT_REFRESH_INTE
     #counter.flush()
     counter.reset()
 
-def view(source, header=None, max_count=-1, env=True):
+def view(source: Any, header: str | None = None, max_count: int = -1, env: bool = True) -> Any:
     if env and logging.get_quiet_status():
         # as-is (without progress view)
         return source
@@ -399,15 +410,17 @@ def view(source, header=None, max_count=-1, env=True):
     elif isinstance(source, (str,bytes,files.FileType)):
         if not header:
             #header = "reading file"
-            header = "reading file '{}'".format(source)
-        return FileReader(source, header)
+            header = "reading file '{}'".format(source)  # type: ignore[str-bytes-safe]
+        # bytes は FileReader が受け付けず TypeError になる (歴史的経緯の分岐)
+        return FileReader(source, header)  # type: ignore[arg-type]
         #return FileReader(source, header, force=True)
     elif isinstance(source, Iterable):
         if not header:
             header = "iterating"
         if max_count < 0:
             if hasattr(source, '__len__'):
-                max_count = len(source)
+                # hasattr による絞り込みは mypy が追わないため cast する
+                max_count = len(cast(Sized, source))
         return Iterator(source, header, max_count=max_count)
         #return Iterator(source, header, max_count=max_count, force=True)
     else:

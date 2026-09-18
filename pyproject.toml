@@ -143,6 +143,7 @@ files = [
     "lpu/common/environ.py",
     "lpu/common/files.py",
     "lpu/common/numbers.py",
+    "lpu/common/progress.py",
     "lpu/common/text.py",
     "lpu/common/validation.py",
     "lpu/common/vocab.py",
