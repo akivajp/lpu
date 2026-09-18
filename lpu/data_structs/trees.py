@@ -162,7 +162,7 @@ def indexTree(tree: str | list) -> tuple[list, list[int]]:
     indexToLabel = []
     indexToLeftRange = []
     #def appendNodePostOrder(object node):
-    def appendNodePostOrder(node):
+    def appendNodePostOrder(node: str | list) -> int:
         #global appendNodePostOrder
         #global indexToLabel
         #global indexToLeftRange
@@ -187,6 +187,11 @@ def indexTree(tree: str | list) -> tuple[list, list[int]]:
             indexToLeftRange.append(leftRange)
             #return len(indexToLabel) - 1
             return leftRange
+        # an empty list node has no children to inspect; report -1 instead
+        # of the implicit None, which would crash the comparison at the caller
+        # (空リストノードには子が無いため、暗黙の None の代わりに -1 を返す。
+        #  None では呼び出し側の比較でクラッシュする)
+        return leftRange
     appendNodePostOrder(tree)
     #return indexToTree
     return indexToLabel, indexToLeftRange
@@ -194,7 +199,7 @@ def indexTree(tree: str | list) -> tuple[list, list[int]]:
 #def countElements(list tree):
 def countElements(tree: str | list) -> int:
     #def innerCount(object node):
-    def innerCount(node):
+    def innerCount(node: str | list) -> int:
         numElems = 0
         if isinstance(node, list):
             if len(node) > 0:
@@ -249,7 +254,7 @@ def calcTreeEditDistance(tree1: str | list, tree2: str | list) -> int:
     #memo = [copy.deepcopy(memo) for _ in indexToLabel1]
     #def calcInnerDistance(int left1, int right1, int left2, int right2):
 
-    def calcInnerDistance(left1, right1, left2, right2):
+    def calcInnerDistance(left1: int, right1: int, left2: int, right2: int) -> int:
         #pprint.pprint((left1, right1, left2, right2))
         #pprint.pprint(memo)
         if left1 < 0 or left2 < 0:

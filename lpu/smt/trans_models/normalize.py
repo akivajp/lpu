@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import argparse
-from typing import Any
+from typing import Any, cast
 
 # Local libraries
 from lpu.common import files
@@ -20,9 +20,9 @@ logger = logging.getColorLogger(__name__)
 
 def get_target_field(rec: Any, target_number: int | None = None) -> str:
     if isinstance(target_number,int):
-        return rec.trg.split('|COL|')[target_number].strip()
+        return cast(str, rec.trg.split('|COL|')[target_number].strip())
     else:
-        return rec.trg
+        return cast(str, rec.trg)
 
 def calc_src_factor(table: Any, src: str, target_number: int | None = None) -> float:
     total = 0

@@ -24,6 +24,7 @@ itself could not be computed. `eval_ribes` was added in 0.3.0.
 
 from collections.abc import Sequence
 from itertools import combinations
+from typing import cast
 import math
 
 # Default exponents of the original paper / 原論文における既定の指数
@@ -215,4 +216,4 @@ def eval_ribes(
     nkt = calc_normalized_kendalls_tau(orders)
     precision = len(orders) / len(hyp)
     bp = calc_brevity_penalty(ref, hyp)
-    return nkt * (precision ** alpha) * (bp ** beta)
+    return cast(float, nkt * (precision ** alpha) * (bp ** beta))

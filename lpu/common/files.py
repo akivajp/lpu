@@ -12,7 +12,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 
 # Local libraries
 from lpu.common import logging
@@ -70,9 +70,9 @@ def castFile(anyFile: Any) -> io.IOBase:
     * if given file like object, then return itself
     * otherwise (e.g. given file path string), try to open it and return file object'''
     if hasattr(anyFile, 'read'):
-        return anyFile
+        return cast(io.IOBase, anyFile)
     else:
-        return open(anyFile)
+        return cast(io.IOBase, open(anyFile))
 
 def getContentSize(path: str) -> int:
     '''get the file content size (expanded size for compressed one)'''
@@ -139,9 +139,9 @@ def is_mode(fobj: Any, mode: str) -> bool | None:
         else:
             fmode = ''
     if mode in ('r', 'read'):
-        return fmode.find('r') >= 0
+        return bool(fmode.find('r') >= 0)
     elif mode in ('w', 'write'):
-        return fmode.find('w') >= 0
+        return bool(fmode.find('w') >= 0)
     elif mode in ('b', 'binary'):
         if fmode.find('b') >= 0:
             return True
@@ -269,12 +269,12 @@ def open(filename: str, mode: str = 'r') -> io.IOBase:
             file_obj = _open(filename, mode, encoding='utf-8', errors='backslashreplace')
         else:
             file_obj = _open(filename, mode)
-    return file_obj
+    return cast(io.IOBase, file_obj)
 
 def rawfile(f: Any) -> io.IOBase:
     if hasattr(f, 'myfileobj'):
         # for archive files such as gzip
-        return f.myfileobj
+        return cast(io.IOBase, f.myfileobj)
 #    if isinstance(f, gzip.GzipFile):
     elif hasattr(f, 'buffer'):
         # for buffered files such as utf-8 mode

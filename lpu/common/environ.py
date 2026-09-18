@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+from types import TracebackType
 from typing import Any, TypeVar
 
 # Local libraries
@@ -100,7 +101,7 @@ class StackHolder:
             os.environ[key] = value
         self.env_layer[key] = value
 
-    def clear(self):
+    def clear(self) -> None:
         if self.back_log:
             for key, prev_exist, prev_value in self.back_log[::-1]:
                 if prev_exist:
@@ -153,11 +154,14 @@ class StackHolder:
             self.back_log = [t for t in self.back_log if t[0] != key]
         self.env_layer.pop(key, None)
 
-    def __enter__(self):
+    def __enter__(self) -> StackHolder:
         logger.debug("entering environ stack")
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):
+    def __exit__(self,
+                 exception_type: type[BaseException] | None,
+                 exception_value: BaseException | None,
+                 traceback: TracebackType | None) -> None:
         _safe_debug_print("exiting from environ stack")
         self.clear()
         # Drop this layer from the shared stack. Without this, env_stack
@@ -169,7 +173,7 @@ class StackHolder:
         except ValueError:
             pass
 
-    def __dealloc__(self):
+    def __dealloc__(self) -> None:
         _safe_debug_print("deallocating environ stack")
         self.clear()
 

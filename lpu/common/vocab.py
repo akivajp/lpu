@@ -53,7 +53,7 @@ def __getattr__(name: str) -> Any:
 
 class StringEnumerator:
     #def __cinit__(self):
-    def __init__(self):
+    def __init__(self) -> None:
         self.dict_str2id: dict[str, int] = {}
         self.list_id2str: list[str] = []
 
@@ -117,7 +117,7 @@ def idvec2phrase(idvec: str) -> str:
 
 def phrase2id(phrase: str) -> int:
     idvec = str.join(',', map(str, map(word2id, phrase.split(' '))))
-    return _get_phrase_map()[idvec]
+    return int(_get_phrase_map()[idvec])
 
 def id2phrase(number: int) -> str:
     idvec = _get_phrase_map().id2str(number)

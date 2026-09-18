@@ -234,7 +234,7 @@ class FileReader:
             except Exception:
                 pass
             self.counter.view()
-            return buf
+            return cast(bytes, buf)
         return None
 
     def read_byte_chunks(self, bs: int = DEFAULT_BUFFER_SIZE) -> AbstractIterator[bytes]:
@@ -258,7 +258,7 @@ class FileReader:
             except Exception:
                 pass
             self.counter.view()
-            return line
+            return cast(bytes, line)
         return None
 
     def read_byte_lines(self) -> AbstractIterator[bytes]:

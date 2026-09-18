@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from collections import OrderedDict
 from collections.abc import Iterable, Iterator, Mapping
-from typing import Any
+from typing import Any, cast
 
 # Local libraries
 from lpu.common import logging
@@ -63,7 +63,7 @@ class ConfigData:
             # chained key access
             try:
                 first_key, remain_keys = key.split('.', 1)
-                return self.__getitem__(first_key).__contains__(remain_keys)
+                return bool(self.__getitem__(first_key).__contains__(remain_keys))
             except Exception:
                 return False
         elif main.__contains__(key):
@@ -336,11 +336,11 @@ class Config:
         if flat:
             #return flat_dict(data2dict(data, dtype, upstream, recursive), dtype, False)
             #return flat_dict(data2dict(data, dtype, upstream, recursive, purge), dtype, False)
-            return flat_dict(dic, dtype, False)
+            return cast(dict[str, Any], flat_dict(dic, dtype, False))
         else:
             #return data2dict(data, dtype, upstream, recursive)
             #return data2dict(data, dtype, upstream, recursive, purge)
-            return dic
+            return cast(dict[str, Any], dic)
 
     #def to_json(self, key=None, upstream=False, purge=None, **options):
     def to_json(
@@ -498,7 +498,7 @@ def flat_dict(
     dtype: type,
     chain_key: bool,
 ) -> dict[str, Any]:
-    flatten = dtype()
+    flatten: dict[str, Any] = dtype()
     for key, val in flat_items(d.items(), None, chain_key):
         if key not in flatten:
             flatten[key] = val
