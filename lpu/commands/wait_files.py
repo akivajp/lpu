@@ -11,7 +11,7 @@ from lpu.common.files import wait_files
 
 logger = logging.getColorLogger(__name__)
 
-def cmd_wait_files(args):
+def cmd_wait_files(args: list[str]) -> None:
     parser = argparse.ArgumentParser(description='wait until file will be found')
     parser.add_argument('filepaths', metavar='filepath', nargs='+', help='file path for waiting')
     parser.add_argument('--quiet', '-q', action='store_true', help='quiet mode')
@@ -32,7 +32,7 @@ def cmd_wait_files(args):
         #waitFiles(**vars(parsed))
         wait_files(parsed.filepaths, parsed.interval, parsed.timeout, parsed.quiet)
 
-def main():
+def main() -> None:
     cmd_wait_files(sys.argv[1:])
 
 if __name__ == '__main__':

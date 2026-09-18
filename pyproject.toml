@@ -132,8 +132,14 @@ select = [
 # 段階的導入のため、型注釈済みのモジュールのみを検査対象とする。
 # 新規モジュールは注釈を付けてここに追加していく。
 files = [
+    "lpu/commands/abspath.py",
+    "lpu/commands/dialog.py",
+    "lpu/commands/guess_langcode.py",
+    "lpu/commands/progress.py",
+    "lpu/commands/wait_files.py",
     "lpu/common/colors.py",
     "lpu/common/config.py",
+    "lpu/common/dialog.py",
     "lpu/common/environ.py",
     "lpu/common/files.py",
     "lpu/common/numbers.py",

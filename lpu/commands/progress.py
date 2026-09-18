@@ -15,7 +15,7 @@ logger = logging.getColorLogger(__name__)
 
 DEFAULT_REFRESH_INTERVAL = 0.5
 
-def cmdPipeView(args):
+def cmdPipeView(args: list[str]) -> None:
     parser = argparse.ArgumentParser(description='Show the progress of pipe I/O')
     parser.add_argument('filepaths', metavar="filepath", nargs="*", type=str, help='path of file to load')
     parser.add_argument('--lines', '-l', action='store_true', help='line count mode (default: byte count mode)')
@@ -28,7 +28,7 @@ def cmdPipeView(args):
         mode = 'lines'
     pipe_view(parsed.filepaths, mode=mode, header=parsed.header, refresh=parsed.refresh)
 
-def main():
+def main() -> None:
     cmdPipeView(sys.argv[1:])
 
 if __name__ == '__main__':

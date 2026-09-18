@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-def guessLangCodeFromFileName(filepath):
+def guessLangCodeFromFileName(filepath: str) -> str:
     fields = filepath.split('.')
     fields.reverse()
     for field in fields:
@@ -11,17 +11,17 @@ def guessLangCodeFromFileName(filepath):
             return field.lower()
     return "UNK"
 
-def printLangCodeList(filepaths):
+def printLangCodeList(filepaths: list[str]) -> None:
     print(str.join(' ', map(guessLangCodeFromFileName, filepaths)))
 
-def cmdGuessLangCode(args):
+def cmdGuessLangCode(args: list[str]) -> None:
     parser = argparse.ArgumentParser(description='Guess the language codes from given files')
     parser.add_argument('filepaths', metavar="filepath", nargs="+", type=str, help='path of file to guess the language code')
     #parser.add_argument('--from-filename', '-n', action='store_true', help='guess from the file name (default)')
     parsed = parser.parse_args(args)
     printLangCodeList(parsed.filepaths)
 
-def main():
+def main() -> None:
     cmdGuessLangCode(sys.argv[1:])
 
 if __name__ == '__main__':

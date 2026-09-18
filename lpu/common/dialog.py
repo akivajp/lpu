@@ -6,7 +6,7 @@
 import os
 import sys
 
-def get_yes_no_string(default=None):
+def get_yes_no_string(default: str | None = None) -> str:
     if default == "yes":
         return "[Y/n]"
     elif default == "no":
@@ -14,7 +14,7 @@ def get_yes_no_string(default=None):
     else:
         return "[y/n]"
 
-def get_answer(default=None):
+def get_answer(default: str | None = None) -> bool | None:
     ans = sys.stdin.readline().strip().lower()
     if not ans:
         ans = default
@@ -25,7 +25,7 @@ def get_answer(default=None):
     else:
         return None
 
-def ask_continue(default=None):
+def ask_continue(default: str | None = None) -> None:
     str_yes_or_no = get_yes_no_string(default)
     sys.stderr.write("Do you want to continue? %s: " % str_yes_or_no)
     sys.stderr.flush()
@@ -37,7 +37,9 @@ def ask_continue(default=None):
     if not ans:
         sys.exit(1)
 
-def ask_continue_if_exist(filepath, default=None):
+# ask_continue は常に None を返す (継続時はそのまま戻り、
+# 拒否時は sys.exit(1) で終了する) ため、戻り値型は None で統一する
+def ask_continue_if_exist(filepath: str, default: str | None = None) -> None:
     if os.path.exists(filepath):
         sys.stderr.write('"%s" is found. ' % filepath)
-        return ask_continue(default)
+        ask_continue(default)
