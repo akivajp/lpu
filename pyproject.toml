@@ -133,6 +133,7 @@ select = [
 files = [
     "lpu/common/colors.py",
     "lpu/common/config.py",
+    "lpu/common/environ.py",
     "lpu/common/files.py",
     "lpu/common/numbers.py",
     "lpu/common/text.py",
