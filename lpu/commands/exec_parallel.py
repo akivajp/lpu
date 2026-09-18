@@ -156,6 +156,8 @@ def splitFile(conf):
     lineCount = conf.data.lineCount
     if lineCount == 0:
         logger.info('Nothing to do')
+        # runWorkers / concatFiles が参照するため、分割が無いことを記録する
+        conf.data.numChunks = 0
         remove(inbuf)
         return
     #prefix = getPrefix(conf)
@@ -301,11 +303,14 @@ def checkConfig(conf):
     conf.setdefault('interval', SLEEP_DURATION)
     conf.setdefault('threads', numCPUs)
     #conf.setdefault('numChunks', conf.data.threads)
-    if conf.get('numChunks', None):
+    # 0 も検証対象にするため、真偽値ではなく None との比較で判定する
+    if conf.get('numChunks', None) is not None:
         if conf.data.numChunks <= 0:
             strTemplate = "--chunks (number of splitted files) should be positive integer: %s"
             strMessage = strTemplate % (conf.data.numChunks)
             logger.error(strMessage)
+            # 続行すると分割サイズの計算で ZeroDivisionError になるため中断する
+            return False
     #conf.setdefault('basename', os.path.basename(conf.data.inPath))
     conf.setdefault('basename', os.path.basename(conf.data.outPath))
     conf.setdefault('tmpdir', './tmp-%s' % conf.data.basename)
@@ -315,10 +320,12 @@ def checkConfig(conf):
     #    strMessage = strTemplate % (conf.data.threads, numCPUs)
     #    logging.warn(strMessage)
     #    conf.data.threads = numCPUs
+    return True
 
 def execParallel(conf = None, **others):
     conf = Config(conf, **others)
-    checkConfig(conf)
+    if not checkConfig(conf):
+        return
     logger.debug(conf)
     #hostproc = conf.data.hostproc = getHostProcID()
     workerID = getCurrentWorkerID()

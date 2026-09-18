@@ -182,6 +182,209 @@ class TestExecParallel:
         assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
         assert output.read_text(encoding='utf-8') == 'ALPHA\nBETA\nGAMMA\nDELTA\n'
 
+    def test_handles_a_partial_last_chunk(self, tmp_path):
+        '''A chunk shorter than the split size stops at the file end
+
+        最終チャンクが分割サイズに満たない場合、入力の終わりで
+        書き出しを止めること。
+        '''
+        source = tmp_path / 'input.txt'
+        # 5 lines over 2 chunks: the split size is 3, so the last chunk
+        # is shorter and hits the end of the buffer
+        # (5行を2分割。splitSize は3になり、最後のチャンクは
+        #  バッファの終端に当たる)
+        source.write_text('l1\nl2\nl3\nl4\nl5\n', encoding='utf-8')
+        output = tmp_path / 'output.txt'
+        result = run_command('lpu.commands.exec_parallel', [
+            '--input', str(source), '--output', str(output),
+            '--threads', '1', '--chunks', '2', '--interval', '0.01',
+            'tr a-z A-Z',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        assert output.read_text(encoding='utf-8') == 'L1\nL2\nL3\nL4\nL5\n'
+
+    def test_handles_an_empty_input(self, tmp_path):
+        '''An empty input must finish cleanly with an empty output
+
+        空の入力はエラーにならず、空の出力で終了すること。
+        '''
+        source = tmp_path / 'input.txt'
+        source.write_text('', encoding='utf-8')
+        output = tmp_path / 'output.txt'
+        result = run_command('lpu.commands.exec_parallel', [
+            '--input', str(source), '--output', str(output),
+            '--threads', '2', '--chunks', '2', '--interval', '0.01',
+            'tr a-z A-Z',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        assert output.read_text(encoding='utf-8') == ''
+
+    def test_rejects_a_non_positive_chunk_count(self, tmp_path):
+        '''--chunks 0 must abort instead of crashing on the split math
+
+        --chunks 0 は分割サイズの計算でクラッシュする前に中断すること。
+        '''
+        source = tmp_path / 'input.txt'
+        source.write_text('a\nb\n', encoding='utf-8')
+        output = tmp_path / 'output.txt'
+        result = run_command('lpu.commands.exec_parallel', [
+            '--input', str(source), '--output', str(output),
+            '--chunks', '0', 'tr a-z A-Z',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        assert b'should be positive integer' in result.stderr
+        assert not output.exists()
+
+    def test_skips_chunks_reported_by_another_worker(self, tmp_path):
+        '''A chunk whose phase was taken over by another worker is skipped
+
+        他のワーカーが完了報告済みのチャンクはスキップされ、
+        その出力が連結されること。
+        '''
+        source = tmp_path / 'input.txt'
+        source.write_text('ignored\n', encoding='utf-8')
+        output = tmp_path / 'output.txt'
+        workdir = tmp_path / 'wd'
+        workdir.mkdir()
+        # the phase files pretend another worker already finished chunk 1
+        # (フェーズファイルにより、チャンク1を他のワーカーが完了した
+        #  ことにする)
+        (workdir / 'report.cmd.1.begin').write_text('other-host:1',
+                                                    encoding='utf-8')
+        (workdir / 'report.cmd.1.done').write_text('other-host:1',
+                                                   encoding='utf-8')
+        (workdir / 'split.1.out').write_text('PRE\n', encoding='utf-8')
+        result = run_command('lpu.commands.exec_parallel', [
+            '--input', str(source), '--output', str(output),
+            '--tmpdir', str(workdir),
+            '--threads', '1', '--chunks', '1', '--interval', '0.01',
+            'tr a-z A-Z',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        assert output.read_text(encoding='utf-8') == 'PRE\n'
+
+    def test_adopts_the_config_saved_by_another_splitter(self, tmp_path):
+        '''When the split phase was taken over, its saved config is loaded
+
+        分割フェーズを他のワーカーに譲った場合、保存済みの
+        設定ファイルが採用されること。
+        '''
+        import json
+        source = tmp_path / 'input.txt'
+        source.write_text('ignored\n', encoding='utf-8')
+        output = tmp_path / 'output.txt'
+        workdir = tmp_path / 'wd'
+        workdir.mkdir()
+        (workdir / 'report.split.begin').write_text('other-host:1',
+                                                    encoding='utf-8')
+        (workdir / 'report.split.done').write_text('other-host:1',
+                                                   encoding='utf-8')
+        # the other worker already split the input into this chunk
+        # (他のワーカーが既に入力をこのチャンクへ分割済み)
+        (workdir / 'split.1.in').write_text('two\nlines\n', encoding='utf-8')
+        config = {
+            'numChunks': 1,
+            'digits': 1,
+            'lineCount': 2,
+            'threads': 1,
+            'interval': 0.01,
+            'command': 'tr a-z A-Z',
+        }
+        (workdir / 'config.json').write_text(json.dumps(config),
+                                             encoding='utf-8')
+        result = run_command('lpu.commands.exec_parallel', [
+            '--input', str(source), '--output', str(output),
+            '--tmpdir', str(workdir),
+            '--threads', '1', '--chunks', '1', '--interval', '0.01',
+            'tr a-z A-Z',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        assert output.read_text(encoding='utf-8') == 'TWO\nLINES\n'
+
+    def test_leaves_the_finalization_to_a_running_worker(self, tmp_path):
+        '''When another worker is finalizing, this one just reports and exits
+
+        連結フェーズを他のワーカーが実行中の場合、このプロセスは
+        出力を書かずに終了すること。
+        '''
+        source = tmp_path / 'input.txt'
+        source.write_text('a\nb\n', encoding='utf-8')
+        output = tmp_path / 'output.txt'
+        workdir = tmp_path / 'wd'
+        workdir.mkdir()
+        (workdir / 'report.concat.begin').write_text('other-host:1',
+                                                     encoding='utf-8')
+        (workdir / 'report.concat.done').write_text('other-host:1',
+                                                    encoding='utf-8')
+        result = run_command('lpu.commands.exec_parallel', [
+            '--input', str(source), '--output', str(output),
+            '--tmpdir', str(workdir),
+            '--threads', '1', '--chunks', '1', '--interval', '0.01',
+            'tr a-z A-Z',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        # the finalization belongs to the other worker, so nothing is
+        # written to the output here
+        # (連結は他のワーカーの担当のため、ここでは出力が書かれない)
+        assert not output.exists()
+
+
+class TestExecParallelHelpers:
+    '''Unit tests for the module-level coordination helpers
+
+    分散実行の調停を行うモジュールレベル関数のテスト。
+    '''
+
+    def test_report_writes_once_per_path(self, tmp_path):
+        from lpu.commands import exec_parallel
+        path = tmp_path / 'report.txt'
+        assert exec_parallel.report(str(path), 'first') is True
+        assert path.read_text(encoding='utf-8') == 'first'
+        # an existing file is never overwritten
+        # (既存のファイルは上書きされない)
+        assert exec_parallel.report(str(path), 'second') is False
+        assert path.read_text(encoding='utf-8') == 'first'
+
+    def test_remove_accepts_a_path_string(self, tmp_path):
+        from lpu.commands import exec_parallel
+        path = tmp_path / 'buffer.txt'
+        path.write_text('data', encoding='utf-8')
+        exec_parallel.remove(str(path))
+        assert not path.exists()
+
+    def test_check_phase_reports_progression(self, tmp_path):
+        from lpu.commands import exec_parallel
+        from lpu.common.config import Config
+        conf = Config(tmpdir=str(tmp_path))
+        assert exec_parallel.checkPhase(conf, 'split') == 'none'
+        (tmp_path / 'report.split.begin').write_text('worker',
+                                                     encoding='utf-8')
+        assert exec_parallel.checkPhase(conf, 'split') == 'started'
+        (tmp_path / 'report.split.done').write_text('worker',
+                                                    encoding='utf-8')
+        # checkPhase() consults the begin file first, so the finished
+        # state is only reported while the begin file is absent
+        # (checkPhase() は begin ファイルを先に見るため、finished の
+        #  判定は begin ファイルが無い場合にのみ行われる)
+        (tmp_path / 'report.split.begin').unlink()
+        assert exec_parallel.checkPhase(conf, 'split') == 'finished'
+
+    def test_check_phase_charge_rejects_a_foreign_worker(self, tmp_path):
+        from lpu.commands import exec_parallel
+        from lpu.common.config import Config
+        conf = Config(tmpdir=str(tmp_path))
+        begin = tmp_path / 'report.split.begin'
+        begin.write_text('other-host:1', encoding='utf-8')
+        assert exec_parallel.checkPhaseCharge(conf, 'split') is False
+        begin.write_text(exec_parallel.getCurrentWorkerID(),
+                         encoding='utf-8')
+        assert exec_parallel.checkPhaseCharge(conf, 'split') is True
+
+    def test_int2str_zero_pads_the_file_number(self):
+        from lpu.commands import exec_parallel
+        assert exec_parallel.int2str(3, 3, '0') == '003'
+        assert exec_parallel.int2str(123, 3, '0') == '123'
+
 
 class TestExecParallelWorkerID:
     def test_worker_id_is_available_on_every_platform(self):
