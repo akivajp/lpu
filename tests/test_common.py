@@ -15,6 +15,7 @@ import types
 import pytest
 
 from lpu.common import colors
+from lpu.common import dialog
 from lpu.common import environ
 from lpu.common import files
 from lpu.common import logging
@@ -742,3 +743,43 @@ class TestVocab:
     def test_phrase_idvec_conversion(self):
         idvec = vocab.phrase2idvec('alpha beta')
         assert vocab.idvec2phrase(idvec) == 'alpha beta'
+
+
+class TestDialog:
+    def test_get_yes_no_string_varies_by_default(self):
+        # 既定値の有無でプロンプト表示が変わること
+        assert dialog.get_yes_no_string('yes') == '[Y/n]'
+        assert dialog.get_yes_no_string('no') == '[y/N]'
+        assert dialog.get_yes_no_string(None) == '[y/n]'
+
+    def test_get_answer_parses_yes_no_and_unknown(self, monkeypatch):
+        # y/Y → True, n/N → False, 空行 → 既定値, その他 → None
+        for answer, expected in [('y\n', True), ('Y\n', True),
+                                 ('n\n', False), ('N\n', False),
+                                 ('maybe\n', None)]:
+            monkeypatch.setattr('sys.stdin', io.StringIO(answer))
+            assert dialog.get_answer() == expected
+
+    def test_get_answer_uses_the_default_for_an_empty_line(self, monkeypatch):
+        monkeypatch.setattr('sys.stdin', io.StringIO('\n'))
+        assert dialog.get_answer() is None
+        assert dialog.get_answer(default='yes') is True
+        assert dialog.get_answer(default='no') is False
+
+    def test_ask_continue_keeps_going_on_yes(self, monkeypatch):
+        # y → 続行 (例外なく戻る), n → 中断 (SystemExit)
+        monkeypatch.setattr('sys.stdin', io.StringIO('y\n'))
+        dialog.ask_continue()
+        monkeypatch.setattr('sys.stdin', io.StringIO('n\n'))
+        with pytest.raises(SystemExit) as exc_info:
+            dialog.ask_continue()
+        assert exc_info.value.code == 1
+
+    def test_ask_continue_treats_an_empty_line_as_the_default(
+            self, monkeypatch):
+        monkeypatch.setattr('sys.stdin', io.StringIO('\n'))
+        dialog.ask_continue(default='yes')
+
+    def test_ask_continue_if_exist_skips_a_missing_file(self, tmp_path):
+        # ファイルが無ければ問い合わせず None を返すこと
+        assert dialog.ask_continue_if_exist(str(tmp_path / 'missing.txt')) is None

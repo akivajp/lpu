@@ -236,6 +236,74 @@ class TestRandomSplit:
             total += size
         assert total == len(pairs)
 
+    def test_writes_line_ids_with_the_ids_flag(self, tmp_path):
+        '''--ids records the original (1-based) line numbers per tag
+
+        --ids を付けると各タグの元の行番号 (1 起点) が出力されること。
+        '''
+        src = tmp_path / 'corpus.en'
+        src.write_text(''.join('en%d\n' % i for i in range(5)),
+                       encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src),
+            '--prefixes', 'out',
+            '--suffixes', 'en',
+            '--tags', 'a', 'b',
+            '--split-sizes', '2', '3',
+            '--random-seed', '7', '--ids', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        ids = []
+        for tag in ['a', 'b']:
+            # the prefix is concatenated without a separator
+            # (prefix はセパレータ無しで結合される)
+            lines = (tmp_path / ('out%s.ids' % tag)).read_text(
+                encoding='utf-8').split()
+            assert len(lines) == (2 if tag == 'a' else 3)
+            ids.extend(int(line) for line in lines)
+        # every original line is reported exactly once
+        # (全元行が正確に1回ずつ報告される)
+        assert sorted(ids) == list(range(1, 6))
+
+    def test_ignores_empty_lines_only_with_the_flag(self, tmp_path):
+        '''--ignore-empty keeps the flag out of the split entirely
+
+        --ignore-empty を付けると空行が分割から除外されること。
+        '''
+        src = tmp_path / 'corpus.en'
+        trg = tmp_path / 'corpus.fr'
+        # line 1 is empty on both sides
+        # (1行目は両側とも空行)
+        src.write_text('en0\n\nen1\nen2\n', encoding='utf-8')
+        trg.write_text('fr0\n\nfr1\nfr2\n', encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src), str(trg),
+            '--suffixes', 'en', 'fr',
+            '--tags', 'a', 'b',
+            '--split-sizes', '3', '0',
+            '--ignore-empty', '--random-seed', '1', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0, result.stderr.decode('utf-8', 'replace')
+        en_lines = (tmp_path / 'a.en').read_text(encoding='utf-8').split()
+        # the empty line never appears and only 3 valid lines exist
+        # (空行は出現せず、有効行3行のみ)
+        assert en_lines == ['en0', 'en1', 'en2']
+
+    def test_rejects_a_config_without_prefixes_and_suffixes(self, tmp_path):
+        '''Without prefixes/suffixes the split must not write anything
+
+        prefixes / suffixes のどちらも無い設定では何も出力しないこと。
+        '''
+        src = tmp_path / 'corpus.en'
+        src.write_text('a\nb\n', encoding='utf-8')
+        result = run_command('lpu.commands.random_split', [
+            '--input', str(src),
+            '--tags', 'a', 'b',
+            '--split-sizes', '1', '1', '--quiet',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0
+        assert not list(tmp_path.glob('a.*'))
+
 
 class TestCleanParallel:
     def test_drops_empty_lines_from_both_sides(self, tmp_path):
@@ -253,6 +321,104 @@ class TestCleanParallel:
             encoding='utf-8').splitlines()
         assert en_lines == ['a b', 'c d']
         assert fr_lines == ['x y', 'z w']
+
+    def test_length_bounds_drop_long_and_short_lines(self, tmp_path):
+        src = tmp_path / 'corpus.en.txt'
+        trg = tmp_path / 'corpus.fr.txt'
+        # line 1 is too short (1 word), line 3 too long (4 words)
+        # (1行目は短すぎ (1語)、3行目は長すぎ (4語))
+        src.write_text('one\none two\nw1 w2 w3 w4\n', encoding='utf-8')
+        trg.write_text('e1\ne1 e2\ne1 e2 e3 e4\n', encoding='utf-8')
+        result = run_command('lpu.commands.clean_parallel', [
+            '--min', '2', '--max', '3', str(src), str(trg), 'cleaned',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0
+        en_lines = (tmp_path / 'corpus.en.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        fr_lines = (tmp_path / 'corpus.fr.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        assert en_lines == ['one two']
+        assert fr_lines == ['e1 e2']
+
+    def test_normalize_escapes_special_characters(self, tmp_path):
+        src = tmp_path / 'corpus.en.txt'
+        trg = tmp_path / 'corpus.fr.txt'
+        src.write_text('a <b>&(c)\t d\n', encoding='utf-8')
+        trg.write_text('x <y>&(z)\t w\n', encoding='utf-8')
+        result = run_command('lpu.commands.clean_parallel', [
+            '--normalize', '--escape', '--min', '1', '--max', '20',
+            str(src), str(trg), 'cleaned',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0
+        en_lines = (tmp_path / 'corpus.en.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        fr_lines = (tmp_path / 'corpus.fr.txt.cleaned').read_text(
+            encoding='utf-8').splitlines()
+        # every Moses delimiter is escaped and the tab became a space
+        # (Moses 系の区切り記号がエスケープされ、タブは空白化される)
+        assert en_lines == ['a -LT-b-GT--AMP--LRB-c-RRB- d']
+        assert fr_lines == ['x -LT-y-GT--AMP--LRB-z-RRB- w']
+
+    def test_target_directory_option(self, tmp_path):
+        src = tmp_path / 'corpus.en.txt'
+        trg = tmp_path / 'corpus.fr.txt'
+        src.write_text('a\n', encoding='utf-8')
+        trg.write_text('x\n', encoding='utf-8')
+        target = tmp_path / 'out'
+        # relative source paths so that target-directory is respected
+        # (target-directory が有効になるよう入力は相対パスで渡す)
+        result = run_command('lpu.commands.clean_parallel', [
+            '--target-directory', str(target),
+            'corpus.en.txt', 'corpus.fr.txt', 'cleaned',
+        ], cwd=str(tmp_path))
+        assert result.returncode == 0
+        # the directory is created and the cleaned files land inside
+        # (ディレクトリが作成され、その中にクリーニング結果が出る)
+        assert (target / 'corpus.en.txt.cleaned').read_text(
+            encoding='utf-8') == 'a\n'
+        assert (target / 'corpus.fr.txt.cleaned').read_text(
+            encoding='utf-8') == 'x\n'
+
+
+class TestDialog:
+    def test_continue_with_an_empty_yes_default(self):
+        result = run_command('lpu.commands.dialog',
+                             ['--continue', '--yes'], input_bytes=b'\n')
+        assert result.returncode == 0
+
+    def test_continue_with_a_no_answer_exits_nonzero(self):
+        result = run_command('lpu.commands.dialog',
+                             ['--continue', '--no'], input_bytes=b'\n')
+        assert result.returncode == 1
+
+    def test_continue_loops_until_a_valid_answer(self, tmp_path):
+        result = run_command('lpu.commands.dialog',
+                             ['--continue', '--yes'],
+                             input_bytes=b'maybe\nno\n')
+        # an invalid first answer is asked again, then "no" aborts
+        # (最初の無効な回答は再度問われ、"no" で中断される)
+        assert result.returncode == 1
+        stderr = result.stderr.decode('utf-8', 'replace')
+        assert stderr.count('Do you want to continue?') == 2
+
+    def test_exist_asks_only_when_the_file_exists(self, tmp_path):
+        missing = tmp_path / 'missing.txt'
+        result = run_command('lpu.commands.dialog', ['--exist', str(missing),
+                                                    '--no'],
+                             input_bytes=b'n\n')
+        # no prompt happened, so stdin was left unread
+        # (問い合わせは行われず、そのまま終了する)
+        assert result.returncode == 0
+        target = tmp_path / 'target.txt'
+        target.write_text('x', encoding='utf-8')
+        result = run_command('lpu.commands.dialog', ['--exist', str(target),
+                                                    '--no'],
+                             input_bytes=b'n\n')
+        assert result.returncode == 1
+
+    def test_without_flags_exits_nonzero(self):
+        result = run_command('lpu.commands.dialog', [])
+        assert result.returncode == 1
 
 
 class TestWaitFiles:
