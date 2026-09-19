@@ -338,3 +338,145 @@ class TestWaitFiles:
             path.write_text('x')
             paths.append(str(path))
         files.wait_files(paths, interval=1, quiet=True)
+
+
+def _symlinks_available(tmp_path):
+    '''Report whether this platform lets the test process create a symlink
+
+    このプラットフォームでテストプロセスがシンボリックリンクを作れるか
+    を返す。Windows では既定で特権が必要なため作れないことがある。
+    '''
+    target = tmp_path / '_symlink_probe_target'
+    target.write_text('x')
+    link = tmp_path / '_symlink_probe_link'
+    try:
+        os.symlink(str(target), str(link))
+    except OSError:
+        return False
+    os.remove(str(link))
+    os.remove(str(target))
+    return True
+
+
+class TestSafeRemove:
+    def test_removes_an_existing_file(self, tmp_path):
+        path = tmp_path / 'victim'
+        path.write_text('x')
+        assert files.safe_remove(str(path)) == 1
+        assert not path.exists()
+
+    def test_reports_zero_for_a_missing_file(self, tmp_path):
+        # 存在しないことはエラーではなく「0 件削除」として返すこと
+        assert files.safe_remove(str(tmp_path / 'missing')) == 0
+
+    def test_expands_a_wildcard(self, tmp_path):
+        for i in range(3):
+            (tmp_path / f'part{i}.txt').write_text('x')
+        (tmp_path / 'keep.dat').write_text('x')
+        assert files.safe_remove(str(tmp_path / '*.txt')) == 3
+        assert (tmp_path / 'keep.dat').exists()
+
+    def test_a_wildcard_matching_nothing_removes_nothing(self, tmp_path):
+        assert files.safe_remove(str(tmp_path / '*.absent')) == 0
+
+
+class TestSafeCopy:
+    def test_copies_the_content(self, tmp_path):
+        src = tmp_path / 'src'
+        src.write_text('content')
+        dst = tmp_path / 'dst'
+        assert files.safe_copy(str(src), str(dst))
+        assert dst.read_text() == 'content'
+
+    def test_reports_false_for_a_missing_source(self, tmp_path):
+        assert files.safe_copy(str(tmp_path / 'missing'), str(tmp_path / 'dst')) is False
+        assert not (tmp_path / 'dst').exists()
+
+    def test_replaces_an_existing_destination(self, tmp_path):
+        src = tmp_path / 'src'
+        src.write_text('new')
+        dst = tmp_path / 'dst'
+        dst.write_text('old')
+        assert files.safe_copy(str(src), str(dst))
+        assert dst.read_text() == 'new'
+
+    def test_replaces_a_symlink_destination_without_following_it(self, tmp_path):
+        # コピー先がシンボリックリンクのとき、リンク先を書き換えてしまわず
+        # リンク自体を実体で置き換えること
+        if not _symlinks_available(tmp_path):
+            pytest.skip('symbolic links are not available on this platform')
+        src = tmp_path / 'src'
+        src.write_text('new')
+        victim = tmp_path / 'victim'
+        victim.write_text('must not change')
+        dst = tmp_path / 'dst'
+        os.symlink(str(victim), str(dst))
+        assert files.safe_copy(str(src), str(dst))
+        assert dst.read_text() == 'new'
+        assert not os.path.islink(str(dst))
+        assert victim.read_text() == 'must not change'
+
+
+class TestSafeLink:
+    def test_links_to_the_same_content(self, tmp_path):
+        src = tmp_path / 'src'
+        src.write_text('content')
+        dst = tmp_path / 'dst'
+        assert files.safe_link(str(src), str(dst))
+        assert dst.read_text() == 'content'
+
+    def test_reports_false_for_a_missing_source(self, tmp_path):
+        assert files.safe_link(str(tmp_path / 'missing'), str(tmp_path / 'dst')) is False
+
+    def test_falls_back_to_a_symbolic_link(self, tmp_path, monkeypatch):
+        # ハードリンクを作れない環境 (ファイルシステムを跨ぐ場合など) では
+        # シンボリックリンクに切り替わること
+        if not _symlinks_available(tmp_path):
+            pytest.skip('symbolic links are not available on this platform')
+
+        def refuse(*args, **kwargs):
+            raise OSError('cross-device link')
+
+        monkeypatch.setattr(os, 'link', refuse)
+        src = tmp_path / 'src'
+        src.write_text('content')
+        dst = tmp_path / 'dst'
+        assert files.safe_link(str(src), str(dst))
+        assert os.path.islink(str(dst))
+        assert dst.read_text() == 'content'
+
+    def test_propagates_when_neither_link_kind_works(self, tmp_path, monkeypatch):
+        # 両方失敗する場合は握り潰さず送出すること
+        def refuse(*args, **kwargs):
+            raise OSError('refused')
+
+        monkeypatch.setattr(os, 'link', refuse)
+        monkeypatch.setattr(os, 'symlink', refuse)
+        src = tmp_path / 'src'
+        src.write_text('content')
+        with pytest.raises(OSError):
+            files.safe_link(str(src), str(tmp_path / 'dst'))
+
+
+class TestSafeRename:
+    def test_renames_the_file(self, tmp_path):
+        src = tmp_path / 'src'
+        src.write_text('content')
+        dst = tmp_path / 'dst'
+        assert files.safe_rename(str(src), str(dst))
+        assert not src.exists()
+        assert dst.read_text() == 'content'
+
+    def test_replaces_an_existing_destination(self, tmp_path):
+        # os.rename と違い、改名先が存在しても全プラットフォームで成功すること
+        src = tmp_path / 'src'
+        src.write_text('new')
+        dst = tmp_path / 'dst'
+        dst.write_text('old')
+        assert files.safe_rename(str(src), str(dst))
+        assert dst.read_text() == 'new'
+        assert not src.exists()
+
+    def test_reports_false_for_a_missing_source(self, tmp_path):
+        assert files.safe_rename(str(tmp_path / 'missing'), str(tmp_path / 'dst')) is False
+        assert not (tmp_path / 'dst').exists()

@@ -98,6 +98,13 @@ with files.open('corpus.txt.gz', 'rt') as f:
 
 files.getContentSize('corpus.txt.gz')  # uncompressed size
 files.wait_file('lockfile', timeout=60)
+
+# the safe_* helpers treat a missing source as a non-event (reported by the
+# return value) while letting any other OSError through
+files.safe_remove('workdir/*.tmp')        # number of files removed
+files.safe_copy('model.bin', 'model.bak')
+files.safe_link('model.bin', 'latest')    # hard link, symlink as fallback
+files.safe_rename('model.tmp', 'model.bin')  # replaces the destination
 ```
 
 ### lpu.common.logging

@@ -23,6 +23,13 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
   続く重み無しラベルを取りこぼしていた、語彙ファイルの読み書きが
   プラットフォーム既定のエンコーディングだった (Windows で非 ASCII
   トークンが壊れる)。
+- `lpu.common.files` に、同じコードから `safe_remove` / `safe_copy` /
+  `safe_link` / `safe_rename` を追加しました。共通の規約として、対象が
+  存在しないことは例外ではなく戻り値で伝え、それ以外の `OSError` は
+  送出します (権限エラーが静かなデータ欠損に化けないようにするため)。
+  `safe_rename` は `os.replace` を用いるため Windows でも改名先を置き換え
+  られます。`safe_link` はハードリンクを作れない場合にシンボリックリンクへ
+  フォールバックします。
 
 ### 修正
 

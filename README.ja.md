@@ -98,6 +98,13 @@ with files.open('corpus.txt.gz', 'rt') as f:
 
 files.getContentSize('corpus.txt.gz')  # 展開後のサイズ
 files.wait_file('lockfile', timeout=60)
+
+# safe_* 系は、対象が存在しないことをエラーとせず戻り値で伝え、
+# それ以外の OSError は握り潰さずに送出します
+files.safe_remove('workdir/*.tmp')        # 削除した件数を返す
+files.safe_copy('model.bin', 'model.bak')
+files.safe_link('model.bin', 'latest')    # ハードリンク、不可ならシンボリックリンク
+files.safe_rename('model.tmp', 'model.bin')  # 改名先が存在しても置き換える
 ```
 
 ### lpu.common.logging

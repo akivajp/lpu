@@ -5,9 +5,11 @@
 from __future__ import annotations
 
 # Standard libraries
+import glob
 import gzip
 import io
 import os.path
+import shutil
 import sys
 import tempfile
 import time
@@ -251,6 +253,145 @@ def safeMakeDirs(dirpath: str, **options: Any) -> None:
             os.makedirs(dirpath, **options)
         except OSError:
             logger.debug(f'cannot make directory: "{dirpath}"')
+
+# The safe_* helpers below share one contract: a missing source is not an
+# error (they report it by returning False / 0), while any other OSError
+# propagates to the caller. Swallowing every exception would turn a
+# permission problem into silent data loss.
+# 以下の safe_* 群は共通の規約を持つ: コピー元/削除対象が存在しないことは
+# エラーとせず戻り値 (False / 0) で伝え、それ以外の OSError は呼び出し側へ
+# 送出する。全例外を握り潰すと権限エラーが静かなデータ欠損に化けるため。
+
+def safe_remove(path: str, log: bool = True) -> int:
+    """remove the file at given path, ignoring its absence
+
+    指定パスのファイルを削除する。存在しない場合は何もしない。
+
+    If the path contains a wildcard (``*``), every matching file is removed.
+    パスにワイルドカード (``*``) を含む場合、一致する全ファイルを削除する。
+
+    Args:
+        path: The path (or glob pattern) of the file(s) to remove.
+            削除するファイルのパス (または glob パターン)。
+        log: Whether to write a debug log for each removal.
+            削除ごとにデバッグログを出力するかどうか。
+
+    Returns:
+        The number of files actually removed.
+            実際に削除できたファイル数。
+    """
+    # ワイルドカードを含む場合は展開し、各実体を再帰的に処理する
+    if '*' in path:
+        removed = 0
+        for matched in glob.glob(path):
+            removed += safe_remove(matched, log=log)
+        return removed
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        # 既に存在しないのは想定内 (削除済みと同じ結果なので成功扱いしない)
+        return 0
+    if log:
+        logger.debug(f'removed file: "{path}"')
+    return 1
+
+def safe_copy(src: str, dst: str, log: bool = True) -> bool:
+    """copy a file over the destination, replacing it if it exists
+
+    ファイルをコピーする。コピー先が既に存在する場合は置き換える。
+
+    Args:
+        src: The path of the source file.
+            コピー元ファイルのパス。
+        dst: The path of the destination file.
+            コピー先ファイルのパス。
+        log: Whether to write a debug log for the copy.
+            コピー時にデバッグログを出力するかどうか。
+
+    Returns:
+        True if the copy was made, False if the source does not exist.
+            コピーを行えたら True、コピー元が存在しなければ False。
+    """
+    if not os.path.exists(src):
+        return False
+    # copy2 は既存ファイルを上書きするが、コピー先がシンボリックリンクだと
+    # リンク先を書き換えてしまうため、先に削除して実体を切り離す
+    safe_remove(dst, log=False)
+    if log:
+        logger.debug(f'copying file: "{src}" -> "{dst}"')
+    shutil.copy2(src, dst)
+    return True
+
+def safe_link(src: str, dst: str, log: bool = True) -> bool:
+    """link a file at the destination, falling back to a symbolic link
+
+    ファイルへのリンクを作成する。ハードリンクを作れない場合は
+    シンボリックリンクにフォールバックする。
+
+    A hard link cannot cross filesystems and is unavailable on some
+    filesystems, so a failure falls back to a symbolic link rather than
+    propagating.
+    ハードリンクはファイルシステムを跨げず、一部のファイルシステムでは
+    利用できないため、失敗時は送出せずシンボリックリンクに切り替える。
+
+    Args:
+        src: The path of the source file.
+            リンク元ファイルのパス。
+        dst: The path of the link to create.
+            作成するリンクのパス。
+        log: Whether to write a debug log for the link.
+            リンク作成時にデバッグログを出力するかどうか。
+
+    Returns:
+        True if a link was created, False if the source does not exist.
+            リンクを作成できたら True、リンク元が存在しなければ False。
+    """
+    if not os.path.exists(src):
+        return False
+    safe_remove(dst, log=False)
+    try:
+        os.link(src, dst)
+    except OSError:
+        # ファイルシステムを跨ぐ場合などはハードリンクを作れないため、
+        # シンボリックリンクで代替する (これも失敗すれば送出する)
+        os.symlink(src, dst)
+        if log:
+            logger.debug(f'made symbolic link: "{src}" -> "{dst}"')
+        return True
+    if log:
+        logger.debug(f'made hard link: "{src}" -> "{dst}"')
+    return True
+
+def safe_rename(src: str, dst: str, log: bool = True) -> bool:
+    """rename a file over the destination, replacing it if it exists
+
+    ファイルを改名する。改名先が既に存在する場合は置き換える。
+
+    `os.replace` is used rather than `os.rename` so that an existing
+    destination is replaced atomically on every supported platform
+    (`os.rename` raises on Windows when the destination exists).
+    `os.rename` ではなく `os.replace` を用いる。これは対応する全
+    プラットフォームで既存の改名先を原子的に置き換えるため
+    (`os.rename` は Windows で改名先が存在すると例外を送出する)。
+
+    Args:
+        src: The path of the file to rename.
+            改名するファイルのパス。
+        dst: The new path of the file.
+            改名後のファイルのパス。
+        log: Whether to write a debug log for the rename.
+            改名時にデバッグログを出力するかどうか。
+
+    Returns:
+        True if the file was renamed, False if the source does not exist.
+            改名できたら True、改名元が存在しなければ False。
+    """
+    if not os.path.exists(src):
+        return False
+    if log:
+        logger.debug(f'renaming file: "{src}" -> "{dst}"')
+    os.replace(src, dst)
+    return True
 
 def open(filename: str, mode: str = 'r') -> io.IOBase:
     '''open the plain/compressed file transparently'''

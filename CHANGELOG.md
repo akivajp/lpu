@@ -25,6 +25,13 @@
   label) and skipped every unweighted label that followed a weighted one,
   and the vocabulary files were read and written with the platform default
   encoding (which corrupts non-ASCII tokens on Windows).
+- `lpu.common.files` gained `safe_remove`, `safe_copy`, `safe_link` and
+  `safe_rename` from the same codebase. They share one contract: a missing
+  source is reported by the return value rather than raised, while any
+  other `OSError` propagates, so a permission problem cannot turn into
+  silent data loss. `safe_rename` uses `os.replace`, so an existing
+  destination is replaced on Windows as well; `safe_link` falls back to a
+  symbolic link when a hard link cannot be made.
 
 ### Fixed
 
