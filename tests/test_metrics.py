@@ -15,6 +15,7 @@ import random
 import pytest
 
 from lpu.metrics import bleu
+from lpu.metrics import ranking
 from lpu.metrics import ribes
 
 
@@ -211,3 +212,55 @@ class TestFindContext:
 
     def test_returns_empty_when_absent(self):
         assert ribes.find_context(['z'], 'a b c'.split()) == []
+
+
+class TestRanking:
+    def test_precision_at_k_counts_ranks_within_the_cut_off(self):
+        # 3 件中 1 位と 2 位の 2 件が上位 2 件に入る
+        assert ranking.calc_precision_at_k([1, 2, 5], 2) == 2 / 3
+
+    def test_precision_at_k_of_a_perfect_ranking_is_one(self):
+        assert ranking.calc_precision_at_k([1, 1, 1], 1) == 1.0
+
+    def test_precision_at_k_counts_none_as_a_miss(self):
+        # 未検出 (None) は打ち切り順位に関わらず不正解として数える
+        assert ranking.calc_precision_at_k([1, None], 10) == 0.5
+
+    def test_precision_at_k_rejects_a_non_positive_k(self):
+        with pytest.raises(ValueError):
+            ranking.calc_precision_at_k([1], 0)
+
+    def test_mean_reciprocal_rank_averages_the_reciprocals(self):
+        # (1/1 + 1/2 + 1/4) / 3
+        assert ranking.calc_mean_reciprocal_rank([1, 2, 4]) == (1 + 0.5 + 0.25) / 3
+
+    def test_mean_reciprocal_rank_of_a_perfect_ranking_is_one(self):
+        assert ranking.calc_mean_reciprocal_rank([1, 1]) == 1.0
+
+    def test_mean_reciprocal_rank_treats_none_as_zero(self):
+        assert ranking.calc_mean_reciprocal_rank([1, None]) == 0.5
+
+    @pytest.mark.parametrize('ranks', [[0], [-1]])
+    def test_a_non_positive_rank_is_rejected(self, ranks):
+        # 0 以下の順位は MRR で発散し P@k を歪めるため受け付けない
+        with pytest.raises(ValueError):
+            ranking.calc_mean_reciprocal_rank(ranks)
+        with pytest.raises(ValueError):
+            ranking.calc_precision_at_k(ranks, 1)
+
+    @pytest.mark.parametrize('func', [
+        ranking.calc_mean_reciprocal_rank,
+        lambda ranks: ranking.calc_precision_at_k(ranks, 1),
+    ])
+    def test_an_empty_rank_sequence_is_rejected(self, func):
+        # 空列では割合が定義できないため 0 除算ではなく ValueError とすること
+        with pytest.raises(ValueError):
+            func([])
+
+    def test_mrr_never_exceeds_precision_at_one_plus_the_rest(self):
+        # 定義上 MRR は P@1 以上 1 以下に収まること
+        rng = random.Random(0)
+        for _ in range(50):
+            ranks = [rng.randint(1, 10) for _ in range(rng.randint(1, 8))]
+            mrr = ranking.calc_mean_reciprocal_rank(ranks)
+            assert ranking.calc_precision_at_k(ranks, 1) <= mrr <= 1.0

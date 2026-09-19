@@ -30,6 +30,10 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
   `safe_rename` は `os.replace` を用いるため Windows でも改名先を置き換え
   られます。`safe_link` はハードリンクを作れない場合にシンボリックリンクへ
   フォールバックします。
+- `lpu.metrics.ranking` を追加しました。`calc_precision_at_k` と
+  `calc_mean_reciprocal_rank` でランカーを評価します。順位が `None`
+  (未検出) の場合は例外ではなく不正解として数え、空の順位列や 0 以下の
+  順位は 0 除算ではなく明示的に弾きます。
 
 ### 修正
 

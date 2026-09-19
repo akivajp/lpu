@@ -208,7 +208,7 @@ trees.calcTreeEditDistance('(S (NP a))', '(S (NP b))')            # 1
 
 ### lpu.metrics
 
-機械翻訳の評価指標。
+機械翻訳の評価指標 (`bleu`, `ribes`) とランキングの評価指標 (`ranking`)。
 
 ```python
 from lpu.metrics import bleu, ribes
@@ -224,6 +224,17 @@ ribes.eval_ribes(ref, hyp)
 [sacrebleu](https://github.com/mjpost/sacrebleu) を使ってください。
 `ribes` は Isozaki et al. (2010) に従い
 `NKT * P**alpha * BP**beta` を計算します。
+
+`ranking` は正解アイテムの順位列からランカーを評価します。順位は 1 始まりで、
+`None` は「ランキングに現れなかった」ことを表します。
+
+```python
+from lpu.metrics import ranking
+
+ranks = [1, 2, None, 4]
+ranking.calc_precision_at_k(ranks, 1)      # 0.25
+ranking.calc_mean_reciprocal_rank(ranks)   # 0.4375
+```
 
 ## オプション機能
 

@@ -32,6 +32,11 @@
   silent data loss. `safe_rename` uses `os.replace`, so an existing
   destination is replaced on Windows as well; `safe_link` falls back to a
   symbolic link when a hard link cannot be made.
+- `lpu.metrics.ranking` evaluates a ranker with `calc_precision_at_k` and
+  `calc_mean_reciprocal_rank`. A rank of `None` (the item was not
+  retrieved) counts as a miss instead of raising, and an empty rank
+  sequence or a non-positive rank is rejected explicitly rather than
+  dividing by zero.
 
 ### Fixed
 

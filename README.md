@@ -212,7 +212,8 @@ trees.calcTreeEditDistance('(S (NP a))', '(S (NP b))')            # 1
 
 ### lpu.metrics
 
-Evaluation metrics for machine translation.
+Evaluation metrics for machine translation (`bleu`, `ribes`) and for
+ranking (`ranking`).
 
 ```python
 from lpu.metrics import bleu, ribes
@@ -227,6 +228,17 @@ ribes.eval_ribes(ref, hyp)
 its own; use [sacrebleu](https://github.com/mjpost/sacrebleu) for
 publishable, comparable scores. `ribes` implements
 `NKT * P**alpha * BP**beta` following Isozaki et al. (2010).
+
+`ranking` evaluates a ranker from the ranks of the correct items, where a
+rank is 1-based and `None` means the item was not retrieved at all.
+
+```python
+from lpu.metrics import ranking
+
+ranks = [1, 2, None, 4]
+ranking.calc_precision_at_k(ranks, 1)      # 0.25
+ranking.calc_mean_reciprocal_rank(ranks)   # 0.4375
+```
 
 ## Optional features
 

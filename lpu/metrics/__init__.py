@@ -2,6 +2,7 @@
 
 __all__ = [
   'bleu',
+  'ranking',
   'ribes',
 ]
 

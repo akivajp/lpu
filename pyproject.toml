@@ -156,6 +156,7 @@ files = [
     "lpu/common/vocab.py",
     "lpu/data_structs/trees.py",
     "lpu/metrics/bleu.py",
+    "lpu/metrics/ranking.py",
     "lpu/metrics/ribes.py",
     "lpu/smt/trans_models/convert_extract.py",
     "lpu/smt/trans_models/filter.py",

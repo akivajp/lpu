@@ -24,6 +24,7 @@ DOCTEST_MODULES = [
     'lpu.common.vocab',
     'lpu.data_structs.trees',
     'lpu.metrics.bleu',
+    'lpu.metrics.ranking',
     'lpu.metrics.ribes',
 ]
 
