@@ -21,6 +21,7 @@ DOCTEST_MODULES = [
     'lpu.common.numbers',
     'lpu.common.text',
     'lpu.common.validation',
+    'lpu.common.vocab',
     'lpu.data_structs.trees',
     'lpu.metrics.bleu',
     'lpu.metrics.ribes',

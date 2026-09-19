@@ -983,3 +983,320 @@ class TestDialog:
     def test_ask_continue_if_exist_skips_a_missing_file(self, tmp_path):
         # ファイルが無ければ問い合わせず None を返すこと
         assert dialog.ask_continue_if_exist(str(tmp_path / 'missing.txt')) is None
+
+
+class TestIDMap:
+    '''IDMap must build, truncate and persist a vocabulary using the stdlib alone
+
+    IDMap が標準ライブラリのみで語彙の構築・切り詰め・永続化を行えること。
+    '''
+
+    def test_special_symbols_take_the_lowest_ids(self):
+        idmap = vocab.IDMap()
+        assert (idmap.pad, idmap.bos, idmap.eos, idmap.unk) == (0, 1, 2, 3)
+        assert len(idmap) == 4
+
+    def test_str2id_maps_an_unknown_token_to_unk(self):
+        idmap = vocab.IDMap()
+        assert idmap.str2id('absent') == idmap.unk
+
+    def test_str2id_registers_and_counts_when_growing(self):
+        idmap = vocab.IDMap()
+        first = idmap.str2id('token', growth=True)
+        assert idmap.str2id('token', growth=True) == first
+        assert idmap.dict_count['token'] == 2
+
+    def test_symbols_are_not_counted_as_observed_tokens(self):
+        # 特殊記号は観測トークンではないため頻度計数に混ぜないこと
+        idmap = vocab.IDMap()
+        assert idmap.dict_count == {}
+
+    def test_id2str_falls_back_to_unk_for_an_unregistered_id(self):
+        idmap = vocab.IDMap()
+        assert idmap.id2str(999) == '<unk>'
+        assert idmap.id2str(-1) == '<unk>'
+
+    def test_extra_symbols_can_be_registered(self):
+        idmap = vocab.IDMap()
+        idmap.set_symbols({'mask': '<mask>'})
+        assert idmap.str2id('<mask>') == idmap.mask
+        assert idmap.symbols['mask'] == '<mask>'
+
+    def test_encode_returns_the_ids_of_the_tokens(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('the cat sat')
+        assert idmap.encode('the cat') == [idmap.str2id('the'), idmap.str2id('cat')]
+
+    def test_encode_maps_unknown_tokens_to_unk(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('the cat')
+        assert idmap.encode('the dog') == [idmap.str2id('the'), idmap.unk]
+
+    def test_encode_decode_round_trip_with_symbols(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('the cat sat')
+        ids = idmap.encode('the cat', add_symbols=True)
+        assert ids[0] == idmap.bos
+        assert ids[-1] == idmap.eos
+        assert idmap.decode(ids) == 'the cat'
+
+    def test_safe_add_symbols_does_not_duplicate(self):
+        idmap = vocab.IDMap()
+        once = idmap.safe_add_symbols([4, 5])
+        assert idmap.safe_add_symbols(once) == once
+
+    def test_clean_ids_truncates_at_eos_and_trims_padding(self):
+        idmap = vocab.IDMap()
+        ids = [idmap.bos, 4, 5, idmap.eos, idmap.pad, idmap.pad]
+        assert idmap.clean_ids(ids) == [4, 5]
+
+    def test_clean_ids_accepts_an_empty_sequence(self):
+        idmap = vocab.IDMap()
+        assert idmap.clean_ids([]) == []
+
+    def test_decode_can_return_tokens(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('the cat')
+        ids = idmap.encode('the cat')
+        assert idmap.decode(ids, as_tokens=True) == ['the', 'cat']
+
+    def test_decode_keeps_the_symbols_when_asked(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('the')
+        ids = idmap.encode('the', add_symbols=True)
+        assert idmap.decode(ids, remove_symbols=False, as_tokens=True) == [
+            '<s>', 'the', '</s>',
+        ]
+
+    def test_a_none_separator_treats_the_field_as_one_token(self):
+        # 区切り文字が None のとき、フィールド全体が 1 トークンになること
+        idmap = vocab.IDMap(sep=None)
+        idmap.feed_field('new york')
+        assert 'new york' in idmap
+        assert 'new' not in idmap
+        assert idmap.encode('new york') == [idmap.str2id('new york')]
+
+    def test_feed_corpus_reads_the_requested_columns(self, tmp_path):
+        path = tmp_path / 'corpus.tsv'
+        path.write_text('the cat\tanimal\nthe mat\tobject\n', encoding='utf-8')
+        idmap = vocab.IDMap()
+        assert idmap.feed_corpus(str(path), 0) == 2
+        assert 'cat' in idmap and 'mat' in idmap
+        # 対象外の列は取り込まないこと
+        assert 'animal' not in idmap
+
+    def test_feed_corpus_accepts_several_columns(self, tmp_path):
+        path = tmp_path / 'corpus.tsv'
+        path.write_text('a\tb\tc\n', encoding='utf-8')
+        idmap = vocab.IDMap()
+        idmap.feed_corpus(str(path), [0, 2])
+        assert 'a' in idmap and 'c' in idmap and 'b' not in idmap
+
+    def test_feed_corpus_reads_a_gzipped_corpus(self, tmp_path):
+        import gzip as _gzip
+        path = tmp_path / 'corpus.tsv.gz'
+        with _gzip.open(str(path), 'wt', encoding='utf-8') as fobj:
+            fobj.write('the cat\n')
+        idmap = vocab.IDMap()
+        assert idmap.feed_corpus(str(path), 0) == 1
+        assert 'cat' in idmap
+
+    def test_feed_corpus_rejects_a_line_with_too_few_columns(self, tmp_path):
+        path = tmp_path / 'corpus.tsv'
+        path.write_text('only-one-column\n', encoding='utf-8')
+        idmap = vocab.IDMap()
+        with pytest.raises(ValueError):
+            idmap.feed_corpus(str(path), 1)
+
+    def test_feed_corpus_does_not_shift_columns_on_empty_fields(self, tmp_path):
+        # strip() だとタブまで削られて列がずれるため、空フィールドが
+        # 先頭にあっても列位置が保たれること
+        path = tmp_path / 'corpus.tsv'
+        path.write_text('\tsecond\n', encoding='utf-8')
+        idmap = vocab.IDMap()
+        idmap.feed_corpus(str(path), 1)
+        assert 'second' in idmap
+
+    def test_truncate_keeps_the_most_frequent_tokens(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('a a a b b c')
+        idmap.truncate(len(idmap.symbols) + 2)
+        assert 'a' in idmap and 'b' in idmap
+        assert 'c' not in idmap
+
+    def test_truncate_always_keeps_the_symbols(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('a b c')
+        idmap.truncate(0)
+        assert len(idmap) == len(idmap.symbols)
+        assert (idmap.pad, idmap.bos, idmap.eos, idmap.unk) == (0, 1, 2, 3)
+
+    def test_truncate_breaks_frequency_ties_deterministically(self):
+        # 同頻度の場合はトークン自身で順序が決まり、投入順に依存しないこと
+        forward = vocab.IDMap()
+        forward.feed_field('beta alpha')
+        backward = vocab.IDMap()
+        backward.feed_field('alpha beta')
+        keep = len(forward.symbols) + 1
+        assert list(forward.truncate(keep)) == list(backward.truncate(keep))
+
+    def test_save_and_load_round_trip(self, tmp_path):
+        path = tmp_path / 'vocab.txt'
+        original = vocab.IDMap()
+        original.feed_field('the cat sat on the mat')
+        original.save(str(path))
+        restored = vocab.IDMap().load(str(path))
+        assert list(restored) == list(original)
+        assert restored.dict_count['the'] == 2
+
+    def test_save_and_load_preserve_non_ascii_tokens(self, tmp_path):
+        # 既定エンコーディングが cp1252 の環境でも壊れないこと
+        path = tmp_path / 'vocab.txt'
+        original = vocab.IDMap()
+        original.feed_field('日本語 トークン')
+        original.save(str(path))
+        assert '日本語' in vocab.IDMap().load(str(path))
+
+    def test_load_rejects_a_malformed_line(self, tmp_path):
+        path = tmp_path / 'vocab.txt'
+        path.write_text('no-tab-here\n', encoding='utf-8')
+        with pytest.raises(ValueError):
+            vocab.IDMap().load(str(path))
+
+    def test_load_rejects_a_non_integer_count(self, tmp_path):
+        path = tmp_path / 'vocab.txt'
+        path.write_text('many\ttoken\n', encoding='utf-8')
+        with pytest.raises(ValueError):
+            vocab.IDMap().load(str(path))
+
+    def test_getitem_looks_up_in_both_directions(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('token')
+        assert idmap[idmap['token']] == 'token'
+
+    def test_iteration_follows_the_id_order(self):
+        idmap = vocab.IDMap()
+        idmap.feed_field('the cat')
+        assert list(idmap) == ['<pad>', '<s>', '</s>', '<unk>', 'the', 'cat']
+
+
+    def test_id2str_without_unk_rejects_an_unregistered_id(self):
+        # <unk> を持たないマップでは握り潰さず IndexError とすること
+        labels = vocab.LabelMap()
+        with pytest.raises(IndexError):
+            labels.id2str(999)
+
+    def test_eos_cannot_be_added_when_it_is_undefined(self):
+        labels = vocab.LabelMap()
+        with pytest.raises(ValueError):
+            labels.safe_add_symbols([0], add_bos=False)
+
+    def test_clean_ids_trims_padding_without_an_eos(self):
+        idmap = vocab.IDMap()
+        assert idmap.clean_ids([4, 5, idmap.pad, idmap.pad]) == [4, 5]
+
+    def test_feed_corpus_skips_blank_lines(self, tmp_path):
+        path = tmp_path / 'corpus.tsv'
+        path.write_text('the cat\n\nthe mat\n', encoding='utf-8')
+        idmap = vocab.IDMap()
+        # 空行は行数に数えず、語彙にも影響しないこと
+        assert idmap.feed_corpus(str(path), 0) == 2
+
+    def test_truncate_does_not_duplicate_a_literal_symbol_token(self):
+        # コーパスに記号と同じ表層 (<unk> 等) が現れても二重登録しないこと
+        idmap = vocab.IDMap()
+        idmap.feed_field('<unk> <unk> word')
+        idmap.truncate(len(idmap.symbols) + 1)
+        assert list(idmap).count('<unk>') == 1
+
+    def test_load_skips_blank_lines(self, tmp_path):
+        path = tmp_path / 'vocab.txt'
+        path.write_text('3\ttoken\n\n', encoding='utf-8')
+        idmap = vocab.IDMap().load(str(path))
+        assert idmap.dict_count['token'] == 3
+
+
+class TestLabelMap:
+    '''LabelMap must turn weighted label fields into distributions
+
+    LabelMap が重み付きラベルフィールドを確率分布に変換できること。
+    '''
+
+    def test_no_special_symbols_by_default(self):
+        labels = vocab.LabelMap()
+        assert len(labels) == 0
+        assert labels.unk is None
+
+    def test_feed_field_registers_the_label_names_only(self):
+        labels = vocab.LabelMap()
+        labels.feed_field('positive:3 negative:1')
+        assert list(labels) == ['positive', 'negative']
+
+    def test_str2dist_of_a_single_label_is_one_hot(self):
+        labels = vocab.LabelMap()
+        labels.feed_field('positive negative')
+        assert labels.str2dist('positive') == [1.0, 0.0]
+
+    def test_str2dist_normalizes_the_weights(self):
+        labels = vocab.LabelMap()
+        labels.feed_field('positive negative')
+        assert labels.str2dist('positive:3 negative:1') == [0.75, 0.25]
+
+    def test_str2dist_of_an_empty_field_is_all_zero(self):
+        labels = vocab.LabelMap()
+        labels.feed_field('positive negative')
+        assert labels.str2dist('') == [0.0, 0.0]
+
+    def test_str2dist_gives_the_remainder_to_unk(self):
+        labels = vocab.LabelMap(add_unk=True)
+        labels.feed_field('positive negative')
+        dist = labels.str2dist('positive:0.25')
+        assert dist[labels.unk] == 0.75
+        assert sum(dist) == 1.0
+
+    def test_str2dist_does_not_grow_the_vocabulary(self):
+        # 返すベクトルの長さが呼び出しごとに変わらないこと
+        labels = vocab.LabelMap(add_unk=True)
+        labels.feed_field('positive negative')
+        before = len(labels)
+        assert len(labels.str2dist('unseen')) == before
+        assert len(labels) == before
+
+    def test_an_unknown_label_without_unk_is_rejected(self):
+        labels = vocab.LabelMap()
+        labels.feed_field('positive')
+        with pytest.raises(KeyError):
+            labels.str2dist('negative')
+
+    def test_a_negative_weight_is_rejected(self):
+        labels = vocab.LabelMap()
+        labels.feed_field('positive')
+        with pytest.raises(ValueError):
+            labels.str2dist('positive:-1')
+
+    def test_a_colon_that_is_not_a_weight_stays_part_of_the_label(self):
+        labels = vocab.LabelMap()
+        labels.feed_field('B-PER:nested')
+        assert list(labels) == ['B-PER:nested']
+
+    def test_str2score_averages_the_numeric_labels(self):
+        scores = vocab.LabelMap()
+        scores.feed_field('1 5')
+        assert scores.str2score('1:1 5:1') == 3.0
+
+    def test_str2score_ignores_the_non_numeric_labels(self):
+        scores = vocab.LabelMap(add_unk=True)
+        scores.feed_field('1 5')
+        # <unk> は数値でないため期待値に寄与しないこと
+        assert scores.str2score('5') == 5.0
+
+    def test_symbols_cannot_be_added_when_they_are_undefined(self):
+        # BOS/EOS を持たない LabelMap では明示的に弾かれること
+        labels = vocab.LabelMap()
+        with pytest.raises(ValueError):
+            labels.safe_add_symbols([0])
+
+    def test_extra_symbols_can_be_registered(self):
+        labels = vocab.LabelMap()
+        labels.set_symbols({'none': '<none>'})
+        assert labels.str2id('<none>') == labels.none

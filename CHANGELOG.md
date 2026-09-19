@@ -4,6 +4,28 @@
 
 ## Unreleased
 
+### Added
+
+- `lpu.common.vocab` gained `IDMap` and `LabelMap`, ported from an
+  unpublished PyTorch research codebase of the author. `IDMap` is a
+  vocabulary that reserves the special symbols `<pad>` / `<s>` / `</s>` /
+  `<unk>`, counts token frequencies, can be truncated to the most frequent
+  tokens and can be saved to / loaded from a text file; `LabelMap`
+  specializes it for label fields carrying several weighted labels
+  (`positive:3 negative:1`), which it converts into a probability
+  distribution or into the expected value of the numeric labels. Both
+  depend on the standard library alone, and the existing
+  `StringEnumerator` / `word2id` helpers are untouched.
+  Several defects of the original implementation were fixed on the way:
+  `encode()` returned an implicit `None` instead of the IDs it had just
+  built, `decode()` ignored its `remove_symbols` argument, `feed_field()`
+  registered both the whole field and its whitespace-split tokens when the
+  separator was `None`, `str2dist()` indexed a distribution vector it had
+  sized before growing the vocabulary (an `IndexError` on the first unseen
+  label) and skipped every unweighted label that followed a weighted one,
+  and the vocabulary files were read and written with the platform default
+  encoding (which corrupts non-ASCII tokens on Windows).
+
 ### Fixed
 
 - The coverage job used `actions/upload-artifact@v4` while every other

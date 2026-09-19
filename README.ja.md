@@ -160,6 +160,32 @@ for item in progress.view(iter(range(1000)), 'processing'):
 Double-Array Trie を用いるため `trie` エクストラが必要ですが、
 `StringEnumerator` 自体には不要です。
 
+`IDMap` は同じ考え方をより高機能にした語彙クラスです。特殊記号
+`<pad>` / `<s>` / `</s>` / `<unk>` を予約し、各トークンの出現頻度を数え、
+高頻度語のみへの切り詰めや、テキストファイルへの保存・読み込みが行えます。
+
+```python
+from lpu.common.vocab import IDMap, LabelMap
+
+idmap = IDMap()
+idmap.feed_corpus('train.tsv', 0)   # 0 列目を 1 行ずつ投入する
+idmap.truncate(32000)               # 特殊記号 + 高頻度語のみ残す
+idmap.save('vocab.txt')
+
+ids = idmap.encode('the cat', add_symbols=True)  # bos / eos で囲む
+idmap.decode(ids)                               # 'the cat'
+```
+
+`LabelMap` はラベルフィールド向けの `IDMap` で、1 つのフィールドに重み付きの
+複数ラベル (`positive:3 negative:1`) を書けます。`str2dist()` はこれを
+正規化した確率分布に、`str2score()` は数値ラベルの期待値に変換します。
+
+```python
+labels = LabelMap()
+labels.feed_field('positive negative')
+labels.str2dist('positive:3 negative:1')  # [0.75, 0.25]
+```
+
 ### lpu.data_structs.trees
 
 木構造の表現と操作。`TreeNode`、`parseSExpression`、

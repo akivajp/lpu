@@ -4,6 +4,26 @@ English version is available in [CHANGELOG.md](CHANGELOG.md).
 
 ## 未リリース
 
+### 追加
+
+- `lpu.common.vocab` に `IDMap` と `LabelMap` を追加しました。作者の未公開の
+  PyTorch 研究コードから移植したものです。`IDMap` は特殊記号
+  `<pad>` / `<s>` / `</s>` / `<unk>` を予約し、トークンの出現頻度を数え、
+  高頻度語への切り詰めやテキストファイルへの保存・読み込みが行える語彙
+  クラスです。`LabelMap` はこれをラベルフィールド向けに特化したもので、
+  重み付きの複数ラベル (`positive:3 negative:1`) を確率分布、または
+  数値ラベルの期待値に変換します。いずれも標準ライブラリのみに依存し、
+  既存の `StringEnumerator` / `word2id` 系には手を加えていません。
+  移植に際して、元実装の以下の不具合を修正しました:
+  `encode()` が組み立てた ID を返さず暗黙の `None` を返していた、
+  `decode()` が `remove_symbols` 引数を無視していた、区切り文字が `None` の
+  ときに `feed_field()` がフィールド全体と空白分割したトークンの両方を
+  登録していた、`str2dist()` が語彙を拡張する前に長さを決めた分布ベクトルを
+  参照していた (未知ラベル初出で `IndexError`) 上に、重み付きラベルの後に
+  続く重み無しラベルを取りこぼしていた、語彙ファイルの読み書きが
+  プラットフォーム既定のエンコーディングだった (Windows で非 ASCII
+  トークンが壊れる)。
+
 ### 修正
 
 - coverage ジョブだけ `actions/upload-artifact@v4` を使っており、他の

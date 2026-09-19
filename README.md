@@ -162,6 +162,34 @@ phrase-level helpers (`phrase2id`, `id2phrase`, `phraseMap`) are backed by
 the Double-Array Trie and therefore need the `trie` extra; the enumerator
 itself does not.
 
+`IDMap` is a richer vocabulary on top of the same idea: it reserves the
+special symbols `<pad>` / `<s>` / `</s>` / `<unk>`, counts how often each
+token was observed, can be truncated to the most frequent tokens, and can
+be saved to / loaded from a plain text file.
+
+```python
+from lpu.common.vocab import IDMap, LabelMap
+
+idmap = IDMap()
+idmap.feed_corpus('train.tsv', 0)   # feeds column 0, line by line
+idmap.truncate(32000)               # keeps the symbols + the top tokens
+idmap.save('vocab.txt')
+
+ids = idmap.encode('the cat', add_symbols=True)  # surrounded by bos / eos
+idmap.decode(ids)                               # 'the cat'
+```
+
+`LabelMap` is an `IDMap` for label fields, where a field may carry several
+weighted labels (`positive:3 negative:1`). `str2dist()` turns such a field
+into a normalized probability distribution, and `str2score()` into the
+expected value of the numeric labels.
+
+```python
+labels = LabelMap()
+labels.feed_field('positive negative')
+labels.str2dist('positive:3 negative:1')  # [0.75, 0.25]
+```
+
 ### lpu.data_structs.trees
 
 Tree expressions and operations: `TreeNode`, `parseSExpression`,
