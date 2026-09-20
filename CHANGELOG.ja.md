@@ -2,7 +2,7 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
-## 未リリース
+## 0.6.0 (2026-09-20)
 
 ### 追加
 
