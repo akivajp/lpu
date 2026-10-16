@@ -2,6 +2,14 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
+## 0.6.1 (2026-10-16)
+
+### 変更
+
+- リリース用 wheel のビルドに cibuildwheel 4.3.1 を使うようにしました
+  (従来は 4.2.1)。対象インタプリタ (CPython 3.10〜3.14) は変わらず、
+  ライブラリのコードは 0.6.0 と同一です。
+
 ## 0.6.0 (2026-09-20)
 
 ### 追加

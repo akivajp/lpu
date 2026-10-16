@@ -2,6 +2,14 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
+## 0.6.1 (2026-10-16)
+
+### Changed
+
+- The release wheels are built with cibuildwheel 4.3.1 (was 4.2.1). The
+  set of target interpreters is unchanged (CPython 3.10 to 3.14); the
+  library code is identical to 0.6.0.
+
 ## 0.6.0 (2026-09-20)
 
 ### Added
