@@ -2,6 +2,15 @@
 
 English version is available in [CHANGELOG.md](CHANGELOG.md).
 
+## 0.6.2 (2026-10-16)
+
+### 追加
+
+- Python 3.15 に対応しました。全プラットフォーム向けに CPython 3.15 の
+  wheel を提供し、Linux と macOS のテストマトリクスと classifier に 3.15 を
+  追加しました。pycedar 0.6.3 も 3.15 の wheel を公開しているため、`trie`
+  エクストラもコンパイラ無しでインストールできます。
+
 ## 0.6.1 (2026-10-16)
 
 ### 変更

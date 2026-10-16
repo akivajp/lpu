@@ -2,6 +2,15 @@
 
 日本語版は [CHANGELOG.ja.md](CHANGELOG.ja.md) にあります。
 
+## 0.6.2 (2026-10-16)
+
+### Added
+
+- Python 3.15 support: wheels for CPython 3.15 on every platform, and 3.15
+  in the Linux and macOS test matrix and the classifiers. pycedar 0.6.3
+  publishes 3.15 wheels as well, so the `trie` extra installs without a
+  compiler.
+
 ## 0.6.1 (2026-10-16)
 
 ### Changed
